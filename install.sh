@@ -66,18 +66,6 @@ success() {
     fi
 }
 
-# Print a horizontal line of + and - characters
-print_line() {
-    width="${1:-60}"
-    line=""
-    i=0
-    while [ "$i" -lt "$width" ]; do
-        line="${line}+="
-        i=$((i + 1))
-    done
-    printf '%s\n' "$line"
-}
-
 # Print a bordered box with a title and content lines
 # Usage: print_box "Title" "line1" "line2" ...
 print_box() {
@@ -145,7 +133,6 @@ BANNER
 SPINNER_PID=""
 SPINNER_RUNNING=0
 SPINNER_CHARS="|/-\\"
-SPINNER_IDX=0
 
 spinner_start() {
     if [ "$NON_INTERACTIVE" = "1" ] || [ "${TERM:-}" = "dumb" ] || [ ! -t 2 ]; then
