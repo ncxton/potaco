@@ -157,6 +157,9 @@ spinner_start() {
         while true; do
             char=$(printf '%s' "$SPINNER_CHARS" | cut -c$((i % 4 + 1)))
             printf "\r${CYAN}[%s]${RESET} %s   " "$char" "$msg" >&2
+            # sleep 0.1 is non-POSIX (fractional), but both supported platforms
+            # (macOS/Linux) support it, and the spinner is guarded by ! -t 2
+            # so it only runs in interactive terminal mode, never in CI/pipes.
             sleep 0.1
             i=$((i + 1))
         done
@@ -297,7 +300,7 @@ verify_checksum() {
     fi
 
     # Find the matching line in the checksums file
-    expected=$(grep "$tarball_name" "$checksums" | awk '{print $1}' | head -1)
+    expected=$(grep -F "$tarball_name" "$checksums" | awk '{print $1}' | head -1)
 
     if [ -z "$expected" ]; then
         warn "Checksum for $tarball_name not found in checksums file, skipping verification."
@@ -449,7 +452,8 @@ main() {
         # Interactive: ask about sudo
         printf "Potaco can install to /usr/local/bin (requires sudo) or %s/.local/bin.\n" "$HOME"
         printf "Install to /usr/local/bin with sudo? [Y/n] "
-        read answer
+        answer=""
+        read answer || true
         case "$answer" in
             [Yy]*|'')
                 install_dir="/usr/local/bin"
