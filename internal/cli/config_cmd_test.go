@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ngct/potaco/internal/config"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestConfigCommandExists(t *testing.T) {

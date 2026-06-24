@@ -1,6 +1,6 @@
 package main
 
-import "github.com/ngct/potaco/internal/cli"
+import "github.com/ncxton/potaco/internal/cli"
 
 func main() {
 	cli.Execute()

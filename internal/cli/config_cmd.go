@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ngct/potaco/internal/config"
-	"github.com/ngct/potaco/internal/provider"
+	"github.com/ncxton/potaco/internal/config"
+	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

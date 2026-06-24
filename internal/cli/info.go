@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	img "github.com/ngct/potaco/internal/image"
+	img "github.com/ncxton/potaco/internal/image"
 	"github.com/spf13/cobra"
 )
 

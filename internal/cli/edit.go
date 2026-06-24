@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ngct/potaco/internal/config"
-	"github.com/ngct/potaco/internal/provider"
+	"github.com/ncxton/potaco/internal/config"
+	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 )
 
