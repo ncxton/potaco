@@ -27,6 +27,7 @@ func TestGenCommandHasPromptFlag(t *testing.T) {
 }
 
 func TestGenCommandPromptRequired(t *testing.T) {
+	resetRootCmdFlags(t)
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
@@ -41,6 +42,7 @@ func TestGenCommandPromptRequired(t *testing.T) {
 }
 
 func TestGenCommandDryRunNoAPI(t *testing.T) {
+	resetRootCmdFlags(t)
 	// Set up env so config merge succeeds
 	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
 	t.Setenv("POTACO_API_KEY", "sk-test")
@@ -72,6 +74,7 @@ func TestGenCommandDryRunNoAPI(t *testing.T) {
 }
 
 func TestGenCommandMissingConfigError(t *testing.T) {
+	resetRootCmdFlags(t)
 	// Clear all config sources
 	t.Setenv("POTACO_BASE_URL", "")
 	t.Setenv("POTACO_API_KEY", "")

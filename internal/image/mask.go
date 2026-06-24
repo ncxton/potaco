@@ -22,8 +22,6 @@ func RectMask(sourceWidth, sourceHeight, x, y, w, h int) (image.Image, error) {
 	}
 
 	mask := image.NewGray(image.Rect(0, 0, sourceWidth, sourceHeight))
-	// Fill with black (default zero value is 0 = black)
-	// Draw white rect
 	for row := y; row < y+h && row < sourceHeight; row++ {
 		for col := x; col < x+w && col < sourceWidth; col++ {
 			mask.SetGray(col, row, color.Gray{0xff})
@@ -41,8 +39,12 @@ func CircleMask(sourceWidth, sourceHeight, cx, cy, r int) (image.Image, error) {
 
 	mask := image.NewGray(image.Rect(0, 0, sourceWidth, sourceHeight))
 	r2 := r * r
-	for y := 0; y < sourceHeight; y++ {
-		for x := 0; x < sourceWidth; x++ {
+	yStart := max(cy-r, 0)
+	yEnd := min(cy+r, sourceHeight)
+	xStart := max(cx-r, 0)
+	xEnd := min(cx+r, sourceWidth)
+	for y := yStart; y < yEnd; y++ {
+		for x := xStart; x < xEnd; x++ {
 			dx := x - cx
 			dy := y - cy
 			if dx*dx+dy*dy <= r2 {
@@ -78,7 +80,6 @@ func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, erro
 			if r > 0 || g > 0 || b > 0 {
 				grayMask.SetGray(x, y, color.Gray{0xff})
 			}
-			// else stays black (zero value)
 		}
 	}
 

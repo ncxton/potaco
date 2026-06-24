@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math/rand"
@@ -30,9 +31,10 @@ func shouldRetry(statusCode int) bool {
 	return statusCode == 429 || statusCode >= 500
 }
 
-// doWithRetry executes the given function, retrying on 429 and 5xx
-// with exponential backoff up to maxRetries times.
-func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response, error) {
+// doWithRetry executes the given request, retrying on 429 and 5xx
+// with exponential backoff up to maxRetries times. The ctx allows
+// cancelling an in-progress retry sequence.
+func (c *Client) doWithRetry(ctx context.Context, req *http.Request, maxRetries int) (*http.Response, error) {
 	var lastResp *http.Response
 	var lastErr error
 
@@ -40,10 +42,8 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 		resp, err := c.http.Do(req)
 		if err != nil {
 			lastErr = err
-			// Network errors: retry once
-			if attempt < 1 && maxRetries > 0 {
-				c.backoffSleep(attempt)
-				// Restore the request body for the next attempt
+			if attempt < maxRetries {
+				c.backoffSleep(ctx, attempt)
 				if req.GetBody != nil {
 					body, err := req.GetBody()
 					if err == nil {
@@ -62,15 +62,12 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 		lastResp = resp
 
 		if attempt >= maxRetries {
-			// Exhausted retries, return the error response
 			break
 		}
 
-		// Drain the body before retrying
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 
-		// Reset the request body for the next attempt
 		if req.GetBody != nil {
 			body, err := req.GetBody()
 			if err == nil {
@@ -78,7 +75,7 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 			}
 		}
 
-		c.backoffSleep(attempt)
+		c.backoffSleep(ctx, attempt)
 	}
 
 	if lastResp != nil {
@@ -87,10 +84,16 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 	return nil, lastErr
 }
 
-func (c *Client) backoffSleep(attempt int) {
+func (c *Client) backoffSleep(ctx context.Context, attempt int) {
+	d := defaultBackoff(attempt)
 	if c.backoff != nil {
-		time.Sleep(c.backoff(attempt))
-	} else {
-		time.Sleep(defaultBackoff(attempt))
+		d = c.backoff(attempt)
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return
+	case <-timer.C:
 	}
 }

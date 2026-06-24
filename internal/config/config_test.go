@@ -75,3 +75,95 @@ func TestDefaultConfigPath(t *testing.T) {
 		t.Errorf("DefaultConfigPath should contain '.potaco', got %q", path)
 	}
 }
+
+func TestFromEnvNoVars(t *testing.T) {
+	clearPotacoEnv(t)
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv error: %v", err)
+	}
+	if cfg != nil {
+		t.Errorf("FromEnv = %v, want nil when no env vars set", cfg)
+	}
+}
+
+func TestFromEnvValidVars(t *testing.T) {
+	clearPotacoEnv(t)
+	t.Setenv("POTACO_BASE_URL", "https://env.example.com")
+	t.Setenv("POTACO_API_KEY", "sk-env")
+	t.Setenv("POTACO_MODEL", "env-model")
+	t.Setenv("POTACO_RETRIES", "5")
+	t.Setenv("POTACO_TIMEOUT", "30s")
+
+	cfg, err := FromEnv()
+	if err != nil {
+		t.Fatalf("FromEnv error: %v", err)
+	}
+	if cfg == nil {
+		t.Fatal("FromEnv = nil, want non-nil config")
+	}
+	if cfg.BaseURL != "https://env.example.com" {
+		t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, "https://env.example.com")
+	}
+	if cfg.APIKey != "sk-env" {
+		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "sk-env")
+	}
+	if cfg.Model != "env-model" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "env-model")
+	}
+	if cfg.Retries != 5 {
+		t.Errorf("Retries = %d, want 5", cfg.Retries)
+	}
+	if cfg.Timeout != 30*time.Second {
+		t.Errorf("Timeout = %v, want 30s", cfg.Timeout)
+	}
+}
+
+func TestFromEnvInvalidRetries(t *testing.T) {
+	clearPotacoEnv(t)
+	t.Setenv("POTACO_BASE_URL", "https://env.example.com")
+	t.Setenv("POTACO_RETRIES", "not-a-number")
+
+	cfg, err := FromEnv()
+	if err == nil {
+		t.Fatal("FromEnv should return error for invalid POTACO_RETRIES")
+	}
+	if cfg != nil {
+		t.Errorf("FromEnv = %v, want nil on parse error", cfg)
+	}
+	if !strings.Contains(err.Error(), "POTACO_RETRIES") {
+		t.Errorf("error = %q, want it to mention POTACO_RETRIES", err.Error())
+	}
+}
+
+func TestFromEnvInvalidTimeout(t *testing.T) {
+	clearPotacoEnv(t)
+	t.Setenv("POTACO_BASE_URL", "https://env.example.com")
+	t.Setenv("POTACO_TIMEOUT", "not-a-duration")
+
+	cfg, err := FromEnv()
+	if err == nil {
+		t.Fatal("FromEnv should return error for invalid POTACO_TIMEOUT")
+	}
+	if cfg != nil {
+		t.Errorf("FromEnv = %v, want nil on parse error", cfg)
+	}
+	if !strings.Contains(err.Error(), "POTACO_TIMEOUT") {
+		t.Errorf("error = %q, want it to mention POTACO_TIMEOUT", err.Error())
+	}
+}
+
+// clearPotacoEnv unsets every POTACO_ var FromEnv reads so tests start
+// from a known empty state regardless of the host environment.
+func clearPotacoEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{
+		"POTACO_BASE_URL",
+		"POTACO_API_KEY",
+		"POTACO_MODEL",
+		"POTACO_RETRIES",
+		"POTACO_TIMEOUT",
+	} {
+		t.Setenv(name, "")
+	}
+}

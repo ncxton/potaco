@@ -59,7 +59,7 @@ func (c *Client) Generate(ctx context.Context, req GenerateRequest) (*ImageRespo
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := c.doWithRetry(httpReq, c.retries)
+	resp, err := c.doWithRetry(ctx, httpReq, c.retries)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +93,6 @@ func parseResponse(resp *http.Response) (*ImageResponse, error) {
 
 // Edit calls POST /v1/images/edits with multipart form data.
 func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, error) {
-	// Validate image file exists
 	if req.ImagePath == "" {
 		return nil, fmt.Errorf("image file path is required")
 	}
@@ -106,7 +105,6 @@ func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, err
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
-	// Add image file part
 	imgPart, err := writer.CreateFormFile("image", filepath.Base(req.ImagePath))
 	if err != nil {
 		return nil, fmt.Errorf("create image part: %w", err)
@@ -115,7 +113,6 @@ func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, err
 		return nil, fmt.Errorf("copy image data: %w", err)
 	}
 
-	// Add mask file part (optional)
 	if req.MaskPath != "" {
 		maskFile, err := os.Open(req.MaskPath)
 		if err != nil {
@@ -133,27 +130,40 @@ func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, err
 		maskFile.Close()
 	}
 
-	// Add text fields
 	if req.Prompt != "" {
-		writer.WriteField("prompt", req.Prompt)
+		if err := writer.WriteField("prompt", req.Prompt); err != nil {
+			return nil, fmt.Errorf("write prompt field: %w", err)
+		}
 	}
 	if req.Model != "" {
-		writer.WriteField("model", req.Model)
+		if err := writer.WriteField("model", req.Model); err != nil {
+			return nil, fmt.Errorf("write model field: %w", err)
+		}
 	}
 	if req.N > 0 {
-		writer.WriteField("n", strconv.Itoa(req.N))
+		if err := writer.WriteField("n", strconv.Itoa(req.N)); err != nil {
+			return nil, fmt.Errorf("write n field: %w", err)
+		}
 	}
 	if req.Size != "" {
-		writer.WriteField("size", req.Size)
+		if err := writer.WriteField("size", req.Size); err != nil {
+			return nil, fmt.Errorf("write size field: %w", err)
+		}
 	}
 	if req.ResponseFormat != "" {
-		writer.WriteField("response_format", req.ResponseFormat)
+		if err := writer.WriteField("response_format", req.ResponseFormat); err != nil {
+			return nil, fmt.Errorf("write response_format field: %w", err)
+		}
 	}
 	if req.User != "" {
-		writer.WriteField("user", req.User)
+		if err := writer.WriteField("user", req.User); err != nil {
+			return nil, fmt.Errorf("write user field: %w", err)
+		}
 	}
 
-	writer.Close()
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close multipart writer: %w", err)
+	}
 
 	url := c.baseURL + "/v1/images/edits"
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, &body)
@@ -164,7 +174,7 @@ func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, err
 	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := c.doWithRetry(httpReq, c.retries)
+	resp, err := c.doWithRetry(ctx, httpReq, c.retries)
 	if err != nil {
 		return nil, err
 	}

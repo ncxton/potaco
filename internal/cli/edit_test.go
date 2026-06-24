@@ -50,6 +50,7 @@ func TestEditCommandHasExtendFlag(t *testing.T) {
 }
 
 func TestEditDryRunBasic(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
@@ -77,6 +78,7 @@ func TestEditDryRunBasic(t *testing.T) {
 }
 
 func TestEditDryRunOutpaint(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
@@ -104,6 +106,7 @@ func TestEditDryRunOutpaint(t *testing.T) {
 }
 
 func TestEditDryRunInpaintRect(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
@@ -131,6 +134,7 @@ func TestEditDryRunInpaintRect(t *testing.T) {
 }
 
 func TestEditMissingImageFile(t *testing.T) {
+	resetRootCmdFlags(t)
 	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
 	t.Setenv("POTACO_API_KEY", "sk-test")
 
@@ -146,6 +150,7 @@ func TestEditMissingImageFile(t *testing.T) {
 }
 
 func TestEditMissingConfigError(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)

@@ -10,8 +10,6 @@ type Config struct {
 	Model    string
 	Retries  int
 	Timeout  time.Duration
-	Size     string
-	Quality  string
 	Provider string // preset name if specified
 }
 

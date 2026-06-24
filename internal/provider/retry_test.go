@@ -126,3 +126,34 @@ func TestNoRetryOn400(t *testing.T) {
 		t.Errorf("callCount = %d, want 1 (no retry on 400)", callCount.Load())
 	}
 }
+
+func TestContextCancellationDuringBackoff(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		fmt.Fprint(w, `{"error":{"type":"rate_limit","message":"Rate limited"}}`)
+	}))
+	defer server.Close()
+
+	cfg := ClientConfig{BaseURL: server.URL, APIKey: "sk-test", Retries: 3, Timeout: 30 * time.Second}
+	client := NewClient(cfg)
+	client.backoff = func(attempt int) time.Duration {
+		return 10 * time.Second
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+
+	start := time.Now()
+	_, err := client.Generate(ctx, GenerateRequest{Prompt: "test"})
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("Generate should error when context is cancelled")
+	}
+	if elapsed > 5*time.Second {
+		t.Errorf("elapsed = %v, want < 5s (backoff should be cancelled)", elapsed)
+	}
+}

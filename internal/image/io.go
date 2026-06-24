@@ -61,11 +61,11 @@ func AutoFilename() string {
 // FormatFromBytes detects the image format from the first few bytes.
 // Returns "png", "jpeg", or "" if unknown.
 func FormatFromBytes(data []byte) string {
-	if len(data) < 3 {
+	if len(data) < 4 {
 		return ""
 	}
 	// PNG: 89 50 4E 47
-	if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && (len(data) > 3 && data[3] == 0x47) {
+	if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 {
 		return "png"
 	}
 	// JPEG: FF D8 FF

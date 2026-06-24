@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -56,8 +58,10 @@ func Load(path string) (*Config, error) {
 }
 
 // FromEnv builds a Config from environment variables.
-// Returns nil if no env vars are set.
-func FromEnv() *Config {
+// Returns (nil, nil) if no env vars are set. Returns (nil, error) if a
+// var is set but cannot be parsed, so the user learns the typo instead
+// of silently falling back to defaults.
+func FromEnv() (*Config, error) {
 	cfg := &Config{}
 	set := false
 
@@ -74,20 +78,24 @@ func FromEnv() *Config {
 		set = true
 	}
 	if v := os.Getenv("POTACO_RETRIES"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Retries = n
-			set = true
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("parse POTACO_RETRIES: %w", err)
 		}
+		cfg.Retries = n
+		set = true
 	}
 	if v := os.Getenv("POTACO_TIMEOUT"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			cfg.Timeout = d
-			set = true
+		d, err := time.ParseDuration(v)
+		if err != nil {
+			return nil, fmt.Errorf("parse POTACO_TIMEOUT: %w", err)
 		}
+		cfg.Timeout = d
+		set = true
 	}
 
 	if !set {
-		return nil
+		return nil, nil
 	}
 	if cfg.Retries == 0 {
 		cfg.Retries = 2
@@ -95,7 +103,7 @@ func FromEnv() *Config {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 120 * time.Second
 	}
-	return cfg
+	return cfg, nil
 }
 
 // Merge resolves the final configuration by applying precedence:
@@ -104,15 +112,25 @@ func FromEnv() *Config {
 // 3. Config file (fileCfg, if non-nil)
 // 4. Built-in defaults
 func Merge(opts MergeOptions) (*Config, error) {
-	return mergeInternal(opts, loadFileConfig())
+	fileCfg, err := loadFileConfig()
+	if err != nil {
+		return nil, err
+	}
+	return mergeInternal(opts, fileCfg)
 }
 
-func loadFileConfig() *Config {
+// loadFileConfig reads the default config file. A missing file is not an
+// error (return nil); a corrupted or unreadable file is, so the user
+// learns their config is broken instead of silently falling back.
+func loadFileConfig() (*Config, error) {
 	cfg, err := Load(DefaultConfigPath())
 	if err != nil {
-		return nil
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
 	}
-	return cfg
+	return cfg, nil
 }
 
 // mergeInternal is the testable core of Merge that accepts explicit inputs.
@@ -132,7 +150,10 @@ func mergeInternal(opts MergeOptions, fileCfg *Config) (*Config, error) {
 	}
 
 	// Layer 2: env vars (override file)
-	envCfg := FromEnv()
+	envCfg, err := FromEnv()
+	if err != nil {
+		return nil, err
+	}
 	if envCfg != nil {
 		if envCfg.BaseURL != "" {
 			cfg.BaseURL = envCfg.BaseURL

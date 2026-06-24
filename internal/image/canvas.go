@@ -1,9 +1,9 @@
 package image
 
 import (
+	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -78,14 +78,17 @@ func ExpandCanvas(src image.Image, cfg ExtendConfig) image.Image {
 	newH := bounds.Dy() + cfg.Top + cfg.Bottom
 
 	canvas := image.NewRGBA(image.Rect(0, 0, newW, newH))
-	// Fill with neutral gray
+	row := make([]byte, newW*4)
+	for i := 0; i < newW; i++ {
+		row[i*4+0] = 128
+		row[i*4+1] = 128
+		row[i*4+2] = 128
+		row[i*4+3] = 255
+	}
 	for y := 0; y < newH; y++ {
-		for x := 0; x < newW; x++ {
-			canvas.Set(x, y, color.RGBA{R: 128, G: 128, B: 128, A: 255})
-		}
+		copy(canvas.Pix[y*canvas.Stride:y*canvas.Stride+newW*4], row)
 	}
 
-	// Paste source at offset (left, top)
 	draw.Draw(canvas, image.Rect(cfg.Left, cfg.Top, cfg.Left+bounds.Dx(), cfg.Top+bounds.Dy()), src, bounds.Min, draw.Src)
 
 	return canvas
@@ -99,39 +102,29 @@ func ExpandMask(src image.Image, cfg ExtendConfig) image.Image {
 	newH := bounds.Dy() + cfg.Top + cfg.Bottom
 
 	mask := image.NewGray(image.Rect(0, 0, newW, newH))
-	// Default is all black (zero value)
 
-	// Mark new areas as white
-	// Top strip
+	whiteRow := bytes.Repeat([]byte{0xff}, newW)
+
 	if cfg.Top > 0 {
 		for y := 0; y < cfg.Top; y++ {
-			for x := 0; x < newW; x++ {
-				mask.SetGray(x, y, color.Gray{0xff})
-			}
+			copy(mask.Pix[y*mask.Stride:y*mask.Stride+newW], whiteRow)
 		}
 	}
-	// Bottom strip
 	if cfg.Bottom > 0 {
 		for y := cfg.Top + bounds.Dy(); y < newH; y++ {
-			for x := 0; x < newW; x++ {
-				mask.SetGray(x, y, color.Gray{0xff})
-			}
+			copy(mask.Pix[y*mask.Stride:y*mask.Stride+newW], whiteRow)
 		}
 	}
-	// Left strip
 	if cfg.Left > 0 {
+		leftRow := bytes.Repeat([]byte{0xff}, cfg.Left)
 		for y := cfg.Top; y < cfg.Top+bounds.Dy(); y++ {
-			for x := 0; x < cfg.Left; x++ {
-				mask.SetGray(x, y, color.Gray{0xff})
-			}
+			copy(mask.Pix[y*mask.Stride:y*mask.Stride+cfg.Left], leftRow)
 		}
 	}
-	// Right strip
 	if cfg.Right > 0 {
+		rightRow := bytes.Repeat([]byte{0xff}, cfg.Right)
 		for y := cfg.Top; y < cfg.Top+bounds.Dy(); y++ {
-			for x := cfg.Left + bounds.Dx(); x < newW; x++ {
-				mask.SetGray(x, y, color.Gray{0xff})
-			}
+			copy(mask.Pix[y*mask.Stride+cfg.Left+bounds.Dx():y*mask.Stride+newW], rightRow)
 		}
 	}
 
@@ -150,7 +143,6 @@ func PrepareOutpaint(srcPath string, cfg ExtendConfig) (string, string, error) {
 	expanded := ExpandCanvas(src, cfg)
 	mask := ExpandMask(src, cfg)
 
-	// Write to temp files
 	dir, err := os.MkdirTemp("", "potaco-outpaint-*")
 	if err != nil {
 		return "", "", fmt.Errorf("create temp dir: %w", err)

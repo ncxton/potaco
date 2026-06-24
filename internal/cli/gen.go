@@ -96,13 +96,18 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return apiError(fmt.Errorf("generate: %w", err))
 	}
 
-	if err := processAndOutput(cmd, resp, model, map[string]any{
-		"size":            req.Size,
-		"quality":         req.Quality,
-		"n":               req.N,
-		"style":           req.Style,
-		"response_format": req.ResponseFormat,
-	}, latency); err != nil {
+	if err := processAndOutput(cmd, outputContext{
+		resp:  resp,
+		model: model,
+		params: map[string]any{
+			"size":            req.Size,
+			"quality":         req.Quality,
+			"n":               req.N,
+			"style":           req.Style,
+			"response_format": req.ResponseFormat,
+		},
+		latency: latency,
+	}); err != nil {
 		return imageError(err)
 	}
 	return nil

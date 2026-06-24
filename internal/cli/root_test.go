@@ -6,7 +6,22 @@ import (
 	"testing"
 )
 
+// resetRootCmdFlags restores persistent flags on the shared global rootCmd to
+// their default values. Tests that dispatch rootCmd.SetArgs must call this
+// first so that flags left set by earlier tests (e.g. --json) do not leak in
+// when -shuffle=on reorders test execution.
+func resetRootCmdFlags(t *testing.T) {
+	t.Helper()
+	if err := rootCmd.PersistentFlags().Set("json", "false"); err != nil {
+		t.Fatalf("reset json flag: %v", err)
+	}
+	if err := rootCmd.PersistentFlags().Set("verbose", "false"); err != nil {
+		t.Fatalf("reset verbose flag: %v", err)
+	}
+}
+
 func TestRootCommandPrintsHelp(t *testing.T) {
+	resetRootCmdFlags(t)
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)

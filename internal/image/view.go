@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -54,16 +55,16 @@ func DisplayInTerminal(img image.Image, path string) string {
 // itermDisplay encodes an inline image using the iTerm2 escape sequence.
 func itermDisplay(img image.Image, path string) string {
 	var buf bytes.Buffer
-	png.Encode(&buf, img)
+	_ = png.Encode(&buf, img)
 	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
-	name := base64.StdEncoding.EncodeToString([]byte(filepathBase(path)))
+	name := base64.StdEncoding.EncodeToString([]byte(filepath.Base(path)))
 	return fmt.Sprintf("\x1B]1337;File=inline=1;name=%s:%s\x07", name, b64)
 }
 
 // kittyDisplay encodes an inline image using the Kitty graphics protocol.
 func kittyDisplay(img image.Image, path string) string {
 	var buf bytes.Buffer
-	png.Encode(&buf, img)
+	_ = png.Encode(&buf, img)
 	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 	// Kitty sends chunks; for simplicity we send it all at once
 	// Escape sequence: ESC ] 9 9 8 ; ... ST
@@ -74,13 +75,4 @@ func kittyDisplay(img image.Image, path string) string {
 // message if sixel encoding is not yet implemented.
 func sixelDisplay(img image.Image, path string) string {
 	return fmt.Sprintf("Saved to: %s (sixel preview not yet implemented)", path)
-}
-
-func filepathBase(path string) string {
-	// Simple basename without importing path/filepath
-	idx := strings.LastIndex(path, "/")
-	if idx >= 0 && idx < len(path)-1 {
-		return path[idx+1:]
-	}
-	return path
 }

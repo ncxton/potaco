@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/ngct/potaco/internal/config"
 	"github.com/ngct/potaco/internal/provider"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var configCmd = &cobra.Command{
@@ -51,14 +51,6 @@ func init() {
 func runConfigSet(cmd *cobra.Command, args []string) error {
 	path := config.DefaultConfigPath()
 
-	// Load existing config or start fresh
-	var content string
-	if data, err := os.ReadFile(path); err == nil {
-		content = string(data)
-	}
-	_ = content
-
-	// Build new config YAML
 	baseURL, _ := cmd.Flags().GetString("base-url")
 	apiKey, _ := cmd.Flags().GetString("api-key")
 	model, _ := cmd.Flags().GetString("model")
@@ -66,7 +58,6 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	timeoutStr, _ := cmd.Flags().GetString("timeout")
 	providerName, _ := cmd.Flags().GetString("provider")
 
-	// Apply preset if specified
 	if providerName != "" {
 		preset, ok := provider.GetPreset(providerName)
 		if !ok {
@@ -80,33 +71,24 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Build YAML content
-	lines := []string{"default:"}
-	if baseURL != "" {
-		lines = append(lines, fmt.Sprintf("  base_url: %q", baseURL))
-	}
-	if apiKey != "" {
-		lines = append(lines, fmt.Sprintf("  api_key: %q", apiKey))
-	}
-	if model != "" {
-		lines = append(lines, fmt.Sprintf("  model: %q", model))
-	}
-	if retries > 0 {
-		lines = append(lines, fmt.Sprintf("  retries: %d", retries))
-	}
-	if timeoutStr != "" {
-		lines = append(lines, fmt.Sprintf("  timeout: %q", timeoutStr))
+	fc := config.FileConfig{}
+	fc.Default.BaseURL = baseURL
+	fc.Default.APIKey = apiKey
+	fc.Default.Model = model
+	fc.Default.Retries = retries
+	fc.Default.Timeout = timeoutStr
+
+	data, err := yaml.Marshal(&fc)
+	if err != nil {
+		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	newContent := strings.Join(lines, "\n") + "\n"
-
-	// Ensure directory exists
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("create config directory: %w", err)
 	}
 
-	if err := os.WriteFile(path, []byte(newContent), 0600); err != nil {
+	if err := os.WriteFile(path, data, 0600); err != nil {
 		return fmt.Errorf("write config: %w", err)
 	}
 

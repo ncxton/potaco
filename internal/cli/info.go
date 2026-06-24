@@ -23,13 +23,11 @@ func init() {
 func runInfo(cmd *cobra.Command, args []string) error {
 	path := args[0]
 
-	// Check file exists
 	stat, err := os.Stat(path)
 	if err != nil {
 		return imageError(fmt.Errorf("file: %w", err))
 	}
 
-	// Read image
 	image, format, err := img.ReadImage(path)
 	if err != nil {
 		return imageError(fmt.Errorf("read image: %w", err))

@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// buildMergeOptions creates MergeOptions from CLI flags.
 func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
 	opts := config.MergeOptions{}
 
@@ -63,31 +62,26 @@ func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
 	return opts
 }
 
-// flagString reads a string flag, returning the flag value.
 func flagString(cmd *cobra.Command, name string) string {
 	v, _ := cmd.Flags().GetString(name)
 	return v
 }
 
-// flagInt reads an int flag, returning the flag value.
 func flagInt(cmd *cobra.Command, name string) int {
 	v, _ := cmd.Flags().GetInt(name)
 	return v
 }
 
-// flagFloat64 reads a float64 flag, returning the flag value.
 func flagFloat64(cmd *cobra.Command, name string) float64 {
 	v, _ := cmd.Flags().GetFloat64(name)
 	return v
 }
 
-// flagBool reads a bool flag, returning the flag value.
 func flagBool(cmd *cobra.Command, name string) bool {
 	v, _ := cmd.Flags().GetBool(name)
 	return v
 }
 
-// printDryRun prints the request payload as JSON to stdout without making an API call.
 func printDryRun(cmd *cobra.Command, method, url, contentType string, body any) error {
 	bodyJSON, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
@@ -113,19 +107,25 @@ func printDryRun(cmd *cobra.Command, method, url, contentType string, body any) 
 	return nil
 }
 
-// processAndOutput decodes the API response images, saves them, and prints output.
-func processAndOutput(cmd *cobra.Command, resp *provider.ImageResponse, model string, params map[string]any, latency int64) error {
+type outputContext struct {
+	resp    *provider.ImageResponse
+	model   string
+	params  map[string]any
+	latency int64
+}
+
+func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	stdoutMode := flagBool(cmd, "stdout")
 	viewMode := flagBool(cmd, "view")
 	outputPath := flagString(cmd, "output")
 	outputFormat := flagString(cmd, "output-format")
 
-	paths := make([]string, len(resp.Data))
-	widths := make([]int, len(resp.Data))
-	heights := make([]int, len(resp.Data))
+	paths := make([]string, len(octx.resp.Data))
+	widths := make([]int, len(octx.resp.Data))
+	heights := make([]int, len(octx.resp.Data))
 
-	for i, imgData := range resp.Data {
+	for i, imgData := range octx.resp.Data {
 		if imgData.B64JSON != "" {
 			decoded, err := img.DecodeBase64Image(imgData.B64JSON)
 			if err != nil {
@@ -138,20 +138,25 @@ func processAndOutput(cmd *cobra.Command, resp *provider.ImageResponse, model st
 			path := outputPath
 			if path == "" {
 				path = img.AutoFilename()
-			} else if len(resp.Data) > 1 {
+			} else if len(octx.resp.Data) > 1 {
 				path = fmt.Sprintf("%s-%d%s", trimExt(outputPath), i, extOf(outputPath))
 			}
 
 			if stdoutMode && !viewMode {
-				// Write raw bytes to stdout
 				var buf bytes.Buffer
 				switch outputFormat {
 				case "jpeg", "jpg":
-					jpeg.Encode(&buf, decoded, &jpeg.Options{Quality: 90})
+					if err := jpeg.Encode(&buf, decoded, &jpeg.Options{Quality: 90}); err != nil {
+						return fmt.Errorf("encode image %d: %w", i, err)
+					}
 				default:
-					png.Encode(&buf, decoded)
+					if err := png.Encode(&buf, decoded); err != nil {
+						return fmt.Errorf("encode image %d: %w", i, err)
+					}
 				}
-				os.Stdout.Write(buf.Bytes())
+				if _, err := os.Stdout.Write(buf.Bytes()); err != nil {
+					return fmt.Errorf("write image %d to stdout: %w", i, err)
+				}
 			}
 
 			if err := img.WriteImage(decoded, path, outputFormat); err != nil {
@@ -173,9 +178,9 @@ func processAndOutput(cmd *cobra.Command, resp *provider.ImageResponse, model st
 		Format:    outputFormat,
 		Widths:    widths,
 		Heights:   heights,
-		Model:     model,
-		Params:    params,
-		LatencyMs: latency,
+		Model:     octx.model,
+		Params:    octx.params,
+		LatencyMs: octx.latency,
 	}
 
 	outOpts := OutputOptions{
@@ -199,7 +204,6 @@ func processAndOutput(cmd *cobra.Command, resp *provider.ImageResponse, model st
 	return nil
 }
 
-// trimExt removes the file extension from a path.
 func trimExt(path string) string {
 	idx := strings.LastIndex(path, ".")
 	if idx > 0 {
@@ -208,7 +212,6 @@ func trimExt(path string) string {
 	return path
 }
 
-// extOf returns the file extension of a path, including the dot.
 func extOf(path string) string {
 	idx := strings.LastIndex(path, ".")
 	if idx >= 0 {

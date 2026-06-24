@@ -26,6 +26,7 @@ func TestInfoCommandExists(t *testing.T) {
 }
 
 func TestInfoCommandOutput(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "test.png")
 	createInfoTestPNG(t, imgPath, 100, 200)
@@ -53,6 +54,7 @@ func TestInfoCommandOutput(t *testing.T) {
 }
 
 func TestInfoCommandJSONOutput(t *testing.T) {
+	resetRootCmdFlags(t)
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "test.png")
 	createInfoTestPNG(t, imgPath, 64, 32)
@@ -87,6 +89,7 @@ func TestInfoCommandJSONOutput(t *testing.T) {
 }
 
 func TestInfoCommandMissingFile(t *testing.T) {
+	resetRootCmdFlags(t)
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)

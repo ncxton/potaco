@@ -7,7 +7,7 @@ Potaco is a Go CLI for image generation and editing via OpenAI-compatible provid
 ```
 main.go              Entry point, calls cli.Execute()
 internal/
-  cli/               Cobra commands (root, gen, edit, config, info), helpers, output, errors
+  cli/               Cobra commands (root, gen, edit, edit_mask, config, info), helpers, output, errors
   config/            Config file loading, env var parsing, merge precedence logic
   provider/          HTTP client for /v1/images/generations and /v1/images/edits, retries, presets
   image/             Image I/O, mask generation, outpaint canvas, terminal display
