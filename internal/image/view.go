@@ -56,7 +56,7 @@ func itermDisplay(img image.Image, path string) string {
 	var buf bytes.Buffer
 	png.Encode(&buf, img)
 	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
-	name := filepathBase(path)
+	name := base64.StdEncoding.EncodeToString([]byte(filepathBase(path)))
 	return fmt.Sprintf("\x1B]1337;File=inline=1;name=%s:%s\x07", name, b64)
 }
 
@@ -67,7 +67,7 @@ func kittyDisplay(img image.Image, path string) string {
 	b64 := base64.StdEncoding.EncodeToString(buf.Bytes())
 	// Kitty sends chunks; for simplicity we send it all at once
 	// Escape sequence: ESC ] 9 9 8 ; ... ST
-	return fmt.Sprintf("\x1B_Ga=T,f=32,s=0,v=0,c=0,q=0;%s\x1B\\", b64)
+	return fmt.Sprintf("\x1B_Ga=T,f=100,s=0,v=0,c=0,q=0;%s\x1B\\", b64)
 }
 
 // sixelDisplay is a stub for sixel support. For v0, we fall back to the
