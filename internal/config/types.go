@@ -32,3 +32,14 @@ type FileConfig struct {
 		Timeout string `yaml:"timeout"`
 	} `yaml:"default"`
 }
+
+// MergeOptions holds optional CLI flag values for the merge.
+// Only non-nil fields override lower-precedence sources.
+type MergeOptions struct {
+	BaseURL  *string
+	APIKey   *string
+	Model    *string
+	Retries  *int
+	Timeout  *time.Duration
+	Provider *string
+}
