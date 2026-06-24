@@ -1,0 +1,66 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: potaco
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: potaco
+    main: .
+    binary: potaco
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}apple-darwin
+      {{- else }}{{ .Os }}
+      {{- end }}_{{ .Arch }}
+    files:
+      - install.sh
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: '{{ .ProjectName }}_{{ .Version }}_checksums.txt'
+  algorithm: sha256
+
+changelog:
+  use: git
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^feat:'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix:'
+      order: 1
+    - title: CLI
+      regexp: '^cli:'
+      order: 2
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+
+release:
+  github:
+    owner: ncxton
+    name: potaco
+  draft: false
+  prerelease: auto
+  name_template: '{{ .Tag }}'
