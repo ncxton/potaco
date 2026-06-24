@@ -28,6 +28,7 @@ type Client struct {
 	apiKey  string
 	retries int
 	http    *http.Client
+	backoff func(attempt int) time.Duration // override for testing
 }
 
 // NewClient creates a provider Client from the given config.
@@ -58,9 +59,9 @@ func (c *Client) Generate(ctx context.Context, req GenerateRequest) (*ImageRespo
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := c.http.Do(httpReq)
+	resp, err := c.doWithRetry(httpReq, c.retries)
 	if err != nil {
-		return nil, fmt.Errorf("http request: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -163,9 +164,9 @@ func (c *Client) Edit(ctx context.Context, req EditRequest) (*ImageResponse, err
 	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
 	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
 
-	resp, err := c.http.Do(httpReq)
+	resp, err := c.doWithRetry(httpReq, c.retries)
 	if err != nil {
-		return nil, fmt.Errorf("http request: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
