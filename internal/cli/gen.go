@@ -56,7 +56,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 	opts := buildMergeOptions(cmd)
 	cfg, err := config.Merge(opts)
 	if err != nil {
-		return fmt.Errorf("config: %w", err)
+		return configError(fmt.Errorf("config: %w", err))
 	}
 
 	model := cfg.Model
@@ -93,14 +93,17 @@ func runGen(cmd *cobra.Command, args []string) error {
 	resp, err := client.Generate(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return fmt.Errorf("generate: %w", err)
+		return apiError(fmt.Errorf("generate: %w", err))
 	}
 
-	return processAndOutput(cmd, resp, model, map[string]any{
+	if err := processAndOutput(cmd, resp, model, map[string]any{
 		"size":            req.Size,
 		"quality":         req.Quality,
 		"n":               req.N,
 		"style":           req.Style,
 		"response_format": req.ResponseFormat,
-	}, latency)
+	}, latency); err != nil {
+		return imageError(err)
+	}
+	return nil
 }

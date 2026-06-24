@@ -44,6 +44,22 @@ func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
 		opts.Provider = &v
 	}
 
+	// Apply provider preset defaults for BaseURL and Model when not
+	// already set by higher-precedence CLI flags (--base-url, --model).
+	// This keeps provider knowledge in the CLI layer rather than the
+	// config package.
+	if opts.Provider != nil {
+		preset, ok := provider.GetPreset(*opts.Provider)
+		if ok {
+			if opts.BaseURL == nil {
+				opts.BaseURL = &preset.BaseURL
+			}
+			if opts.Model == nil {
+				opts.Model = &preset.DefaultModel
+			}
+		}
+	}
+
 	return opts
 }
 

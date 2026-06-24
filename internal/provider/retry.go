@@ -43,7 +43,13 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 			// Network errors: retry once
 			if attempt < 1 && maxRetries > 0 {
 				c.backoffSleep(attempt)
-				// Recreate the request body reader if needed
+				// Restore the request body for the next attempt
+				if req.GetBody != nil {
+					body, err := req.GetBody()
+					if err == nil {
+						req.Body = body
+					}
+				}
 				continue
 			}
 			return nil, fmt.Errorf("http request: %w", err)
@@ -63,6 +69,14 @@ func (c *Client) doWithRetry(req *http.Request, maxRetries int) (*http.Response,
 		// Drain the body before retrying
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
+
+		// Reset the request body for the next attempt
+		if req.GetBody != nil {
+			body, err := req.GetBody()
+			if err == nil {
+				req.Body = body
+			}
+		}
 
 		c.backoffSleep(attempt)
 	}

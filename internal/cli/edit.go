@@ -79,7 +79,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	opts := buildMergeOptions(cmd)
 	cfg, err := config.Merge(opts)
 	if err != nil {
-		return fmt.Errorf("config: %w", err)
+		return configError(fmt.Errorf("config: %w", err))
 	}
 
 	model := cfg.Model
@@ -215,16 +215,19 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	resp, err := client.Edit(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return fmt.Errorf("edit: %w", err)
+		return apiError(fmt.Errorf("edit: %w", err))
 	}
 
-	return processAndOutput(cmd, resp, model, map[string]any{
+	if err := processAndOutput(cmd, resp, model, map[string]any{
 		"mode":            "edit",
 		"image":           imagePath,
 		"size":            req.Size,
 		"n":               req.N,
 		"response_format": req.ResponseFormat,
-	}, latency)
+	}, latency); err != nil {
+		return imageError(err)
+	}
+	return nil
 }
 
 // parseRectMask parses "x,y,w,h" into four ints.
