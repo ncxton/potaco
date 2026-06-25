@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +22,9 @@ func init() {
 
 func runUse(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
+		if tui.IsInteractive() {
+			return tui.RunUsePicker()
+		}
 		return configError(fmt.Errorf("specify a provider: potaco use <provider>"))
 	}
 
