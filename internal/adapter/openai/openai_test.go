@@ -288,3 +288,156 @@ func TestOpenAIEditMissingImageFile(t *testing.T) {
 		t.Errorf("error should mention image file, got: %v", err)
 	}
 }
+
+func TestOpenAIDiscoverModelsSuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" && r.URL.Path != "/models" {
+			t.Errorf("path = %q, want /v1/models", r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{"id": "gpt-image-2", "object": "model", "owned_by": "openai"},
+				{"id": "gpt-image-1", "object": "model", "owned_by": "openai"},
+				{"id": "dall-e-3", "object": "model", "owned_by": "openai"},
+				{"id": "text-davinci-003", "object": "model", "owned_by": "openai"},
+			},
+		})
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	models, err := a.DiscoverModels(context.Background())
+	if err != nil {
+		t.Fatalf("DiscoverModels error: %v", err)
+	}
+
+	// Should only return image models, not text models
+	ids := make(map[string]bool)
+	for _, m := range models {
+		ids[m.ID] = true
+	}
+	if !ids["gpt-image-2"] {
+		t.Error("should include gpt-image-2")
+	}
+	if !ids["dall-e-3"] {
+		t.Error("should include dall-e-3")
+	}
+	if ids["text-davinci-003"] {
+		t.Error("should not include text model")
+	}
+
+	// Check SupportsEdit is set for gpt-image-2 and dall-e-3
+	for _, m := range models {
+		if m.ID == "gpt-image-2" && !m.SupportsEdit {
+			t.Error("gpt-image-2 should have SupportsEdit=true")
+		}
+		if m.ID == "dall-e-3" && m.SupportsEdit {
+			t.Error("dall-e-3 should have SupportsEdit=false")
+		}
+	}
+}
+
+func TestOpenAIDiscoverModelsFallback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	models, err := a.DiscoverModels(context.Background())
+	if err != nil {
+		t.Fatalf("DiscoverModels should fall back to hardcoded, got error: %v", err)
+	}
+	if len(models) == 0 {
+		t.Fatal("should return fallback models")
+	}
+
+	// Should include hardcoded defaults
+	ids := make(map[string]bool)
+	for _, m := range models {
+		ids[m.ID] = true
+	}
+	if !ids["gpt-image-2"] {
+		t.Error("fallback should include gpt-image-2")
+	}
+}
+
+func TestOpenAIVerifySuccess(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{"data": []any{}})
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	if err := a.Verify(context.Background()); err != nil {
+		t.Fatalf("Verify should succeed on 200, got: %v", err)
+	}
+}
+
+func TestOpenAIVerifyInvalidKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	err := a.Verify(context.Background())
+	if err == nil {
+		t.Fatal("Verify should fail on 401")
+	}
+	if !strings.Contains(err.Error(), "invalid") && !strings.Contains(err.Error(), "401") {
+		t.Errorf("error should mention invalid key or 401, got: %v", err)
+	}
+}
+
+func TestOpenAIModelParamsGPTImage2(t *testing.T) {
+	a := New("sk-test", adapter.AdapterOpts{})
+
+	params, err := a.ModelParams(context.Background(), "gpt-image-2")
+	if err != nil {
+		t.Fatalf("ModelParams error: %v", err)
+	}
+
+	names := make(map[string]bool)
+	for _, p := range params {
+		names[p.Name] = true
+	}
+	if !names["size"] {
+		t.Error("should include size param")
+	}
+	if !names["quality"] {
+		t.Error("should include quality param")
+	}
+	if !names["n"] {
+		t.Error("should include n param")
+	}
+	// dall-e-3 only params should not be present
+	if names["style"] {
+		t.Error("gpt-image-2 should not have style param")
+	}
+}
+
+func TestOpenAIModelParamsDalE3(t *testing.T) {
+	a := New("sk-test", adapter.AdapterOpts{})
+
+	params, err := a.ModelParams(context.Background(), "dall-e-3")
+	if err != nil {
+		t.Fatalf("ModelParams error: %v", err)
+	}
+
+	names := make(map[string]bool)
+	for _, p := range params {
+		names[p.Name] = true
+	}
+	if !names["style"] {
+		t.Error("dall-e-3 should have style param")
+	}
+	if !names["quality"] {
+		t.Error("dall-e-3 should have quality param")
+	}
+}
