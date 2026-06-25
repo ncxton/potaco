@@ -39,5 +39,23 @@ jobs:
             exit 1
           fi
 
+      - name: Check installer syntax
+        run: sh -n install.sh
+
+      - name: Check release asset contract
+        run: |
+          grep -F "extra_files:" .goreleaser.yaml
+          grep -F "glob: ./install.sh" .goreleaser.yaml
+          grep -F "asset_version=" install.sh
+          grep -F 'potaco_${asset_version}_${os}_${arch}.tar.gz' install.sh
+          if grep -F 'potaco_${os}_${arch}.tar.gz' install.sh; then
+            echo "::error::installer still references unversioned release archives"
+            exit 1
+          fi
+          if grep -F "skipping verification" install.sh; then
+            echo "::error::installer checksum verification must fail closed"
+            exit 1
+          fi
+
       - name: Test
         run: go test ./... -v

@@ -273,8 +273,8 @@ verify_checksum() {
     tarball_name="$3"
 
     if [ ! -f "$checksums" ]; then
-        warn "Checksums file not found, skipping verification."
-        return 0
+        error "Checksums file not found; refusing to install without verification."
+        return 1
     fi
 
     if command -v sha256sum >/dev/null 2>&1; then
@@ -282,16 +282,16 @@ verify_checksum() {
     elif command -v shasum >/dev/null 2>&1; then
         actual=$(shasum -a 256 "$tarball" | awk '{print $1}')
     else
-        warn "Neither sha256sum nor shasum is available, skipping verification."
-        return 0
+        error "Neither sha256sum nor shasum is available; refusing to install without verification."
+        return 1
     fi
 
     # Find the matching line in the checksums file
     expected=$(grep -F "$tarball_name" "$checksums" | awk '{print $1}' | head -1)
 
     if [ -z "$expected" ]; then
-        warn "Checksum for $tarball_name not found in checksums file, skipping verification."
-        return 0
+        error "Checksum for $tarball_name not found; refusing to install."
+        return 1
     fi
 
     if [ "$actual" != "$expected" ]; then
@@ -333,23 +333,23 @@ main() {
 
     # Detect version
     version=$(detect_version)
+    asset_version=""
+    if [ -n "$version" ]; then
+        asset_version=$(printf '%s' "$version" | sed 's/^v//')
+    fi
 
     # Determine download URLs
-    if [ -n "$version" ]; then
-        # Version known from API
-        tarball_name="potaco_${version}_${os}_${arch}.tar.gz"
-        tarball_url="${GITHUB_BASE}/releases/download/${version}/${tarball_name}"
-        checksums_name="potaco_${version}_checksums.txt"
-        checksums_url="${GITHUB_BASE}/releases/download/${version}/${checksums_name}"
-        version_display="$version"
-    else
-        # Fallback: use latest redirect
-        tarball_name="potaco_${os}_${arch}.tar.gz"
-        tarball_url="${GITHUB_BASE}/releases/latest/download/${tarball_name}"
-        checksums_name="potaco_checksums.txt"
-        checksums_url="${GITHUB_BASE}/releases/latest/download/${checksums_name}"
-        version_display="latest"
+    if [ -z "$version" ]; then
+        error "Could not determine the latest potaco release version from GitHub."
+        error "Check your network connection or download a release archive manually:"
+        error "${GITHUB_BASE}/releases/latest"
+        exit 1
     fi
+    tarball_name="potaco_${asset_version}_${os}_${arch}.tar.gz"
+    tarball_url="${GITHUB_BASE}/releases/download/${version}/${tarball_name}"
+    checksums_name="potaco_${asset_version}_checksums.txt"
+    checksums_url="${GITHUB_BASE}/releases/download/${version}/${checksums_name}"
+    version_display="$version"
 
     # Show version info
     if [ "$NON_INTERACTIVE" = "1" ]; then
@@ -389,7 +389,11 @@ main() {
         spinner_start "Downloading checksums..."
     fi
 
-    download_file "$checksums_url" "$checksums_path" 2>/dev/null || true
+    if ! download_file "$checksums_url" "$checksums_path"; then
+        spinner_stop
+        error "Could not download checksums. Aborting installation."
+        exit 1
+    fi
     spinner_stop
 
     # Verify checksum
