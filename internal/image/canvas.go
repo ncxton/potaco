@@ -20,8 +20,14 @@ type ExtendConfig struct {
 	Right  int
 }
 
+// IsZero reports whether the config adds no pixels on any side.
+func (cfg ExtendConfig) IsZero() bool {
+	return cfg.Top == 0 && cfg.Bottom == 0 && cfg.Left == 0 && cfg.Right == 0
+}
+
 // ParseExtend parses a string like "top=256,bottom=128" or "all=100"
-// into an ExtendConfig. Returns an error on invalid format.
+// into an ExtendConfig. Returns an error on invalid format, negative
+// values, or a config that adds no pixels on any side.
 func ParseExtend(s string) (ExtendConfig, error) {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -46,6 +52,9 @@ func ParseExtend(s string) (ExtendConfig, error) {
 		if err != nil {
 			return ExtendConfig{}, fmt.Errorf("invalid extend value %q: %w", val, err)
 		}
+		if n < 0 {
+			return ExtendConfig{}, fmt.Errorf("extend value cannot be negative: %s=%d", key, n)
+		}
 
 		switch key {
 		case "top":
@@ -64,6 +73,10 @@ func ParseExtend(s string) (ExtendConfig, error) {
 		default:
 			return ExtendConfig{}, fmt.Errorf("invalid extend direction: %q (use top, bottom, left, right, or all)", key)
 		}
+	}
+
+	if cfg.IsZero() {
+		return ExtendConfig{}, fmt.Errorf("extend must add at least one pixel")
 	}
 
 	return cfg, nil
@@ -131,6 +144,15 @@ func ExpandMask(src image.Image, cfg ExtendConfig) image.Image {
 	return mask
 }
 
+// validateExpandedDimensions checks that the canvas produced by expanding
+// src with cfg does not exceed the pixel budget.
+func validateExpandedDimensions(src image.Image, cfg ExtendConfig) error {
+	bounds := src.Bounds()
+	newW := bounds.Dx() + cfg.Left + cfg.Right
+	newH := bounds.Dy() + cfg.Top + cfg.Bottom
+	return validateImageDimensions(newW, newH)
+}
+
 // PrepareOutpaint loads a source image, expands the canvas, generates the
 // mask, and writes both to temporary PNG files. Returns the paths to the
 // expanded image and mask files.
@@ -138,6 +160,10 @@ func PrepareOutpaint(srcPath string, cfg ExtendConfig) (string, string, error) {
 	src, _, err := ReadImage(srcPath)
 	if err != nil {
 		return "", "", fmt.Errorf("read source: %w", err)
+	}
+
+	if err := validateExpandedDimensions(src, cfg); err != nil {
+		return "", "", fmt.Errorf("expanded canvas: %w", err)
 	}
 
 	expanded := ExpandCanvas(src, cfg)

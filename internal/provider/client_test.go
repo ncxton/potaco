@@ -291,3 +291,22 @@ func TestEditMissingImageFile(t *testing.T) {
 		t.Errorf("error should mention image file, got: %v", err)
 	}
 }
+
+func TestProviderResponseLimit(t *testing.T) {
+	oldLimit := maxProviderResponseBytes
+	maxProviderResponseBytes = 16
+	t.Cleanup(func() { maxProviderResponseBytes = oldLimit })
+
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`{"created":1,"data":[{"b64_json":"too-large"}]}`)),
+	}
+
+	_, err := parseResponse(resp)
+	if err == nil {
+		t.Fatal("parseResponse should reject responses over maxProviderResponseBytes")
+	}
+	if !strings.Contains(err.Error(), "response too large") {
+		t.Fatalf("error should mention response too large, got: %v", err)
+	}
+}

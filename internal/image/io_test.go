@@ -157,3 +157,37 @@ func TestDecodeBase64Image(t *testing.T) {
 		t.Errorf("width = %d, want 4", img.Bounds().Dx())
 	}
 }
+
+func TestReadImageRejectsFileOverLimit(t *testing.T) {
+	oldLimit := maxImageFileBytes
+	maxImageFileBytes = 4
+	t.Cleanup(func() { maxImageFileBytes = oldLimit })
+
+	path := filepath.Join(t.TempDir(), "large.png")
+	if err := os.WriteFile(path, makeTestPNG(t, 2, 2), 0600); err != nil {
+		t.Fatalf("write png: %v", err)
+	}
+
+	_, _, err := ReadImage(path)
+	if err == nil {
+		t.Fatal("ReadImage should reject files over maxImageFileBytes")
+	}
+	if !strings.Contains(err.Error(), "image file too large") {
+		t.Fatalf("error should mention image file too large, got: %v", err)
+	}
+}
+
+func TestDecodeBase64ImageRejectsEncodedDataOverLimit(t *testing.T) {
+	oldLimit := maxBase64ImageBytes
+	maxBase64ImageBytes = 4
+	t.Cleanup(func() { maxBase64ImageBytes = oldLimit })
+
+	b64 := base64.StdEncoding.EncodeToString(makeTestPNG(t, 2, 2))
+	_, err := DecodeBase64Image(b64)
+	if err == nil {
+		t.Fatal("DecodeBase64Image should reject decoded data over maxBase64ImageBytes")
+	}
+	if !strings.Contains(err.Error(), "base64 image too large") {
+		t.Fatalf("error should mention base64 image too large, got: %v", err)
+	}
+}
