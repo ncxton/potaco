@@ -73,6 +73,14 @@ func (a *Adapter) generateURL() string {
 	return a.baseURL + "/images/generations"
 }
 
+func (a *Adapter) modelsURL() string {
+	return a.baseURL + "/models"
+}
+
+func (a *Adapter) endpointsURL(modelID string) string {
+	return a.baseURL + "/models/" + modelID + "/endpoints"
+}
+
 func (a *Adapter) Edit(context.Context, adapter.EditRequest) (*adapter.GenerateResponse, error) {
 	return nil, fmt.Errorf("vercel edit: %w", adapter.ErrEditNotSupported)
 }

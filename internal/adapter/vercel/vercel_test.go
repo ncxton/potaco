@@ -40,6 +40,34 @@ func TestVercelNewWithDefaults(t *testing.T) {
 	}
 }
 
+func TestVercelModelsURL(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{BaseURL: "https://example.com/v1"})
+	va, ok := ad.(*Adapter)
+	if !ok {
+		t.Fatalf("expected *vercel.Adapter, got %T", ad)
+	}
+
+	got := va.modelsURL()
+	want := "https://example.com/v1/models"
+	if got != want {
+		t.Errorf("modelsURL() = %q, want %q", got, want)
+	}
+}
+
+func TestVercelEndpointsURL(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{BaseURL: "https://example.com/v1"})
+	va, ok := ad.(*Adapter)
+	if !ok {
+		t.Fatalf("expected *vercel.Adapter, got %T", ad)
+	}
+
+	got := va.endpointsURL("openai/gpt-image-2")
+	want := "https://example.com/v1/models/openai/gpt-image-2/endpoints"
+	if got != want {
+		t.Errorf("endpointsURL() = %q, want %q", got, want)
+	}
+}
+
 func TestVercelRegisteredInRegistry(t *testing.T) {
 	_, err := adapter.Get("vercel", "key", adapter.AdapterOpts{})
 	if err != nil {
