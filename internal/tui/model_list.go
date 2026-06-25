@@ -14,22 +14,23 @@ import (
 // If providerName is empty, uses the active provider from auth config.
 // If apiKey is empty, retrieves it from the credential store.
 func RunModelList(providerName, apiKey string) error {
-	mgr, err := auth.New()
-	if err != nil {
-		return fmt.Errorf("init auth: %w", err)
-	}
-
-	if providerName == "" {
-		providerName, _, err = mgr.GetActiveProvider()
-		if err != nil || providerName == "" {
-			return fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one")
+	if providerName == "" || apiKey == "" {
+		// Fall back to resolving from auth manager
+		mgr, err := auth.New()
+		if err != nil {
+			return fmt.Errorf("init auth: %w", err)
 		}
-	}
-
-	if apiKey == "" {
-		k, kErr := mgr.GetActiveAPIKey()
-		if kErr == nil {
-			apiKey = k
+		if providerName == "" {
+			providerName, _, err = mgr.GetActiveProvider()
+			if err != nil || providerName == "" {
+				return fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one")
+			}
+		}
+		if apiKey == "" {
+			k, kErr := mgr.GetActiveAPIKey()
+			if kErr == nil {
+				apiKey = k
+			}
 		}
 	}
 	if apiKey == "" {

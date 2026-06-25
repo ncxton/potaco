@@ -97,7 +97,9 @@ func TestNonInteractiveFlagDefaultsToInteractive(t *testing.T) {
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	// Without the flag set, the package-level variable should remain false
-	// (interactive mode), so the only thing suppressing interactivity is the
-	// env var or absence of a TTY.
+
+	// In a test environment (no TTY), IsInteractive should return false
+	if tui.IsInteractive() {
+		t.Error("IsInteractive() should return false in test environment (no TTY)")
+	}
 }
