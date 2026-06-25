@@ -32,7 +32,6 @@ func init() {
 
 	genCmd.Flags().StringP("output", "o", "", "output file path")
 	genCmd.Flags().String("output-format", "png", "output format (png or jpeg)")
-	genCmd.Flags().Bool("view", false, "attempt terminal image display")
 	genCmd.Flags().Bool("stdout", false, "pipe raw image bytes to stdout")
 
 	genCmd.Flags().String("provider", "", "provider preset (openai, together, fal)")

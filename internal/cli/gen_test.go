@@ -139,7 +139,7 @@ func TestGenCommandUsesAdapter(t *testing.T) {
 func resetGenCmdFlags(t *testing.T) {
 	t.Helper()
 	flags := genCmd.Flags()
-	for _, name := range []string{"dry-run", "prompt", "model", "output", "stdout", "view",
+	for _, name := range []string{"dry-run", "prompt", "model", "output", "stdout",
 		"provider", "base-url", "api-key", "retries", "timeout"} {
 		if fl := flags.Lookup(name); fl != nil {
 			if err := flags.Set(name, fl.DefValue); err != nil {

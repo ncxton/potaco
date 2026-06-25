@@ -91,11 +91,9 @@ type outputContext struct {
 func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	stdoutMode := flagBool(cmd, "stdout")
-	viewMode := flagBool(cmd, "view")
 	outputPath := flagString(cmd, "output")
 	outputFormat := flagString(cmd, "output-format")
 	explicitOutput := outputPath != ""
-	effectiveView := viewMode && !jsonMode && !stdoutMode
 
 	paths := make([]string, len(octx.resp.Data))
 	widths := make([]int, len(octx.resp.Data))
@@ -146,11 +144,6 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 				}
 			}
 			paths[i] = path
-
-			if effectiveView {
-				output := img.DisplayInTerminal(decoded, path)
-				fmt.Fprintln(cmd.OutOrStdout(), output)
-			}
 		} else if imgData.URL != "" {
 			paths[i] = imgData.URL
 		}
@@ -169,7 +162,6 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	outOpts := OutputOptions{
 		JSON:         jsonMode,
 		Stdout:       stdoutMode,
-		View:         effectiveView,
 		OutputPath:   outputPath,
 		OutputFormat: outputFormat,
 	}

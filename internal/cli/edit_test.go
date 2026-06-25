@@ -578,7 +578,7 @@ func resetEditCmdFlags(t *testing.T) {
 	flags := editCmd.Flags()
 	for _, name := range []string{"prompt", "image", "mask", "mask-rect", "mask-circle",
 		"extend", "model", "size", "n", "response-format", "output", "output-format",
-		"view", "stdout", "provider", "base-url", "api-key", "retries", "timeout", "dry-run"} {
+		"stdout", "provider", "base-url", "api-key", "retries", "timeout", "dry-run"} {
 		flag := flags.Lookup(name)
 		if flag == nil {
 			t.Fatalf("resetEditCmdFlags: unknown flag %q", name)

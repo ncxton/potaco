@@ -14,7 +14,7 @@ func TestProcessAndOutputMultiImageOutputKeepsDottedDirectory(t *testing.T) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatalf("create dotted dir: %v", err)
 	}
-	cmd := newOutputTestCommand(false, false, filepath.Join(dir, "out"), "png")
+	cmd := newOutputTestCommand(false, filepath.Join(dir, "out"), "png")
 	resp := &adapter.GenerateResponse{
 		Data: []adapter.ImageData{
 			{B64JSON: tinyPNGBase64(t)},

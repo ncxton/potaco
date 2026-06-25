@@ -38,7 +38,6 @@ func init() {
 	// Output flags
 	editCmd.Flags().StringP("output", "o", "", "output file path")
 	editCmd.Flags().String("output-format", "png", "output format (png or jpeg)")
-	editCmd.Flags().Bool("view", false, "attempt terminal image display")
 	editCmd.Flags().Bool("stdout", false, "pipe raw image bytes to stdout")
 
 	// Provider override flags

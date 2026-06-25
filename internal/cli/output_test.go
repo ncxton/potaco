@@ -3,7 +3,6 @@ package cli
 import (
 	"bytes"
 	"encoding/base64"
-	"encoding/json"
 	"image"
 	"image/png"
 	"io"
@@ -29,10 +28,9 @@ func tinyImageResponse(t *testing.T) *adapter.GenerateResponse {
 	return &adapter.GenerateResponse{Data: []adapter.ImageData{{B64JSON: tinyPNGBase64(t)}}}
 }
 
-func newOutputTestCommand(stdout, view bool, output, outputFormat string) *cobra.Command {
+func newOutputTestCommand(stdout bool, output, outputFormat string) *cobra.Command {
 	cmd := &cobra.Command{Use: "test"}
 	cmd.Flags().Bool("stdout", stdout, "")
-	cmd.Flags().Bool("view", view, "")
 	cmd.Flags().String("output", output, "")
 	cmd.Flags().String("output-format", outputFormat, "")
 	root := &cobra.Command{Use: "root"}
@@ -67,7 +65,7 @@ func captureStdout(t *testing.T, fn func() error) ([]byte, error) {
 func TestProcessAndOutputStdoutOnlyDoesNotCreateAutoFile(t *testing.T) {
 	// Given
 	t.Chdir(t.TempDir())
-	cmd := newOutputTestCommand(true, false, "", "png")
+	cmd := newOutputTestCommand(true, "", "png")
 	var textOut bytes.Buffer
 	cmd.SetOut(&textOut)
 
@@ -100,7 +98,7 @@ func TestProcessAndOutputStdoutOnlyDoesNotCreateAutoFile(t *testing.T) {
 func TestProcessAndOutputStdoutWithExplicitOutputWritesBothWithoutText(t *testing.T) {
 	// Given
 	t.Chdir(t.TempDir())
-	cmd := newOutputTestCommand(true, false, "out.png", "png")
+	cmd := newOutputTestCommand(true, "out.png", "png")
 	var textOut bytes.Buffer
 	cmd.SetOut(&textOut)
 
@@ -126,44 +124,11 @@ func TestProcessAndOutputStdoutWithExplicitOutputWritesBothWithoutText(t *testin
 	}
 }
 
-func TestProcessAndOutputJSONSuppressesViewPreview(t *testing.T) {
-	// Given
-	t.Chdir(t.TempDir())
-	t.Setenv("TERM", "")
-	t.Setenv("TERM_PROGRAM", "")
-	cmd := newOutputTestCommand(false, true, "", "png")
-	if err := cmd.Root().PersistentFlags().Set("json", "true"); err != nil {
-		t.Fatalf("set json flag: %v", err)
-	}
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	resp := tinyImageResponse(t)
-
-	// When
-	err := processAndOutput(cmd, outputContext{
-		resp:   resp,
-		model:  "test-model",
-		params: map[string]any{"n": 1},
-	})
-
-	// Then
-	if err != nil {
-		t.Fatalf("processAndOutput error: %v", err)
-	}
-	var got map[string]any
-	if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &got); err != nil {
-		t.Fatalf("json plus view should emit JSON only, got %q: %v", out.String(), err)
-	}
-	if strings.Contains(out.String(), "terminal does not support inline image preview") {
-		t.Fatalf("json mode should suppress view preview, got %q", out.String())
-	}
-}
-
 func TestProcessAndOutputAutoFilenamesAreUniqueForMultipleImages(t *testing.T) {
 	// Given
 	dir := t.TempDir()
 	t.Chdir(dir)
-	cmd := newOutputTestCommand(false, false, "", "png")
+	cmd := newOutputTestCommand(false, "", "png")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	resp := &adapter.GenerateResponse{
@@ -202,7 +167,7 @@ func TestFormatResultDefault(t *testing.T) {
 		Model:   "gpt-image-2",
 		Params:  map[string]any{"size": "1024x1024", "quality": "standard", "n": 1},
 	}
-	opts := OutputOptions{JSON: false, Stdout: false, View: false}
+	opts := OutputOptions{JSON: false, Stdout: false}
 
 	output, err := FormatResult(result, opts)
 	if err != nil {
@@ -229,7 +194,7 @@ func TestFormatResultJSON(t *testing.T) {
 		Params:    map[string]any{"size": "1024x1024"},
 		LatencyMs: 3420,
 	}
-	opts := OutputOptions{JSON: true, Stdout: false, View: false}
+	opts := OutputOptions{JSON: true, Stdout: false}
 
 	output, err := FormatResult(result, opts)
 	if err != nil {

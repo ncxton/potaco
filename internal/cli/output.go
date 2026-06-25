@@ -10,7 +10,6 @@ import (
 type OutputOptions struct {
 	JSON         bool
 	Stdout       bool
-	View         bool
 	OutputPath   string
 	OutputFormat string
 }
