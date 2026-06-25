@@ -145,6 +145,110 @@ func TestFormatFromBytesUnknown(t *testing.T) {
 	}
 }
 
+func TestFormatFromBytesWebP(t *testing.T) {
+	// WebP magic: "RIFF" .... "WEBP"
+	data := []byte{'R', 'I', 'F', 'F', 0x00, 0x00, 0x00, 0x00, 'W', 'E', 'B', 'P'}
+	format := FormatFromBytes(data)
+	if format != "webp" {
+		t.Errorf("format = %q, want 'webp'", format)
+	}
+}
+
+func TestDecodeBase64ImageWithDataURLPrefix(t *testing.T) {
+	pngData := makeTestPNG(t, 4, 4)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	// Prepend data URL prefix
+	dataURL := "data:image/png;base64," + b64
+
+	img, err := DecodeBase64Image(dataURL)
+	if err != nil {
+		t.Fatalf("DecodeBase64Image with data URL prefix error: %v", err)
+	}
+	if img.Bounds().Dx() != 4 {
+		t.Errorf("width = %d, want 4", img.Bounds().Dx())
+	}
+}
+
+func TestStripDataURLPrefix(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"raw base64", "iVBORw0KGgo=", "iVBORw0KGgo="},
+		{"png data url", "data:image/png;base64,iVBORw0KGgo=", "iVBORw0KGgo="},
+		{"webp data url", "data:image/webp;base64,UklGRv4=", "UklGRv4="},
+		{"no base64 marker", "data:image/png,iVBORw0KGgo=", "data:image/png,iVBORw0KGgo="},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := stripDataURLPrefix(tc.input)
+			if got != tc.want {
+				t.Errorf("stripDataURLPrefix(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatBytesPreview(t *testing.T) {
+	data := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0xFF}
+	got := formatBytesPreview(data)
+	want := "89 50 4e 47 0d 0a 1a 0a"
+	if got != want {
+		t.Errorf("formatBytesPreview = %q, want %q", got, want)
+	}
+}
+
+func TestDecodeBase64ImageWebP(t *testing.T) {
+	// 4x4 red WebP image created with ImageMagick, encoded as base64.
+	b64 := "UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoEAAQAAgA0JaACdLoB+AADsAD+8MQL/yC5YXXI1/8gP+QH/ID/+PIAAAA="
+	img, err := DecodeBase64Image(b64)
+	if err != nil {
+		t.Fatalf("DecodeBase64Image WebP error: %v", err)
+	}
+	bounds := img.Bounds()
+	if bounds.Dx() != 4 || bounds.Dy() != 4 {
+		t.Errorf("dimensions = %dx%d, want 4x4", bounds.Dx(), bounds.Dy())
+	}
+}
+
+func TestReadImageWebP(t *testing.T) {
+	// 4x4 red WebP image created with ImageMagick.
+	webpData, err := base64.StdEncoding.DecodeString("UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoEAAQAAgA0JaACdLoB+AADsAD+8MQL/yC5YXXI1/8gP+QH/ID/+PIAAAA=")
+	if err != nil {
+		t.Fatalf("decode webp base64: %v", err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.webp")
+	if err := os.WriteFile(path, webpData, 0644); err != nil {
+		t.Fatalf("write webp: %v", err)
+	}
+
+	img, format, err := ReadImage(path)
+	if err != nil {
+		t.Fatalf("ReadImage WebP error: %v", err)
+	}
+	if format != "webp" {
+		t.Errorf("format = %q, want 'webp'", format)
+	}
+	bounds := img.Bounds()
+	if bounds.Dx() != 4 || bounds.Dy() != 4 {
+		t.Errorf("dimensions = %dx%d, want 4x4", bounds.Dx(), bounds.Dy())
+	}
+}
+
+func TestDecodeBase64ImageErrorShowsBytes(t *testing.T) {
+	// Invalid image data that base64-decodes successfully but isn't a valid image
+	b64 := base64.StdEncoding.EncodeToString([]byte("not an image at all"))
+	_, err := DecodeBase64Image(b64)
+	if err == nil {
+		t.Fatal("expected error for invalid image data")
+	}
+	if !strings.Contains(err.Error(), "first bytes:") {
+		t.Errorf("error should contain 'first bytes:' for debugging, got: %v", err)
+	}
+}
+
 func TestDecodeBase64Image(t *testing.T) {
 	pngData := makeTestPNG(t, 4, 4)
 	b64 := base64.StdEncoding.EncodeToString(pngData)

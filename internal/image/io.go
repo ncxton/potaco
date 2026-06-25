@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	_ "golang.org/x/image/webp" // register WebP decoder for image.Decode
 )
 
 // Resource budgets for image processing. These are variables, not
@@ -123,7 +125,7 @@ func AutoFilename() string {
 }
 
 // FormatFromBytes detects the image format from the first few bytes.
-// Returns "png", "jpeg", or "" if unknown.
+// Returns "png", "jpeg", "webp", or "" if unknown.
 func FormatFromBytes(data []byte) string {
 	if len(data) < 4 {
 		return ""
@@ -136,11 +138,18 @@ func FormatFromBytes(data []byte) string {
 	if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
 		return "jpeg"
 	}
+	// WebP: starts with "RIFF....WEBP"
+	if len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
+		return "webp"
+	}
 	return ""
 }
 
 // DecodeBase64Image decodes a base64-encoded image string into an image.Image.
+// It handles both raw base64 and data URLs (data:image/...;base64,...).
 func DecodeBase64Image(b64 string) (image.Image, error) {
+	b64 = stripDataURLPrefix(b64)
+
 	data, err := base64.StdEncoding.DecodeString(b64)
 	if err != nil {
 		return nil, fmt.Errorf("base64 decode: %w", err)
@@ -155,8 +164,33 @@ func DecodeBase64Image(b64 string) (image.Image, error) {
 
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("image decode: %w", err)
+		preview := formatBytesPreview(data)
+		return nil, fmt.Errorf("image decode: %w (decoded %d bytes, first bytes: %s)", err, len(data), preview)
 	}
 
 	return img, nil
+}
+
+// stripDataURLPrefix removes a "data:image/<type>;base64," prefix if present,
+// so the remaining string is pure base64 data.
+func stripDataURLPrefix(s string) string {
+	idx := strings.Index(s, ";base64,")
+	if idx >= 0 && strings.HasPrefix(s, "data:") {
+		return s[idx+len(";base64,"):]
+	}
+	return s
+}
+
+// formatBytesPreview returns a hex representation of the first 8 bytes,
+// useful for diagnosing "unknown format" errors.
+func formatBytesPreview(data []byte) string {
+	n := len(data)
+	if n > 8 {
+		n = 8
+	}
+	hex := make([]string, n)
+	for i := 0; i < n; i++ {
+		hex[i] = fmt.Sprintf("%02x", data[i])
+	}
+	return strings.Join(hex, " ")
 }
