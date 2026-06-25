@@ -54,6 +54,7 @@ func TestGenCommandPromptRequired(t *testing.T) {
 func TestGenCommandDryRunNoAPI(t *testing.T) {
 	setupAuthProvider(t, "sk-test")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -85,6 +86,7 @@ func TestGenCommandMissingConfigError(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 	// Clear all config sources - no provider configured, no env overrides
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_BASE_URL", "")
@@ -109,6 +111,7 @@ func TestGenCommandMissingConfigError(t *testing.T) {
 func TestGenCommandUsesAdapter(t *testing.T) {
 	setupAuthProvider(t, "sk-test")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	// Verify the gen command can resolve to an adapter via dry-run
 	var buf bytes.Buffer
@@ -199,6 +202,7 @@ func setupAuthProviderForProvider(t *testing.T, providerName, apiKey, model stri
 func TestGenDryRunFalProvider(t *testing.T) {
 	setupAuthProviderForProvider(t, "fal", "fal-key", "fal-ai/flux/dev")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -220,6 +224,7 @@ func TestGenDryRunFalProvider(t *testing.T) {
 func TestGenDryRunVercelProvider(t *testing.T) {
 	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -241,6 +246,7 @@ func TestGenDryRunVercelProvider(t *testing.T) {
 func TestGenWithAuthCredentials(t *testing.T) {
 	setupAuthProvider(t, "sk-from-auth")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -265,6 +271,7 @@ func TestGenNoActiveProviderError(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_BASE_URL", "")
@@ -288,6 +295,7 @@ func TestGenNoActiveProviderError(t *testing.T) {
 func TestGenWithApiKeyOverride(t *testing.T) {
 	setupAuthProvider(t, "sk-stored")
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -312,6 +320,7 @@ func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
 	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
 	dir := t.TempDir()
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")

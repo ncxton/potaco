@@ -57,6 +57,9 @@ func TestEditCommandHasExtendFlag(t *testing.T) {
 }
 
 func TestEditDryRunBasic(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
@@ -82,6 +85,9 @@ func TestEditDryRunBasic(t *testing.T) {
 }
 
 func TestEditDryRunOutpaint(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
@@ -107,6 +113,9 @@ func TestEditDryRunOutpaint(t *testing.T) {
 }
 
 func TestEditDryRunInpaintRect(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
@@ -132,6 +141,9 @@ func TestEditDryRunInpaintRect(t *testing.T) {
 }
 
 func TestEditMissingImageFile(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProvider(t, "sk-test")
 
 	var buf bytes.Buffer
@@ -148,6 +160,8 @@ func TestEditMissingImageFile(t *testing.T) {
 func TestEditMissingConfigError(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_BASE_URL", "")
 	t.Setenv("POTACO_API_KEY", "")
@@ -291,6 +305,8 @@ func TestPrepareEditImageCleanupRemovesOutpaintDir(t *testing.T) {
 func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_BASE_URL", "")
@@ -335,6 +351,7 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	}
 	resetAuthAddFlags(t)
 	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
 
 	before, _ := filepath.Glob(filepath.Join(os.TempDir(), "potaco-mask-*"))
 
@@ -361,6 +378,9 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 }
 
 func TestEditCommandDryRunUsesAdapter(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProvider(t, "sk-test")
 
 	tmpDir := t.TempDir()
@@ -389,6 +409,8 @@ func TestEditCommandDryRunUsesAdapter(t *testing.T) {
 func TestEditWithAuthCredentials(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_BASE_URL", "")
@@ -405,6 +427,7 @@ func TestEditWithAuthCredentials(t *testing.T) {
 	}
 	resetAuthAddFlags(t)
 	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
 
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
@@ -432,6 +455,8 @@ func TestEditWithAuthCredentials(t *testing.T) {
 func TestEditNoActiveProviderError(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_BASE_URL", "")
@@ -459,6 +484,8 @@ func TestEditNoActiveProviderError(t *testing.T) {
 func TestEditWithBaseUrlOverride(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_BASE_URL", "")
@@ -474,6 +501,7 @@ func TestEditWithBaseUrlOverride(t *testing.T) {
 	}
 	resetAuthAddFlags(t)
 	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
 
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
@@ -496,6 +524,9 @@ func TestEditWithBaseUrlOverride(t *testing.T) {
 }
 
 func TestEditDryRunFalProvider(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProviderForProvider(t, "fal", "fal-key", "fal-ai/flux/dev")
 
 	tmpDir := t.TempDir()
@@ -517,6 +548,9 @@ func TestEditDryRunFalProvider(t *testing.T) {
 }
 
 func TestEditDryRunVercelNotSupported(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
 	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
 
 	tmpDir := t.TempDir()
@@ -533,6 +567,26 @@ func TestEditDryRunVercelNotSupported(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not supported") {
 		t.Errorf("error should mention 'not supported', got: %v", err)
+	}
+}
+
+// resetEditCmdFlags restores edit subcommand flags to their defaults so that
+// values set by earlier tests (e.g. --dry-run, --extend, --provider) do not
+// leak in when tests run in shuffled order.
+func resetEditCmdFlags(t *testing.T) {
+	t.Helper()
+	flags := editCmd.Flags()
+	for _, name := range []string{"prompt", "image", "mask", "mask-rect", "mask-circle",
+		"extend", "model", "size", "n", "response-format", "output", "output-format",
+		"view", "stdout", "provider", "base-url", "api-key", "retries", "timeout", "dry-run"} {
+		flag := flags.Lookup(name)
+		if flag == nil {
+			t.Fatalf("resetEditCmdFlags: unknown flag %q", name)
+		}
+		if err := flag.Value.Set(flag.DefValue); err != nil {
+			t.Fatalf("reset edit flag %s: %v", name, err)
+		}
+		flag.Changed = false
 	}
 }
 
