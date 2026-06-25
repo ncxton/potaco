@@ -145,6 +145,7 @@ func adapterForProvider(cfg *config.Config) (adapter.Adapter, error) {
 
 	opts := adapter.AdapterOpts{
 		BaseURL: cfg.BaseURL,
+		Retries: cfg.Retries,
 	}
 	if cfg.Timeout > 0 {
 		opts.Timeout = cfg.Timeout.String()

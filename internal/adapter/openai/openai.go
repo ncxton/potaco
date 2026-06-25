@@ -37,10 +37,14 @@ func New(apiKey string, opts adapter.AdapterOpts) adapter.Adapter {
 			timeout = d
 		}
 	}
+	retries := opts.Retries
+	if retries == 0 {
+		retries = 2
+	}
 	return &Adapter{
 		apiKey:  apiKey,
 		baseURL: baseURL,
-		retries: 2,
+		retries: retries,
 		timeout: timeout,
 		http: &http.Client{
 			Timeout: timeout,

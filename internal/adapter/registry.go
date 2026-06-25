@@ -11,6 +11,7 @@ import (
 type AdapterOpts struct {
 	BaseURL string // override the adapter's default base URL
 	Timeout string // override the adapter's default timeout
+	Retries int    // override the adapter's default retry count
 }
 
 // AdapterFactory creates an Adapter instance for a given API key and options.
