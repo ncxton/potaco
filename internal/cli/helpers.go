@@ -1,13 +1,12 @@
 package cli
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"image/jpeg"
 	"image/png"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/ncxton/potaco/internal/config"
 	img "github.com/ncxton/potaco/internal/image"
@@ -120,10 +119,16 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	viewMode := flagBool(cmd, "view")
 	outputPath := flagString(cmd, "output")
 	outputFormat := flagString(cmd, "output-format")
+	explicitOutput := outputPath != ""
+	effectiveView := viewMode && !jsonMode && !stdoutMode
 
 	paths := make([]string, len(octx.resp.Data))
 	widths := make([]int, len(octx.resp.Data))
 	heights := make([]int, len(octx.resp.Data))
+	autoPath := ""
+	if !explicitOutput && !stdoutMode && len(octx.resp.Data) > 0 {
+		autoPath = img.AutoFilename()
+	}
 
 	for i, imgData := range octx.resp.Data {
 		if imgData.B64JSON != "" {
@@ -136,35 +141,38 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 			heights[i] = bounds.Dy()
 
 			path := outputPath
-			if path == "" {
-				path = img.AutoFilename()
+			if stdoutMode && !explicitOutput {
+				path = "stdout"
+			} else if path == "" {
+				path = autoPath
+				if len(octx.resp.Data) > 1 {
+					path = fmt.Sprintf("%s-%d%s", trimExt(autoPath), i, extOf(autoPath))
+				}
 			} else if len(octx.resp.Data) > 1 {
 				path = fmt.Sprintf("%s-%d%s", trimExt(outputPath), i, extOf(outputPath))
 			}
 
-			if stdoutMode && !viewMode {
-				var buf bytes.Buffer
+			if stdoutMode {
 				switch outputFormat {
 				case "jpeg", "jpg":
-					if err := jpeg.Encode(&buf, decoded, &jpeg.Options{Quality: 90}); err != nil {
-						return fmt.Errorf("encode image %d: %w", i, err)
+					if err := jpeg.Encode(os.Stdout, decoded, &jpeg.Options{Quality: 90}); err != nil {
+						return fmt.Errorf("encode image %d to stdout: %w", i, err)
 					}
 				default:
-					if err := png.Encode(&buf, decoded); err != nil {
-						return fmt.Errorf("encode image %d: %w", i, err)
+					if err := png.Encode(os.Stdout, decoded); err != nil {
+						return fmt.Errorf("encode image %d to stdout: %w", i, err)
 					}
-				}
-				if _, err := os.Stdout.Write(buf.Bytes()); err != nil {
-					return fmt.Errorf("write image %d to stdout: %w", i, err)
 				}
 			}
 
-			if err := img.WriteImage(decoded, path, outputFormat); err != nil {
-				return fmt.Errorf("write image %d: %w", i, err)
+			if !stdoutMode || explicitOutput {
+				if err := img.WriteImage(decoded, path, outputFormat); err != nil {
+					return fmt.Errorf("write image %d: %w", i, err)
+				}
 			}
 			paths[i] = path
 
-			if viewMode {
+			if effectiveView {
 				output := img.DisplayInTerminal(decoded, path)
 				fmt.Fprintln(cmd.OutOrStdout(), output)
 			}
@@ -186,7 +194,7 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	outOpts := OutputOptions{
 		JSON:         jsonMode,
 		Stdout:       stdoutMode,
-		View:         viewMode,
+		View:         effectiveView,
 		OutputPath:   outputPath,
 		OutputFormat: outputFormat,
 	}
@@ -205,17 +213,13 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 }
 
 func trimExt(path string) string {
-	idx := strings.LastIndex(path, ".")
-	if idx > 0 {
-		return path[:idx]
+	ext := filepath.Ext(path)
+	if ext == "" {
+		return path
 	}
-	return path
+	return path[:len(path)-len(ext)]
 }
 
 func extOf(path string) string {
-	idx := strings.LastIndex(path, ".")
-	if idx >= 0 {
-		return path[idx:]
-	}
-	return ""
+	return filepath.Ext(path)
 }

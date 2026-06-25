@@ -1,9 +1,197 @@
 package cli
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"image"
+	"image/png"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncxton/potaco/internal/provider"
+	"github.com/spf13/cobra"
 )
+
+func tinyPNGBase64(t *testing.T) string {
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode tiny png: %v", err)
+	}
+	return base64.StdEncoding.EncodeToString(buf.Bytes())
+}
+
+func tinyImageResponse(t *testing.T) *provider.ImageResponse {
+	return &provider.ImageResponse{Data: []provider.ImageData{{B64JSON: tinyPNGBase64(t)}}}
+}
+
+func newOutputTestCommand(stdout, view bool, output, outputFormat string) *cobra.Command {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.Flags().Bool("stdout", stdout, "")
+	cmd.Flags().Bool("view", view, "")
+	cmd.Flags().String("output", output, "")
+	cmd.Flags().String("output-format", outputFormat, "")
+	root := &cobra.Command{Use: "root"}
+	root.PersistentFlags().Bool("json", false, "")
+	root.AddCommand(cmd)
+	return cmd
+}
+
+func captureStdout(t *testing.T, fn func() error) ([]byte, error) {
+	t.Helper()
+	stdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("create stdout pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() {
+		os.Stdout = stdout
+	}()
+
+	fnErr := fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdout pipe: %v", err)
+	}
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout pipe: %v", err)
+	}
+	return raw, fnErr
+}
+
+func TestProcessAndOutputStdoutOnlyDoesNotCreateAutoFile(t *testing.T) {
+	// Given
+	t.Chdir(t.TempDir())
+	cmd := newOutputTestCommand(true, false, "", "png")
+	var textOut bytes.Buffer
+	cmd.SetOut(&textOut)
+
+	// When
+	raw, err := captureStdout(t, func() error {
+		return processAndOutput(cmd, outputContext{
+			resp: tinyImageResponse(t),
+		})
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("processAndOutput error: %v", err)
+	}
+	if len(raw) == 0 {
+		t.Fatal("stdout mode should write raw image bytes")
+	}
+	if textOut.Len() != 0 {
+		t.Fatalf("stdout mode should not write formatted output, got %q", textOut.String())
+	}
+	matches, err := filepath.Glob("potaco-*.png")
+	if err != nil {
+		t.Fatalf("glob auto output: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("stdout-only mode should not create an auto file, got %v", matches)
+	}
+}
+
+func TestProcessAndOutputStdoutWithExplicitOutputWritesBothWithoutText(t *testing.T) {
+	// Given
+	t.Chdir(t.TempDir())
+	cmd := newOutputTestCommand(true, false, "out.png", "png")
+	var textOut bytes.Buffer
+	cmd.SetOut(&textOut)
+
+	// When
+	raw, err := captureStdout(t, func() error {
+		return processAndOutput(cmd, outputContext{
+			resp: tinyImageResponse(t),
+		})
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("processAndOutput error: %v", err)
+	}
+	if _, err := png.Decode(bytes.NewReader(raw)); err != nil {
+		t.Fatalf("stdout should contain raw PNG bytes: %v", err)
+	}
+	if _, err := os.Stat("out.png"); err != nil {
+		t.Fatalf("explicit output file should exist: %v", err)
+	}
+	if textOut.Len() != 0 {
+		t.Fatalf("stdout plus explicit output should not write formatted output, got %q", textOut.String())
+	}
+}
+
+func TestProcessAndOutputJSONSuppressesViewPreview(t *testing.T) {
+	// Given
+	t.Chdir(t.TempDir())
+	t.Setenv("TERM", "")
+	t.Setenv("TERM_PROGRAM", "")
+	cmd := newOutputTestCommand(false, true, "", "png")
+	if err := cmd.Root().PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set json flag: %v", err)
+	}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	resp := tinyImageResponse(t)
+
+	// When
+	err := processAndOutput(cmd, outputContext{
+		resp:   resp,
+		model:  "test-model",
+		params: map[string]any{"n": 1},
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("processAndOutput error: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(out.Bytes()), &got); err != nil {
+		t.Fatalf("json plus view should emit JSON only, got %q: %v", out.String(), err)
+	}
+	if strings.Contains(out.String(), "terminal does not support inline image preview") {
+		t.Fatalf("json mode should suppress view preview, got %q", out.String())
+	}
+}
+
+func TestProcessAndOutputAutoFilenamesAreUniqueForMultipleImages(t *testing.T) {
+	// Given
+	dir := t.TempDir()
+	t.Chdir(dir)
+	cmd := newOutputTestCommand(false, false, "", "png")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	resp := &provider.ImageResponse{
+		Data: []provider.ImageData{
+			{B64JSON: tinyPNGBase64(t)},
+			{B64JSON: tinyPNGBase64(t)},
+		},
+	}
+
+	// When
+	err := processAndOutput(cmd, outputContext{
+		resp:   resp,
+		model:  "test-model",
+		params: map[string]any{"n": 2},
+	})
+
+	// Then
+	if err != nil {
+		t.Fatalf("processAndOutput error: %v", err)
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, "potaco-*.png"))
+	if err != nil {
+		t.Fatalf("glob auto output: %v", err)
+	}
+	if len(matches) != 2 {
+		t.Fatalf("multi-image auto output should create 2 unique files, got %d files: %v; output %q", len(matches), matches, out.String())
+	}
+}
 
 func TestFormatResultDefault(t *testing.T) {
 	result := OutputResult{
