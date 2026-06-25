@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -52,16 +51,11 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("prompt cannot be empty")
 	}
 
-	opts := buildMergeOptions(cmd)
-	cfg, err := config.Merge(opts)
+	resolved, err := resolveAdapterForCommand(cmd)
 	if err != nil {
-		return configError(fmt.Errorf("config: %w", err))
+		return err
 	}
-
-	model := cfg.Model
-	if cmd.Flags().Changed("model") {
-		model = flagString(cmd, "model")
-	}
+	model := resolved.Model
 
 	req := adapter.GenerateRequest{
 		Prompt:         prompt,
@@ -77,16 +71,11 @@ func runGen(cmd *cobra.Command, args []string) error {
 
 	dryRun := flagBool(cmd, "dry-run")
 	if dryRun {
-		return printDryRun(cmd, "POST", cfg.BaseURL+"/v1/images/generations", "application/json", req)
-	}
-
-	ad, err := adapterForProvider(cfg)
-	if err != nil {
-		return configError(fmt.Errorf("adapter: %w", err))
+		return printDryRun(cmd, "POST", resolved.BaseURL+"/v1/images/generations", "application/json", req)
 	}
 
 	start := time.Now()
-	resp, err := ad.Generate(context.Background(), req)
+	resp, err := resolved.Adapter.Generate(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return apiError(fmt.Errorf("generate: %w", err))

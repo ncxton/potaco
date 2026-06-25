@@ -52,10 +52,8 @@ func TestGenCommandPromptRequired(t *testing.T) {
 }
 
 func TestGenCommandDryRunNoAPI(t *testing.T) {
-	resetRootCmdFlags(t)
-	// Set up env so config merge succeeds
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
+	setupAuthProvider(t, "sk-test")
+	resetGenCmdFlags(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -85,10 +83,14 @@ func TestGenCommandDryRunNoAPI(t *testing.T) {
 
 func TestGenCommandMissingConfigError(t *testing.T) {
 	resetRootCmdFlags(t)
-	// Clear all config sources
+	resetAuthAddFlags(t)
+	resetGenCmdFlags(t)
+	// Clear all config sources - no provider configured, no env overrides
+	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_BASE_URL", "")
 	t.Setenv("POTACO_API_KEY", "")
 	t.Setenv("POTACO_MODEL", "")
+	t.Setenv("POTACO_PROVIDER", "")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -99,16 +101,14 @@ func TestGenCommandMissingConfigError(t *testing.T) {
 	if err == nil {
 		t.Fatal("gen should error when no config is provided")
 	}
-	if !strings.Contains(err.Error(), "base_url") {
-		t.Errorf("error should mention base_url, got: %v", err)
+	if !strings.Contains(err.Error(), "provider") {
+		t.Errorf("error should mention provider, got: %v", err)
 	}
 }
 
 func TestGenCommandUsesAdapter(t *testing.T) {
-	resetRootCmdFlags(t)
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
-	t.Setenv("POTACO_MODEL", "gpt-image-2")
+	setupAuthProvider(t, "sk-test")
+	resetGenCmdFlags(t)
 
 	// Verify the gen command can resolve to an adapter via dry-run
 	var buf bytes.Buffer
@@ -136,7 +136,8 @@ func TestGenCommandUsesAdapter(t *testing.T) {
 func resetGenCmdFlags(t *testing.T) {
 	t.Helper()
 	flags := genCmd.Flags()
-	for _, name := range []string{"dry-run", "prompt", "model", "output", "stdout", "view"} {
+	for _, name := range []string{"dry-run", "prompt", "model", "output", "stdout", "view",
+		"provider", "base-url", "api-key", "retries", "timeout"} {
 		if fl := flags.Lookup(name); fl != nil {
 			if err := flags.Set(name, fl.DefValue); err != nil {
 				t.Fatalf("reset gen flag %s: %v", name, err)
@@ -146,13 +147,111 @@ func resetGenCmdFlags(t *testing.T) {
 	}
 }
 
+// setupAuthProvider runs `auth add openai --force` with the given API key
+// against a temp HOME so that subsequent gen/edit commands can resolve
+// credentials from the auth manager. It resets flags before and after.
+func setupAuthProvider(t *testing.T, apiKey string) {
+	t.Helper()
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", apiKey, "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+}
+
+func TestGenWithAuthCredentials(t *testing.T) {
+	setupAuthProvider(t, "sk-from-auth")
+	resetGenCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("gen --dry-run: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "/v1/images/generations") {
+		t.Errorf("dry-run should contain endpoint, got: %q", output)
+	}
+	if !strings.Contains(output, "gpt-image-2") {
+		t.Errorf("dry-run should contain default model, got: %q", output)
+	}
+}
+
+func TestGenNoActiveProviderError(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	resetGenCmdFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("gen should error when no provider is configured")
+	}
+	if !strings.Contains(err.Error(), "provider") {
+		t.Errorf("error should mention provider, got: %v", err)
+	}
+}
+
+func TestGenWithApiKeyOverride(t *testing.T) {
+	setupAuthProvider(t, "sk-stored")
+	resetGenCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run", "--api-key", "sk-override", "--base-url", "https://custom.api.com"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("gen with override: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "custom.api.com") {
+		t.Errorf("dry-run should use overridden base-url, got: %q", output)
+	}
+}
+
 // TestGenCommandAdapterEndToEnd verifies the gen command uses the adapter
 // path (not the legacy provider client) to call the API and save output.
 // A mock server mimics an OpenAI-compatible generations endpoint.
 func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
 	resetGenCmdFlags(t)
 	dir := t.TempDir()
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
 	outPath := filepath.Join(dir, "out.png")
 
 	// tiny PNG fixture encoded as base64
@@ -179,14 +278,22 @@ func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	}))
 	defer server.Close()
 
-	t.Setenv("POTACO_BASE_URL", server.URL)
-	t.Setenv("POTACO_API_KEY", "sk-test")
-	t.Setenv("POTACO_MODEL", "gpt-image-2")
+	// Add provider pointing at the mock server via --base-url override
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	resetGenCmdFlags(t)
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--output", outPath})
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--output", outPath, "--base-url", server.URL})
 
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("gen returned error: %v", err)

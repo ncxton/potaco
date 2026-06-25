@@ -57,13 +57,10 @@ func TestEditCommandHasExtendFlag(t *testing.T) {
 }
 
 func TestEditDryRunBasic(t *testing.T) {
-	resetRootCmdFlags(t)
+	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
-
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -85,13 +82,10 @@ func TestEditDryRunBasic(t *testing.T) {
 }
 
 func TestEditDryRunOutpaint(t *testing.T) {
-	resetRootCmdFlags(t)
+	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
-
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -113,13 +107,10 @@ func TestEditDryRunOutpaint(t *testing.T) {
 }
 
 func TestEditDryRunInpaintRect(t *testing.T) {
-	resetRootCmdFlags(t)
+	setupAuthProvider(t, "sk-test")
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
-
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -141,9 +132,7 @@ func TestEditDryRunInpaintRect(t *testing.T) {
 }
 
 func TestEditMissingImageFile(t *testing.T) {
-	resetRootCmdFlags(t)
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
+	setupAuthProvider(t, "sk-test")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -158,12 +147,16 @@ func TestEditMissingImageFile(t *testing.T) {
 
 func TestEditMissingConfigError(t *testing.T) {
 	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 50, 50)
-
-	t.Setenv("POTACO_BASE_URL", "")
-	t.Setenv("POTACO_API_KEY", "")
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -174,8 +167,8 @@ func TestEditMissingConfigError(t *testing.T) {
 	if err == nil {
 		t.Fatal("edit should error when no config is provided")
 	}
-	if !strings.Contains(err.Error(), "base_url") {
-		t.Errorf("error should mention base_url, got: %v", err)
+	if !strings.Contains(err.Error(), "provider") {
+		t.Errorf("error should mention provider, got: %v", err)
 	}
 }
 
@@ -297,6 +290,13 @@ func TestPrepareEditImageCleanupRemovesOutpaintDir(t *testing.T) {
 
 func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
 	dir := t.TempDir()
 	imgPath := filepath.Join(dir, "source.png")
 	createTestPNG(t, imgPath, 20, 20)
@@ -325,10 +325,18 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	}))
 	defer server.Close()
 
-	before, _ := filepath.Glob(filepath.Join(os.TempDir(), "potaco-mask-*"))
+	// Add provider, then run edit with --base-url pointing at mock server
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
 
-	t.Setenv("POTACO_BASE_URL", server.URL)
-	t.Setenv("POTACO_API_KEY", "sk-test")
+	before, _ := filepath.Glob(filepath.Join(os.TempDir(), "potaco-mask-*"))
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -339,6 +347,7 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 		"--image", imgPath,
 		"--mask-rect", "1,1,5,5",
 		"--output", outputPath,
+		"--base-url", server.URL,
 	})
 
 	if err := rootCmd.Execute(); err != nil {
@@ -352,10 +361,7 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 }
 
 func TestEditCommandDryRunUsesAdapter(t *testing.T) {
-	resetRootCmdFlags(t)
-	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
-	t.Setenv("POTACO_API_KEY", "sk-test")
-	t.Setenv("POTACO_MODEL", "gpt-image-2")
+	setupAuthProvider(t, "sk-test")
 
 	tmpDir := t.TempDir()
 	imgPath := filepath.Join(tmpDir, "test.png")
@@ -377,6 +383,115 @@ func TestEditCommandDryRunUsesAdapter(t *testing.T) {
 	}
 	if !strings.Contains(output, "make it blue") {
 		t.Errorf("dry-run should contain prompt, got: %q", output)
+	}
+}
+
+func TestEditWithAuthCredentials(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	// Add a provider via auth add
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-from-auth", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 50, 50)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "make it blue", "--image", imgPath, "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("edit --dry-run: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "/v1/images/edits") {
+		t.Errorf("dry-run should contain edit endpoint, got: %q", output)
+	}
+	if !strings.Contains(output, "gpt-image-2") {
+		t.Errorf("dry-run should contain default model, got: %q", output)
+	}
+}
+
+func TestEditNoActiveProviderError(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 50, 50)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("edit should error when no provider is configured")
+	}
+	if !strings.Contains(err.Error(), "provider") {
+		t.Errorf("error should mention provider, got: %v", err)
+	}
+}
+
+func TestEditWithBaseUrlOverride(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-stored", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 50, 50)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run", "--base-url", "https://custom.api.com"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("edit with override: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "custom.api.com") {
+		t.Errorf("dry-run should use overridden base-url, got: %q", output)
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -70,23 +69,18 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("image file: %w", err)
 	}
 
-	opts := buildMergeOptions(cmd)
-	cfg, err := config.Merge(opts)
+	resolved, err := resolveAdapterForCommand(cmd)
 	if err != nil {
-		return configError(fmt.Errorf("config: %w", err))
+		return err
 	}
-
-	model := cfg.Model
-	if cmd.Flags().Changed("model") {
-		model = flagString(cmd, "model")
-	}
+	model := resolved.Model
 
 	dryRun := flagBool(cmd, "dry-run")
 	editImagePath := imagePath
 	maskPath := ""
 
 	if dryRun {
-		return printEditDryRun(cmd, cfg.BaseURL, prompt, model, imagePath, cmd.Flags())
+		return printEditDryRun(cmd, resolved.BaseURL, prompt, model, imagePath, cmd.Flags())
 	}
 
 	cleanup := noopCleanup
@@ -95,11 +89,6 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return imageError(err)
 	}
 	defer cleanup()
-
-	ad, err := adapterForProvider(cfg)
-	if err != nil {
-		return configError(fmt.Errorf("adapter: %w", err))
-	}
 
 	req := adapter.EditRequest{
 		Prompt:         prompt,
@@ -112,7 +101,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 
 	start := time.Now()
-	resp, err := ad.Edit(context.Background(), req)
+	resp, err := resolved.Adapter.Edit(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return apiError(fmt.Errorf("edit: %w", err))
