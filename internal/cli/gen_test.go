@@ -130,9 +130,6 @@ func TestGenCommandUsesAdapter(t *testing.T) {
 	}
 }
 
-// TestGenCommandAdapterEndToEnd verifies the gen command uses the adapter
-// path (not the legacy provider client) to call the API and save output.
-// A mock server mimics an OpenAI-compatible generations endpoint.
 // resetGenCmdFlags restores gen subcommand flags to their defaults so that
 // values set by earlier tests (e.g. --dry-run) do not leak in when tests
 // run in shuffled order.
@@ -149,6 +146,9 @@ func resetGenCmdFlags(t *testing.T) {
 	}
 }
 
+// TestGenCommandAdapterEndToEnd verifies the gen command uses the adapter
+// path (not the legacy provider client) to call the API and save output.
+// A mock server mimics an OpenAI-compatible generations endpoint.
 func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetGenCmdFlags(t)
@@ -169,7 +169,9 @@ func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
 		if m, ok := body["model"].(string); ok {
 			gotModel = m
 		}
