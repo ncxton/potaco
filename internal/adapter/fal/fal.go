@@ -3,8 +3,6 @@ package fal
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -15,8 +13,6 @@ const (
 	defaultBaseURL    = "https://fal.run"
 	defaultAPIBaseURL = "https://api.fal.ai"
 )
-
-var errNotImplemented = errors.New("fal: operation not implemented")
 
 // Adapter implements adapter.Adapter for the fal API.
 type Adapter struct {
@@ -75,21 +71,6 @@ func (a *Adapter) Name() string { return "fal" }
 // fal uses "Key" prefix instead of "Bearer".
 func (a *Adapter) AuthHeader(apiKey string) string {
 	return "Key " + apiKey
-}
-
-// DiscoverModels returns image-generation-capable models from fal.
-func (a *Adapter) DiscoverModels(_ context.Context) ([]adapter.Model, error) {
-	return nil, fmt.Errorf("fal discover models: %w", errNotImplemented)
-}
-
-// Verify verifies fal API credentials.
-func (a *Adapter) Verify(_ context.Context) error {
-	return fmt.Errorf("fal verify: %w", errNotImplemented)
-}
-
-// ModelParams returns parameter metadata for a fal model.
-func (a *Adapter) ModelParams(_ context.Context, _ string) ([]adapter.Param, error) {
-	return nil, fmt.Errorf("fal model params: %w", errNotImplemented)
 }
 
 // generateURL returns the full URL for a generate request to a model endpoint.
