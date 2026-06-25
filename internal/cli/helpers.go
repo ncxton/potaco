@@ -24,9 +24,8 @@ type providerPreset struct {
 }
 
 var providerPresets = map[string]providerPreset{
-	"openai":   {BaseURL: "https://api.openai.com", DefaultModel: "gpt-image-2"},
-	"together": {BaseURL: "https://api.together.ai", DefaultModel: "black-forest-labs/flux-1"},
-	"fal":      {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux"},
+	"openai": {BaseURL: "https://api.openai.com", DefaultModel: "gpt-image-2"},
+	"fal":    {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux"},
 }
 
 func getProviderPreset(name string) (providerPreset, bool) {

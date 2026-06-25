@@ -41,15 +41,6 @@ func New() (*AuthManager, error) {
 	}, nil
 }
 
-// NewWithStore creates an AuthManager with an explicit credential store
-// and config path. Used for testing.
-func NewWithStore(store *credential.CredentialStore, configPath string) *AuthManager {
-	return &AuthManager{
-		store:      store,
-		configPath: configPath,
-	}
-}
-
 // LoadConfig reads the multi-provider config file.
 func (m *AuthManager) LoadConfig() (*config.MultiProviderConfig, error) {
 	return config.LoadMultiProvider(m.configPath)
@@ -144,6 +135,11 @@ func (m *AuthManager) List() []ProviderInfo {
 				info.HasKey = true
 				break
 			}
+		}
+		// Populate AddedAt from the credential store. If the credential
+		// is missing (key not stored), leave AddedAt empty.
+		if cred, err := m.store.GetCredential(name); err == nil {
+			info.AddedAt = cred.AddedAt.Format("2006-01-02")
 		}
 		infos = append(infos, info)
 	}

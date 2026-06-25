@@ -137,13 +137,16 @@ func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerNa
 	retries := 2
 	timeout := 120 * time.Second
 
+	// If config is corrupted, fall back to defaults rather than blocking generation.
 	cfg, _ := mgr.LoadConfig()
-	if pc, ok := cfg.Providers[providerName]; ok {
-		if pc.Retries > 0 {
-			retries = pc.Retries
-		}
-		if pc.Timeout > 0 {
-			timeout = pc.Timeout
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok {
+			if pc.Retries > 0 {
+				retries = pc.Retries
+			}
+			if pc.Timeout > 0 {
+				timeout = pc.Timeout
+			}
 		}
 	}
 

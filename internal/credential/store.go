@@ -11,10 +11,8 @@ import (
 // CredentialStore manages encrypted API keys for providers.
 type CredentialStore struct {
 	credPath string
-	saltPath string
 	key      []byte
 	data     credentialData
-	loaded   bool
 }
 
 // New creates a CredentialStore backed by the given credential and salt file paths.
@@ -28,7 +26,6 @@ func New(credPath, saltPath string) (*CredentialStore, error) {
 
 	s := &CredentialStore{
 		credPath: credPath,
-		saltPath: saltPath,
 		key:      key,
 		data: credentialData{
 			Providers: make(map[string]ProviderCredential),
@@ -43,7 +40,6 @@ func New(credPath, saltPath string) (*CredentialStore, error) {
 
 // load reads and decrypts the credential file if it exists.
 func (s *CredentialStore) load() error {
-	s.loaded = true
 	ciphertext, err := os.ReadFile(s.credPath)
 	if err != nil {
 		if os.IsNotExist(err) {
