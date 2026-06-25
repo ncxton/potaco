@@ -77,11 +77,6 @@ func (a *Adapter) AuthHeader(apiKey string) string {
 	return "Key " + apiKey
 }
 
-// Generate generates an image with the fal API.
-func (a *Adapter) Generate(_ context.Context, _ adapter.GenerateRequest) (*adapter.GenerateResponse, error) {
-	return nil, fmt.Errorf("fal generate: %w", errNotImplemented)
-}
-
 // Edit edits an image with the fal API.
 func (a *Adapter) Edit(_ context.Context, _ adapter.EditRequest) (*adapter.GenerateResponse, error) {
 	return nil, fmt.Errorf("fal edit: %w", errNotImplemented)
