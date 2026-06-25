@@ -46,9 +46,12 @@ changelog:
     - title: Bug Fixes
       regexp: '^fix(\(.*\))?:'
       order: 1
-    - title: CLI
-      regexp: '^cli(\(.*\))?:'
+    - title: Refactoring
+      regexp: '^refactor(\(.*\))?:'
       order: 2
+    - title: Performance
+      regexp: '^perf(\(.*\))?:'
+      order: 3
     - title: Other
       order: 999
   filters:
@@ -56,6 +59,9 @@ changelog:
       - '^docs(\(.*\))?:'
       - '^test(\(.*\))?:'
       - '^chore(\(.*\))?:'
+      - '^style(\(.*\))?:'
+      - '^ci(\(.*\))?:'
+      - '^build(\(.*\))?:'
 
 release:
   github:

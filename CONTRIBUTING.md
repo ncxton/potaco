@@ -18,6 +18,16 @@ POTACO_BASE_URL=https://api.openai.com POTACO_API_KEY=sk-test \
   ./potaco gen --prompt "a cat" --dry-run
 ```
 
+Provider credentials are managed via `auth add`:
+
+```sh
+./potaco auth add openai --api-key sk-...   # Connect a provider
+./potaco auth list                          # List connected providers
+./potaco use openai                         # Switch active provider
+./potaco models                             # Discover available models (interactive)
+./potaco status                             # Show current provider/model status
+```
+
 ## Coding Style
 
 - Go 1.26, pure Go only (no CGO).
@@ -30,26 +40,54 @@ POTACO_BASE_URL=https://api.openai.com POTACO_API_KEY=sk-test \
 ## Project Structure
 
 ```
-main.go              Entry point, calls cli.Execute()
+main.go                  Entry point, calls cli.Execute()
 internal/
-  cli/               Cobra commands (root, gen, edit, edit_mask, config, info), helpers, output, errors
-  config/            Config file loading, env var parsing, merge precedence logic
-  provider/          HTTP client for /v1/images/generations and /v1/images/edits, retries, presets
-  image/             Image I/O, mask generation, outpaint canvas, terminal display
+  cli/                   Cobra commands and CLI infrastructure
+    root.go              Root command, persistent flags (--json, --verbose, --non-interactive)
+    gen.go               gen subcommand (text-to-image)
+    edit.go, edit_mask.go  edit subcommand (image editing, inpainting, outpainting)
+    auth_cmd.go          auth add/remove/list subcommands
+    config_cmd.go        config set/show subcommands
+    models_cmd.go        models subcommand (discover models, show params)
+    status_cmd.go        status subcommand
+    use_cmd.go           use subcommand (switch active provider)
+    info.go              info subcommand (image metadata)
+    resolve.go           Provider/credential/model resolution with flag>env>config precedence
+    helpers.go           Flag accessors, provider presets, dry-run output, processAndOutput
+    output.go            Output formatting (text, JSON, stdout modes)
+    usererr.go           UserError type with friendly message, hint, debug logging
+    errors.go            Exit code constants and legacy error wrappers
+    spinner.go           Terminal spinner for gen/edit operations
+  adapter/               Provider adapter interface and registry
+    adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, ModelParams)
+    registry.go          Factory registry: Register/Get/List for provider adapters
+    openai/              OpenAI adapter (Images API, /v1/images/generations, /v1/images/edits)
+    fal/                 fal adapter (fal.run inference, api.fal.ai discovery, image-to-image)
+    vercel/              Vercel AI Gateway adapter (generate-only, no edit support)
+  auth/                  AuthManager: coordinates credential store and multi-provider config
+  credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
+  config/                Multi-provider YAML config (~/.potaco/config.yaml)
+  tui/                   Interactive terminal flows (huh forms, lipgloss styling)
+  image/                 Image I/O, mask generation, outpaint canvas
 ```
+
+All packages live under `internal/`. Adapter sub-packages register via `init()` and are blank-imported in `cli/helpers.go`.
 
 ## Commit Style
 
-Conventional commits scoped by package:
+Conventional Commits format with scope matching the package or feature area:
 
 ```
-config: add merge logic with flag>env>file>default precedence
-provider: add client with Generate method and response parsing
-cli: add gen subcommand, shared helpers, and dry-run support
-fix: retry body reset, config file perms 0600
+feat(adapter): add provider adapter interface and registry
+feat(tui): add interactive auth add flow with model picker
+feat(cli): add auth, config, status, use, models subcommands
+feat(credential): add encrypted credential storage with AES-256-GCM
+fix(adapter): retry body reset and base URL handling for /v1 suffix
+fix(cli): silence duplicated error output and exit codes
+refactor(config): migrate to multi-provider YAML config format
 ```
 
-Subject line is lowercase, no period, prefixed with package name or `fix:`.
+Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(scope):` for bug fixes, `refactor(scope):` for restructuring, `docs:` for documentation, `chore:` for maintenance. The scope should match the package name (`adapter`, `cli`, `config`, `credential`, `auth`, `tui`, `image`) or a logical feature area.
 
 ## Pull Request Process
 
@@ -62,8 +100,10 @@ Subject line is lowercase, no period, prefixed with package name or `fix:`.
 ## Testing Guidelines
 
 - CLI tests dispatch via `rootCmd.SetArgs([]string{"subcommand", ...})` and `rootCmd.Execute()`
-- Provider tests use `httptest.Server` mocks and override `client.backoff` to 1ms for fast retry tests
+- Adapter tests use `httptest.Server` mocks and override `Adapter.backoff` and `Adapter.sleep` (via `SetBackoff`/`SetSleep`) to 1ms for fast retry tests
+- Credential tests verify encrypt/decrypt roundtrips with test keys and temp directories
 - Image tests use `t.TempDir()` for temp files and `bytes.Buffer` for in-memory roundtrips
+- TUI tests are minimal (smoke tests) since interactive forms require a TTY
 - Use `--dry-run` for local testing without a real provider
 
 ## Releasing (Maintainers)
