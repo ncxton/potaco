@@ -117,6 +117,8 @@ func resolveModel(cmd *cobra.Command, mgr *auth.AuthManager) string {
 	if v := os.Getenv("POTACO_MODEL"); v != "" {
 		return v
 	}
+	// GetActiveProvider error is already handled by resolveProvider above;
+	// if we reach here, the provider is valid and the error is unreachable.
 	_, m, _ := mgr.GetActiveProvider()
 	return m
 }

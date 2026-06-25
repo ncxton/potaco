@@ -10,7 +10,6 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	_ "github.com/ncxton/potaco/internal/adapter/openai" // register openai adapter
-	"github.com/ncxton/potaco/internal/config"
 	img "github.com/ncxton/potaco/internal/image"
 	"github.com/spf13/cobra"
 )
@@ -33,53 +32,6 @@ var providerPresets = map[string]providerPreset{
 func getProviderPreset(name string) (providerPreset, bool) {
 	p, ok := providerPresets[name]
 	return p, ok
-}
-
-func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
-	opts := config.MergeOptions{}
-
-	if cmd.Flags().Changed("base-url") {
-		v, _ := cmd.Flags().GetString("base-url")
-		opts.BaseURL = &v
-	}
-	if cmd.Flags().Changed("api-key") {
-		v, _ := cmd.Flags().GetString("api-key")
-		opts.APIKey = &v
-	}
-	if cmd.Flags().Changed("model") {
-		v, _ := cmd.Flags().GetString("model")
-		opts.Model = &v
-	}
-	if cmd.Flags().Changed("retries") {
-		v, _ := cmd.Flags().GetInt("retries")
-		opts.Retries = &v
-	}
-	if cmd.Flags().Changed("timeout") {
-		v, _ := cmd.Flags().GetDuration("timeout")
-		opts.Timeout = &v
-	}
-	if cmd.Flags().Changed("provider") {
-		v, _ := cmd.Flags().GetString("provider")
-		opts.Provider = &v
-	}
-
-	// Apply provider preset defaults for BaseURL and Model when not
-	// already set by higher-precedence CLI flags (--base-url, --model).
-	// This keeps provider knowledge in the CLI layer rather than the
-	// config package.
-	if opts.Provider != nil {
-		preset, ok := getProviderPreset(*opts.Provider)
-		if ok {
-			if opts.BaseURL == nil {
-				opts.BaseURL = &preset.BaseURL
-			}
-			if opts.Model == nil {
-				opts.Model = &preset.DefaultModel
-			}
-		}
-	}
-
-	return opts
 }
 
 func flagString(cmd *cobra.Command, name string) string {
@@ -132,26 +84,6 @@ type outputContext struct {
 	model   string
 	params  map[string]any
 	latency int64
-}
-
-// adapterForProvider resolves the adapter for the given provider name and
-// config. In Phase 1, this is a transition helper that maps the old config
-// model to the adapter registry.
-func adapterForProvider(cfg *config.Config) (adapter.Adapter, error) {
-	providerName := cfg.Provider
-	if providerName == "" {
-		providerName = "openai" // default to openai for backward compat
-	}
-
-	opts := adapter.AdapterOpts{
-		BaseURL: cfg.BaseURL,
-		Retries: cfg.Retries,
-	}
-	if cfg.Timeout > 0 {
-		opts.Timeout = cfg.Timeout.String()
-	}
-
-	return adapter.Get(providerName, cfg.APIKey, opts)
 }
 
 func processAndOutput(cmd *cobra.Command, octx outputContext) error {
