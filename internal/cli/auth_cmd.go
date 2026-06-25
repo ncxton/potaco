@@ -8,6 +8,7 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -65,10 +66,18 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return configError(fmt.Errorf("unknown provider: %s (available: %v)", providerName, available))
 	}
 
-	// Get API key from --api-key flag or POTACO_API_KEY env var.
-	apiKey, _ := cmd.Flags().GetString("api-key")
+	// If no API key was provided via flag or env and we're interactive,
+	// launch the TUI flow to prompt for the key.
+	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
+	envKey := os.Getenv("POTACO_API_KEY")
+	if apiKeyFlag == "" && envKey == "" && tui.IsInteractive() {
+		return tui.RunAuthAdd(providerName)
+	}
+
+	// Non-interactive mode: require API key from flag or env.
+	apiKey := apiKeyFlag
 	if apiKey == "" {
-		apiKey = os.Getenv("POTACO_API_KEY")
+		apiKey = envKey
 	}
 	if apiKey == "" {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
