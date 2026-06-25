@@ -1,0 +1,126 @@
+// Package fal implements the adapter.Adapter interface for the fal API.
+package fal
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"time"
+
+	"github.com/ncxton/potaco/internal/adapter"
+)
+
+const (
+	defaultBaseURL    = "https://fal.run"
+	defaultAPIBaseURL = "https://api.fal.ai"
+)
+
+var errNotImplemented = errors.New("fal: operation not implemented")
+
+// Adapter implements adapter.Adapter for the fal API.
+type Adapter struct {
+	apiKey     string
+	baseURL    string // inference base URL (https://fal.run)
+	apiBaseURL string // discovery/verify base URL (https://api.fal.ai)
+	retries    int
+	timeout    time.Duration
+	http       *http.Client
+	backoff    func(attempt int) time.Duration
+	sleep      func(ctx context.Context, d time.Duration)
+}
+
+// New creates a fal adapter with the given API key and options.
+func New(apiKey string, opts adapter.AdapterOpts) adapter.Adapter {
+	baseURL := defaultBaseURL
+	if opts.BaseURL != "" {
+		baseURL = opts.BaseURL
+	}
+	timeout := 120 * time.Second
+	if opts.Timeout != "" {
+		if d, err := time.ParseDuration(opts.Timeout); err == nil {
+			timeout = d
+		}
+	}
+	retries := opts.Retries
+	if retries == 0 {
+		retries = 2
+	}
+	return &Adapter{
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		apiBaseURL: defaultAPIBaseURL,
+		retries:    retries,
+		timeout:    timeout,
+		http: &http.Client{
+			Timeout: timeout,
+		},
+	}
+}
+
+// SetBackoff overrides the backoff function (for testing).
+func (a *Adapter) SetBackoff(fn func(int) time.Duration) {
+	a.backoff = fn
+}
+
+// SetSleep overrides the sleep function (for testing).
+func (a *Adapter) SetSleep(fn func(context.Context, time.Duration)) {
+	a.sleep = fn
+}
+
+// Name returns the provider name.
+func (a *Adapter) Name() string { return "fal" }
+
+// AuthHeader returns the Authorization header value for the given API key.
+// fal uses "Key" prefix instead of "Bearer".
+func (a *Adapter) AuthHeader(apiKey string) string {
+	return "Key " + apiKey
+}
+
+// Generate generates an image with the fal API.
+func (a *Adapter) Generate(_ context.Context, _ adapter.GenerateRequest) (*adapter.GenerateResponse, error) {
+	return nil, fmt.Errorf("fal generate: %w", errNotImplemented)
+}
+
+// Edit edits an image with the fal API.
+func (a *Adapter) Edit(_ context.Context, _ adapter.EditRequest) (*adapter.GenerateResponse, error) {
+	return nil, fmt.Errorf("fal edit: %w", errNotImplemented)
+}
+
+// DiscoverModels returns image-generation-capable models from fal.
+func (a *Adapter) DiscoverModels(_ context.Context) ([]adapter.Model, error) {
+	return nil, fmt.Errorf("fal discover models: %w", errNotImplemented)
+}
+
+// Verify verifies fal API credentials.
+func (a *Adapter) Verify(_ context.Context) error {
+	return fmt.Errorf("fal verify: %w", errNotImplemented)
+}
+
+// ModelParams returns parameter metadata for a fal model.
+func (a *Adapter) ModelParams(_ context.Context, _ string) ([]adapter.Param, error) {
+	return nil, fmt.Errorf("fal model params: %w", errNotImplemented)
+}
+
+// generateURL returns the full URL for a generate request to a model endpoint.
+// The model ID is used as the path (e.g., fal-ai/flux/dev -> https://fal.run/fal-ai/flux/dev).
+func (a *Adapter) generateURL(modelID string) string {
+	return a.baseURL + "/" + modelID
+}
+
+// editURL returns the full URL for an edit request by appending /image-to-image
+// to the model endpoint.
+func (a *Adapter) editURL(modelID string) string {
+	return a.baseURL + "/" + modelID + "/image-to-image"
+}
+
+// modelsURL returns the full URL for the models listing endpoint on the API host.
+func (a *Adapter) modelsURL() string {
+	return a.apiBaseURL + "/v1/models"
+}
+
+func init() {
+	adapter.Register("fal", func(apiKey string, opts adapter.AdapterOpts) (adapter.Adapter, error) {
+		return New(apiKey, opts), nil
+	})
+}
