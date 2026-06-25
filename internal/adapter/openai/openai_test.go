@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -439,5 +440,40 @@ func TestOpenAIModelParamsDalE3(t *testing.T) {
 	}
 	if !names["quality"] {
 		t.Error("dall-e-3 should have quality param")
+	}
+}
+
+func TestOpenAIDiscoverModelsMalformedJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("not-json"))
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	models, err := a.DiscoverModels(context.Background())
+	if err != nil {
+		t.Fatalf("DiscoverModels should fall back on malformed JSON, got error: %v", err)
+	}
+	if len(models) == 0 {
+		t.Fatal("should return fallback models on malformed JSON")
+	}
+
+	ids := make(map[string]bool)
+	for _, m := range models {
+		ids[m.ID] = true
+	}
+	if !ids["gpt-image-2"] {
+		t.Error("fallback should include gpt-image-2")
+	}
+}
+
+func TestOpenAIModelParamsNotFound(t *testing.T) {
+	a := New("sk-test", adapter.AdapterOpts{})
+
+	_, err := a.ModelParams(context.Background(), "nonexistent-model")
+	if !errors.Is(err, adapter.ErrModelNotFound) {
+		t.Errorf("ModelParams should return ErrModelNotFound for unknown model, got: %v", err)
 	}
 }

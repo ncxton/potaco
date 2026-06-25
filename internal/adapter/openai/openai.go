@@ -126,6 +126,15 @@ func (a *Adapter) editURL() string {
 	return a.baseURL + "/v1/images/edits"
 }
 
+// modelsURL returns the full URL for the models endpoint,
+// handling whether baseURL already includes /v1.
+func (a *Adapter) modelsURL() string {
+	if strings.HasSuffix(a.baseURL, "/v1") {
+		return a.baseURL + "/models"
+	}
+	return a.baseURL + "/v1/models"
+}
+
 // buildGenerateBody converts the normalized GenerateRequest to the OpenAI
 // JSON schema. Provider-specific fields pass through ExtraParams.
 func (a *Adapter) buildGenerateBody(req adapter.GenerateRequest) map[string]any {
@@ -418,10 +427,7 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (*adapter.G
 // DiscoverModels calls GET /v1/models and filters for known image model
 // IDs. On any API failure it falls back to a hardcoded list of models.
 func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
-	url := a.baseURL + "/v1/models"
-	if strings.HasSuffix(a.baseURL, "/v1") {
-		url = a.baseURL + "/models"
-	}
+	url := a.modelsURL()
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -471,10 +477,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 // the endpoint is reachable. A 401/403 indicates an invalid key; any
 // other 4xx indicates verification failed.
 func (a *Adapter) Verify(ctx context.Context) error {
-	url := a.baseURL + "/v1/models"
-	if strings.HasSuffix(a.baseURL, "/v1") {
-		url = a.baseURL + "/models"
-	}
+	url := a.modelsURL()
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
