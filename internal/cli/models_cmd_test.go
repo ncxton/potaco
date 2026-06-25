@@ -154,6 +154,93 @@ func TestModelsListSpecificProviderNotConnected(t *testing.T) {
 	}
 }
 
+func TestModelsParamsKnownModel(t *testing.T) {
+	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
+	resetModelsCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"models", "--params", "gpt-image-2"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "size") {
+		t.Errorf("params should list size param, got: %s", output)
+	}
+	if !strings.Contains(output, "quality") {
+		t.Errorf("params should list quality param, got: %s", output)
+	}
+}
+
+func TestModelsParamsJSON(t *testing.T) {
+	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
+	resetModelsCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set json flag: %v", err)
+	}
+	rootCmd.SetArgs([]string{"models", "--params", "gpt-image-2"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "\"name\":") {
+		t.Errorf("JSON params should contain name field, got: %s", output)
+	}
+	if !strings.Contains(output, "\"type\":") {
+		t.Errorf("JSON params should contain type field, got: %s", output)
+	}
+}
+
+func TestModelsParamsUnknownModel(t *testing.T) {
+	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
+	resetModelsCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"models", "--params", "unknown-model"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for unknown model")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("error should mention model not found, got: %v", err)
+	}
+}
+
+func TestModelsListWithApiKeyOverride(t *testing.T) {
+	setupAuthProviderForProvider(t, "openai", "sk-stored", "gpt-image-2")
+	resetModelsCmdFlags(t)
+
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"data": []map[string]any{
+				{"id": "gpt-image-2", "owned_by": "openai"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"models", "--api-key", "sk-override", "--base-url", srv.URL})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	if gotAuth != "Bearer sk-override" {
+		t.Errorf("Authorization header = %q, want Bearer sk-override", gotAuth)
+	}
+}
+
 func resetModelsCmdFlags(t *testing.T) {
 	t.Helper()
 	for _, name := range []string{"params", "base-url", "api-key"} {
