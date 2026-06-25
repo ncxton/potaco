@@ -2,8 +2,8 @@
 package auth
 
 import (
-	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/ncxton/potaco/internal/credential"
@@ -167,11 +167,11 @@ func TestAuthSetActiveProvider(t *testing.T) {
 	}
 }
 
-func TestAuthGetActiveCredential(t *testing.T) {
+func TestAuthGetActiveAPIKey(t *testing.T) {
 	auth := newTestAuth(t)
 	auth.Add("openai", "sk-test", true)
 
-	// This should return an adapter for the active provider
+	// This should return an API key for the active provider
 	_, err := auth.GetActiveAPIKey()
 	if err != nil {
 		t.Fatalf("GetActiveAPIKey: %v", err)
@@ -185,7 +185,24 @@ func TestAuthGetActiveAPIKeyNoProvider(t *testing.T) {
 	if err == nil {
 		t.Fatal("should error when no active provider")
 	}
-	if !os.IsNotExist(err) && err.Error() == "" {
-		// It should be a clear error about no active provider
+	if !strings.Contains(err.Error(), "no active provider") {
+		t.Errorf("error should mention 'no active provider', got: %v", err)
+	}
+}
+
+func TestAuthGetActiveProvider(t *testing.T) {
+	auth := newTestAuth(t)
+	auth.Add("openai", "sk-1", true)
+	auth.Add("fal", "sk-2", true)
+
+	provider, model, err := auth.GetActiveProvider()
+	if err != nil {
+		t.Fatalf("GetActiveProvider: %v", err)
+	}
+	if provider != "fal" {
+		t.Errorf("provider = %q, want 'fal'", provider)
+	}
+	if model == "" {
+		t.Error("model should not be empty")
 	}
 }
