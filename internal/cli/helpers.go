@@ -9,7 +9,9 @@ import (
 	"path/filepath"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	_ "github.com/ncxton/potaco/internal/adapter/fal"    // register fal adapter
 	_ "github.com/ncxton/potaco/internal/adapter/openai" // register openai adapter
+	_ "github.com/ncxton/potaco/internal/adapter/vercel" // register vercel adapter
 	img "github.com/ncxton/potaco/internal/image"
 	"github.com/spf13/cobra"
 )
@@ -25,7 +27,8 @@ type providerPreset struct {
 
 var providerPresets = map[string]providerPreset{
 	"openai": {BaseURL: "https://api.openai.com", DefaultModel: "gpt-image-2"},
-	"fal":    {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux"},
+	"fal":    {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux/dev"},
+	"vercel": {BaseURL: "https://ai-gateway.vercel.sh", DefaultModel: "openai/gpt-image-2"},
 }
 
 func getProviderPreset(name string) (providerPreset, bool) {
