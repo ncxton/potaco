@@ -11,6 +11,7 @@ import (
 	"github.com/ncxton/potaco/internal/auth"
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/credential"
+	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -88,12 +89,17 @@ func runModels(cmd *cobra.Command, args []string) error {
 		return showModelParams(cmd, ad, modelID)
 	}
 
+	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
+
+	if !jsonMode && tui.IsInteractive() {
+		return tui.RunModelList(providerName, apiKey)
+	}
+
 	models, err := ad.DiscoverModels(context.Background())
 	if err != nil {
 		return apiError(fmt.Errorf("discover models: %w", err))
 	}
 
-	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	out := cmd.OutOrStdout()
 
 	if jsonMode {
