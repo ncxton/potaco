@@ -107,7 +107,11 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 		if imgData.B64JSON != "" {
 			decoded, err := img.DecodeBase64Image(imgData.B64JSON)
 			if err != nil {
-				return fmt.Errorf("decode image %d: %w", i, err)
+				return imageUserErr(
+					"Could not decode the image returned by the provider.",
+					"The provider may have returned an unsupported image format. Try a different model or check '~/.potaco/debug.log' for details.",
+					fmt.Errorf("decode image %d: %w", i, err),
+				)
 			}
 			bounds := decoded.Bounds()
 			widths[i] = bounds.Dx()
@@ -129,18 +133,30 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 				switch outputFormat {
 				case "jpeg", "jpg":
 					if err := jpeg.Encode(os.Stdout, decoded, &jpeg.Options{Quality: 90}); err != nil {
-						return fmt.Errorf("encode image %d to stdout: %w", i, err)
+						return imageUserErr(
+							"Could not encode the image for stdout.",
+							"",
+							fmt.Errorf("encode image %d to stdout: %w", i, err),
+						)
 					}
 				default:
 					if err := png.Encode(os.Stdout, decoded); err != nil {
-						return fmt.Errorf("encode image %d to stdout: %w", i, err)
+						return imageUserErr(
+							"Could not encode the image for stdout.",
+							"",
+							fmt.Errorf("encode image %d to stdout: %w", i, err),
+						)
 					}
 				}
 			}
 
 			if !stdoutMode || explicitOutput {
 				if err := img.WriteImage(decoded, path, outputFormat); err != nil {
-					return fmt.Errorf("write image %d: %w", i, err)
+					return imageUserErr(
+						fmt.Sprintf("Cannot save the image to '%s'.", path),
+						"Make sure the path is a file (not a directory) and you have write permissions.",
+						fmt.Errorf("write image %d: %w", i, err),
+					)
 				}
 			}
 			paths[i] = path
@@ -169,7 +185,11 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	if !stdoutMode {
 		output, err := FormatResult(result, outOpts)
 		if err != nil {
-			return fmt.Errorf("format output: %w", err)
+			return imageUserErr(
+				"Could not format the output.",
+				"",
+				fmt.Errorf("format output: %w", err),
+			)
 		}
 		if output != "" {
 			fmt.Fprintln(cmd.OutOrStdout(), output)

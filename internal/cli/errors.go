@@ -15,9 +15,9 @@ const (
 	ExitImage   = 4
 )
 
-// ExitCoder is an error that carries a specific process exit code.
-// It wraps an inner error so that callers can inspect the underlying
-// cause while still signaling the desired exit status to Execute().
+// ExitCoder is retained for backward compatibility with tests that check
+// exit codes. New code should use UserError and the userErr/configUserErr/
+// apiUserErr/imageUserErr constructors instead.
 type ExitCoder struct {
 	Code int
 	Err  error
@@ -35,16 +35,18 @@ func (e *ExitCoder) Unwrap() error {
 }
 
 // configError wraps an error so Execute() exits with the config exit code (2).
+// This is a legacy constructor that creates a UserError with the raw error
+// as the message. Prefer configUserErr for new code.
 func configError(err error) error {
-	return &ExitCoder{Code: ExitConfig, Err: err}
+	return &UserError{Category: CatConfig, Message: err.Error(), Raw: err}
 }
 
 // apiError wraps an error so Execute() exits with the API exit code (3).
 func apiError(err error) error {
-	return &ExitCoder{Code: ExitAPI, Err: err}
+	return &UserError{Category: CatAPI, Message: err.Error(), Raw: err}
 }
 
 // imageError wraps an error so Execute() exits with the image exit code (4).
 func imageError(err error) error {
-	return &ExitCoder{Code: ExitImage, Err: err}
+	return &UserError{Category: CatImage, Message: err.Error(), Raw: err}
 }

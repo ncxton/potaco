@@ -48,7 +48,15 @@ func init() {
 func runGen(cmd *cobra.Command, args []string) error {
 	prompt := flagString(cmd, "prompt")
 	if prompt == "" {
-		return fmt.Errorf("prompt cannot be empty")
+		return configUserErr("A prompt is required.", "Use 'potaco gen --prompt \"your description\"'.", fmt.Errorf("prompt cannot be empty"))
+	}
+
+	// Pre-flight: validate output path before calling the API.
+	if !flagBool(cmd, "stdout") {
+		outputPath := flagString(cmd, "output")
+		if ue := validateOutputPath(outputPath); ue != nil {
+			return ue
+		}
 	}
 
 	resolved, err := resolveAdapterForCommand(cmd)
@@ -87,11 +95,17 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return printDryRun(cmd, "POST", dryRunURL, "application/json", authHeader, req)
 	}
 
+	sp := startSpinner(cmd, "Generating image...")
 	start := time.Now()
 	resp, err := resolved.Adapter.Generate(context.Background(), req)
+	sp.stop()
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return apiError(fmt.Errorf("generate: %w", err))
+		return apiUserErr(
+			"Image generation failed.",
+			"Check your API key, network connection, and model name.",
+			fmt.Errorf("generate: %w", err),
+		)
 	}
 
 	if err := processAndOutput(cmd, outputContext{

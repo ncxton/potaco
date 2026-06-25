@@ -56,16 +56,28 @@ func init() {
 func runEdit(cmd *cobra.Command, args []string) error {
 	prompt := flagString(cmd, "prompt")
 	if prompt == "" {
-		return fmt.Errorf("prompt cannot be empty")
+		return configUserErr("A prompt is required.", "Use 'potaco edit --prompt \"your description\"'.", fmt.Errorf("prompt cannot be empty"))
 	}
 
 	imagePath := flagString(cmd, "image")
 	if imagePath == "" {
-		return fmt.Errorf("image path is required")
+		return configUserErr("An image file is required.", "Use --image to specify the source image path.", fmt.Errorf("image path is required"))
 	}
 
 	if _, err := os.Stat(imagePath); err != nil {
-		return fmt.Errorf("image file: %w", err)
+		return configUserErr(
+			fmt.Sprintf("The file '%s' does not exist.", imagePath),
+			"Check the path and try again.",
+			fmt.Errorf("image file: %w", err),
+		)
+	}
+
+	// Pre-flight: validate output path before calling the API.
+	if !flagBool(cmd, "stdout") {
+		outputPath := flagString(cmd, "output")
+		if ue := validateOutputPath(outputPath); ue != nil {
+			return ue
+		}
 	}
 
 	resolved, err := resolveAdapterForCommand(cmd)
@@ -80,7 +92,11 @@ func runEdit(cmd *cobra.Command, args []string) error {
 
 	if dryRun {
 		if resolved.Adapter.Name() == "vercel" {
-			return apiError(fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider. Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing."))
+			return apiUserErr(
+				"Image editing is not supported by the Vercel AI Gateway provider.",
+				"Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing.",
+				fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider"),
+			)
 		}
 		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
 		return printEditDryRun(cmd, resolved.BaseURL, resolved.Adapter.Name(), authHeader, prompt, model, imagePath, cmd.Flags())
@@ -103,11 +119,17 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		MaskPath:       maskPath,
 	}
 
+	sp := startSpinner(cmd, "Editing image...")
 	start := time.Now()
 	resp, err := resolved.Adapter.Edit(context.Background(), req)
+	sp.stop()
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
-		return apiError(fmt.Errorf("edit: %w", err))
+		return apiUserErr(
+			"Image editing failed.",
+			"Check your API key, network connection, and model name.",
+			fmt.Errorf("edit: %w", err),
+		)
 	}
 
 	if err := processAndOutput(cmd, outputContext{

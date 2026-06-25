@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -20,11 +21,14 @@ var rootCmd = &cobra.Command{
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
+		renderAnyError(os.Stderr, err)
+		var ue *UserError
+		if errors.As(err, &ue) {
+			os.Exit(ue.ExitCode())
+		}
 		if ec, ok := err.(*ExitCoder); ok {
-			fmt.Fprintln(os.Stderr, err)
 			os.Exit(ec.Code)
 		}
-		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

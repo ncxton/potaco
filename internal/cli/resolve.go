@@ -32,7 +32,11 @@ type resolvedConfig struct {
 func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	mgr, err := auth.New()
 	if err != nil {
-		return nil, configError(fmt.Errorf("init auth: %w", err))
+		return nil, configUserErr(
+			"Could not load configuration.",
+			"Check that ~/.potaco/ is readable.",
+			fmt.Errorf("init auth: %w", err),
+		)
 	}
 
 	providerName, err := resolveProvider(cmd, mgr)
@@ -69,7 +73,11 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 
 	ad, err := adapter.Get(providerName, apiKey, opts)
 	if err != nil {
-		return nil, configError(fmt.Errorf("create adapter: %w", err))
+		return nil, configUserErr(
+			fmt.Sprintf("Could not connect to provider '%s'.", providerName),
+			"Check that the provider name is correct. Use 'potaco auth list' to see connected providers.",
+			fmt.Errorf("create adapter: %w", err),
+		)
 	}
 
 	return &resolvedConfig{
@@ -88,10 +96,18 @@ func resolveProvider(cmd *cobra.Command, mgr *auth.AuthManager) (string, error) 
 	}
 	p, _, err := mgr.GetActiveProvider()
 	if err != nil {
-		return "", configError(fmt.Errorf("no active provider: %w", err))
+		return "", configUserErr(
+			"No active provider configured.",
+			"Run 'potaco auth add <provider>' to connect one.",
+			fmt.Errorf("no active provider: %w", err),
+		)
 	}
 	if p == "" {
-		return "", configError(fmt.Errorf("no active provider configured. Use 'potaco auth add <provider>' to connect one"))
+		return "", configUserErr(
+			"No active provider configured.",
+			"Run 'potaco auth add <provider>' to connect one.",
+			fmt.Errorf("no active provider configured"),
+		)
 	}
 	return p, nil
 }
@@ -105,7 +121,11 @@ func resolveAPIKey(cmd *cobra.Command, mgr *auth.AuthManager) (string, error) {
 	}
 	k, err := mgr.GetActiveAPIKey()
 	if err != nil {
-		return "", configError(fmt.Errorf("get API key: %w", err))
+		return "", configUserErr(
+			"No API key found for the active provider.",
+			"Run 'potaco auth add <provider> --api-key <key>' to set one.",
+			fmt.Errorf("get API key: %w", err),
+		)
 	}
 	return k, nil
 }

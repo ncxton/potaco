@@ -132,6 +132,7 @@ func TestErrorNotDuplicated(t *testing.T) {
 		t.Errorf("error should mention 'no active provider', got: %v", err)
 	}
 	// With SilenceErrors=true, Cobra should NOT print the error to stderr.
+	// The Execute() wrapper handles printing. So stderr should be empty.
 	if errBuf.String() != "" {
 		t.Errorf("Cobra should not print error to stderr with SilenceErrors=true, got: %q", errBuf.String())
 	}

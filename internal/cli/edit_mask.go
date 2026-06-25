@@ -73,11 +73,19 @@ func prepareEditImage(imagePath string, flags *pflag.FlagSet) (string, string, f
 	if extendFlag != "" {
 		extendCfg, err := img.ParseExtend(extendFlag)
 		if err != nil {
-			return "", "", noopCleanup, fmt.Errorf("parse extend: %w", err)
+			return "", "", noopCleanup, imageUserErr(
+				fmt.Sprintf("Invalid extend format: '%s'.", extendFlag),
+				"Use top=N,bottom=N,left=N,right=N or all=N.",
+				fmt.Errorf("parse extend: %w", err),
+			)
 		}
 		expandedPath, maskPath, err := img.PrepareOutpaint(imagePath, extendCfg)
 		if err != nil {
-			return "", "", noopCleanup, fmt.Errorf("prepare outpaint: %w", err)
+			return "", "", noopCleanup, imageUserErr(
+				"Could not prepare the outpaint canvas.",
+				"Check that the source image is a valid PNG or JPEG file.",
+				fmt.Errorf("prepare outpaint: %w", err),
+			)
 		}
 		return expandedPath, maskPath, func() { _ = os.RemoveAll(filepath.Dir(expandedPath)) }, nil
 	}
@@ -85,7 +93,11 @@ func prepareEditImage(imagePath string, flags *pflag.FlagSet) (string, string, f
 	if maskFlag != "" || maskRectFlag != "" || maskCircleFlag != "" {
 		if maskFlag != "" {
 			if _, err := os.Stat(maskFlag); err != nil {
-				return "", "", noopCleanup, fmt.Errorf("mask file: %w", err)
+				return "", "", noopCleanup, imageUserErr(
+					fmt.Sprintf("The mask file '%s' does not exist.", maskFlag),
+					"Check the path and try again.",
+					fmt.Errorf("mask file: %w", err),
+				)
 			}
 			maskPath, cleanup, err := normalizeMaskFile(imagePath, maskFlag)
 			if err != nil {
