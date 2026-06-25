@@ -2,13 +2,20 @@ package cli
 
 import (
 	"bytes"
+	"encoding/base64"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	img "github.com/ncxton/potaco/internal/image"
+	"github.com/spf13/pflag"
 )
 
 func TestEditCommandExists(t *testing.T) {
@@ -203,6 +210,144 @@ func TestEditParseCircleMaskInvalid(t *testing.T) {
 	_, _, _, err := parseCircleMask("25,25")
 	if err == nil {
 		t.Fatal("parseCircleMask should error on 2 parts")
+	}
+}
+
+func TestPrepareEditImageNormalizesUserMaskFile(t *testing.T) {
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 20, 20)
+
+	maskPath := filepath.Join(dir, "mask.png")
+	createTestPNG(t, maskPath, 5, 5)
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("extend", "", "")
+	flags.String("mask", maskPath, "")
+	flags.String("mask-rect", "", "")
+	flags.String("mask-circle", "", "")
+
+	editPath, normalizedMaskPath, cleanup, err := prepareEditImage(imgPath, flags)
+	if err != nil {
+		t.Fatalf("prepareEditImage error: %v", err)
+	}
+	defer cleanup()
+
+	if editPath != imgPath {
+		t.Fatalf("edit path = %q, want original image path", editPath)
+	}
+	if normalizedMaskPath == maskPath {
+		t.Fatalf("mask path should point to normalized temp mask, not raw user mask")
+	}
+	mask, _, err := img.ReadImage(normalizedMaskPath)
+	if err != nil {
+		t.Fatalf("read normalized mask: %v", err)
+	}
+	if mask.Bounds().Dx() != 20 || mask.Bounds().Dy() != 20 {
+		t.Fatalf("normalized mask size = %dx%d, want 20x20", mask.Bounds().Dx(), mask.Bounds().Dy())
+	}
+}
+
+func TestPrepareEditImageCleanupRemovesGeneratedMaskDir(t *testing.T) {
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 20, 20)
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("extend", "", "")
+	flags.String("mask", "", "")
+	flags.String("mask-rect", "1,1,5,5", "")
+	flags.String("mask-circle", "", "")
+
+	_, maskPath, cleanup, err := prepareEditImage(imgPath, flags)
+	if err != nil {
+		t.Fatalf("prepareEditImage error: %v", err)
+	}
+	tempDir := filepath.Dir(maskPath)
+	if _, err := os.Stat(maskPath); err != nil {
+		t.Fatalf("mask should exist before cleanup: %v", err)
+	}
+	cleanup()
+	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
+		t.Fatalf("temp dir should be removed after cleanup, stat err: %v", err)
+	}
+}
+
+func TestPrepareEditImageCleanupRemovesOutpaintDir(t *testing.T) {
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 20, 20)
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("extend", "right=5", "")
+	flags.String("mask", "", "")
+	flags.String("mask-rect", "", "")
+	flags.String("mask-circle", "", "")
+
+	expandedPath, _, cleanup, err := prepareEditImage(imgPath, flags)
+	if err != nil {
+		t.Fatalf("prepareEditImage error: %v", err)
+	}
+	tempDir := filepath.Dir(expandedPath)
+	cleanup()
+	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
+		t.Fatalf("outpaint temp dir should be removed after cleanup, stat err: %v", err)
+	}
+}
+
+func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
+	resetRootCmdFlags(t)
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 20, 20)
+	outputPath := filepath.Join(dir, "output.png")
+
+	responseBytes, err := os.ReadFile(imgPath)
+	if err != nil {
+		t.Fatalf("read response fixture: %v", err)
+	}
+	responseB64 := base64.StdEncoding.EncodeToString(responseBytes)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		if r.FormValue("prompt") != "remove object" {
+			t.Fatalf("prompt = %q, want remove object", r.FormValue("prompt"))
+		}
+		if _, _, err := r.FormFile("image"); err != nil {
+			t.Fatalf("image missing: %v", err)
+		}
+		if _, _, err := r.FormFile("mask"); err != nil {
+			t.Fatalf("mask missing: %v", err)
+		}
+		fmt.Fprintf(w, `{"created":1,"data":[{"b64_json":%q}]}`, responseB64)
+	}))
+	defer server.Close()
+
+	before, _ := filepath.Glob(filepath.Join(os.TempDir(), "potaco-mask-*"))
+
+	t.Setenv("POTACO_BASE_URL", server.URL)
+	t.Setenv("POTACO_API_KEY", "sk-test")
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{
+		"edit",
+		"--prompt", "remove object",
+		"--image", imgPath,
+		"--mask-rect", "1,1,5,5",
+		"--output", outputPath,
+	})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("edit returned error: %v", err)
+	}
+
+	after, _ := filepath.Glob(filepath.Join(os.TempDir(), "potaco-mask-*"))
+	if len(after) != len(before) {
+		t.Fatalf("temp mask dirs leaked: before=%v after=%v", before, after)
 	}
 }
 

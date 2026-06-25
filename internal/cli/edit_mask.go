@@ -54,7 +54,9 @@ func printEditDryRun(cmd *cobra.Command, baseURL, prompt, model, imagePath strin
 	return printDryRun(cmd, "POST", baseURL+"/v1/images/edits", "multipart/form-data", body)
 }
 
-func prepareEditImage(imagePath string, flags *pflag.FlagSet) (string, string, error) {
+func noopCleanup() {}
+
+func prepareEditImage(imagePath string, flags *pflag.FlagSet) (string, string, func(), error) {
 	extendFlag, _ := flags.GetString("extend")
 	maskFlag, _ := flags.GetString("mask")
 	maskRectFlag, _ := flags.GetString("mask-rect")
@@ -63,34 +65,52 @@ func prepareEditImage(imagePath string, flags *pflag.FlagSet) (string, string, e
 	if extendFlag != "" {
 		extendCfg, err := img.ParseExtend(extendFlag)
 		if err != nil {
-			return "", "", fmt.Errorf("parse extend: %w", err)
+			return "", "", noopCleanup, fmt.Errorf("parse extend: %w", err)
 		}
 		expandedPath, maskPath, err := img.PrepareOutpaint(imagePath, extendCfg)
 		if err != nil {
-			return "", "", fmt.Errorf("prepare outpaint: %w", err)
+			return "", "", noopCleanup, fmt.Errorf("prepare outpaint: %w", err)
 		}
-		return expandedPath, maskPath, nil
+		return expandedPath, maskPath, func() { _ = os.RemoveAll(filepath.Dir(expandedPath)) }, nil
 	}
 
 	if maskFlag != "" || maskRectFlag != "" || maskCircleFlag != "" {
 		if maskFlag != "" {
 			if _, err := os.Stat(maskFlag); err != nil {
-				return "", "", fmt.Errorf("mask file: %w", err)
+				return "", "", noopCleanup, fmt.Errorf("mask file: %w", err)
 			}
-			return imagePath, maskFlag, nil
+			maskPath, cleanup, err := normalizeMaskFile(imagePath, maskFlag)
+			if err != nil {
+				cleanup()
+				return "", "", noopCleanup, err
+			}
+			return imagePath, maskPath, cleanup, nil
 		}
 
-		maskPath, err := generateMaskFile(imagePath, maskRectFlag, maskCircleFlag)
-		return imagePath, maskPath, err
+		maskPath, cleanup, err := generateMaskFile(imagePath, maskRectFlag, maskCircleFlag)
+		return imagePath, maskPath, cleanup, err
 	}
 
-	return imagePath, "", nil
+	return imagePath, "", noopCleanup, nil
 }
 
-func generateMaskFile(imagePath, maskRectFlag, maskCircleFlag string) (string, error) {
+func normalizeMaskFile(imagePath, maskPath string) (string, func(), error) {
 	srcImg, _, err := img.ReadImage(imagePath)
 	if err != nil {
-		return "", fmt.Errorf("read source image: %w", err)
+		return "", noopCleanup, fmt.Errorf("read source image: %w", err)
+	}
+	bounds := srcImg.Bounds()
+	maskImg, err := img.LoadMaskFile(maskPath, bounds.Dx(), bounds.Dy())
+	if err != nil {
+		return "", noopCleanup, fmt.Errorf("load mask file: %w", err)
+	}
+	return writeTempMask(maskImg)
+}
+
+func generateMaskFile(imagePath, maskRectFlag, maskCircleFlag string) (string, func(), error) {
+	srcImg, _, err := img.ReadImage(imagePath)
+	if err != nil {
+		return "", noopCleanup, fmt.Errorf("read source image: %w", err)
 	}
 	bounds := srcImg.Bounds()
 
@@ -98,32 +118,38 @@ func generateMaskFile(imagePath, maskRectFlag, maskCircleFlag string) (string, e
 	if maskRectFlag != "" {
 		x, y, w, h, err := parseRectMask(maskRectFlag)
 		if err != nil {
-			return "", fmt.Errorf("parse mask-rect: %w", err)
+			return "", noopCleanup, fmt.Errorf("parse mask-rect: %w", err)
 		}
 		maskImg, err = img.RectMask(bounds.Dx(), bounds.Dy(), x, y, w, h)
 		if err != nil {
-			return "", fmt.Errorf("generate rect mask: %w", err)
+			return "", noopCleanup, fmt.Errorf("generate rect mask: %w", err)
 		}
 	} else if maskCircleFlag != "" {
 		cx, cy, r, err := parseCircleMask(maskCircleFlag)
 		if err != nil {
-			return "", fmt.Errorf("parse mask-circle: %w", err)
+			return "", noopCleanup, fmt.Errorf("parse mask-circle: %w", err)
 		}
 		maskImg, err = img.CircleMask(bounds.Dx(), bounds.Dy(), cx, cy, r)
 		if err != nil {
-			return "", fmt.Errorf("generate circle mask: %w", err)
+			return "", noopCleanup, fmt.Errorf("generate circle mask: %w", err)
 		}
 	}
 
+	return writeTempMask(maskImg)
+}
+
+func writeTempMask(maskImg image.Image) (string, func(), error) {
 	dir, err := os.MkdirTemp("", "potaco-mask-*")
 	if err != nil {
-		return "", fmt.Errorf("create temp dir: %w", err)
+		return "", noopCleanup, fmt.Errorf("create temp dir: %w", err)
 	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
 	maskPath := filepath.Join(dir, "mask.png")
 	if err := img.WriteMask(maskImg, maskPath); err != nil {
-		return "", fmt.Errorf("write mask: %w", err)
+		cleanup()
+		return "", noopCleanup, fmt.Errorf("write mask: %w", err)
 	}
-	return maskPath, nil
+	return maskPath, cleanup, nil
 }
 
 func parseRectMask(s string) (x, y, w, h int, err error) {

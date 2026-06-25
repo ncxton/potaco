@@ -89,10 +89,12 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return printEditDryRun(cmd, cfg.BaseURL, prompt, model, imagePath, cmd.Flags())
 	}
 
-	editImagePath, maskPath, err = prepareEditImage(imagePath, cmd.Flags())
+	cleanup := noopCleanup
+	editImagePath, maskPath, cleanup, err = prepareEditImage(imagePath, cmd.Flags())
 	if err != nil {
-		return err
+		return imageError(err)
 	}
+	defer cleanup()
 
 	req := provider.EditRequest{
 		Prompt:         prompt,

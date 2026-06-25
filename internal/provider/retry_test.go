@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -224,5 +225,52 @@ func TestRetryDrainLimit(t *testing.T) {
 	}
 	if callCount.Load() != 2 {
 		t.Errorf("callCount = %d, want 2", callCount.Load())
+	}
+}
+
+func TestEditRetryReplaysMultipartBody(t *testing.T) {
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "image.png")
+	maskPath := filepath.Join(tmpDir, "mask.png")
+	writeMinimalPNG(t, imgPath, 2, 2)
+	writeMinimalPNG(t, maskPath, 2, 2)
+
+	var callCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count := callCount.Add(1)
+		if count == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			fmt.Fprint(w, `{"error":{"message":"retry"}}`)
+			return
+		}
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		if r.FormValue("prompt") != "edit prompt" {
+			t.Fatalf("prompt = %q, want edit prompt", r.FormValue("prompt"))
+		}
+		if _, _, err := r.FormFile("image"); err != nil {
+			t.Fatalf("image missing on retry: %v", err)
+		}
+		if _, _, err := r.FormFile("mask"); err != nil {
+			t.Fatalf("mask missing on retry: %v", err)
+		}
+		fmt.Fprint(w, `{"created":1,"data":[{"b64_json":"aGVsbG8="}]}`)
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientConfig{BaseURL: server.URL, APIKey: "placeholder-key", Retries: 1, Timeout: time.Second})
+	client.backoff = func(attempt int) time.Duration { return time.Millisecond }
+
+	_, err := client.Edit(context.Background(), EditRequest{
+		Prompt:    "edit prompt",
+		ImagePath: imgPath,
+		MaskPath:  maskPath,
+	})
+	if err != nil {
+		t.Fatalf("Edit error: %v", err)
+	}
+	if callCount.Load() != 2 {
+		t.Fatalf("callCount = %d, want 2", callCount.Load())
 	}
 }
