@@ -8,11 +8,32 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ncxton/potaco/internal/adapter"
+	_ "github.com/ncxton/potaco/internal/adapter/openai" // register openai adapter
 	"github.com/ncxton/potaco/internal/config"
 	img "github.com/ncxton/potaco/internal/image"
-	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 )
+
+// providerPreset holds known defaults for a provider preset. This is a
+// temporary Phase 1 shim that mirrors internal/provider/presets.go so the
+// CLI layer no longer imports the provider package. It will be replaced
+// in Phase 2 when adapters expose their own preset metadata.
+type providerPreset struct {
+	BaseURL      string
+	DefaultModel string
+}
+
+var providerPresets = map[string]providerPreset{
+	"openai":   {BaseURL: "https://api.openai.com", DefaultModel: "gpt-image-2"},
+	"together": {BaseURL: "https://api.together.ai", DefaultModel: "black-forest-labs/flux-1"},
+	"fal":      {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux"},
+}
+
+func getProviderPreset(name string) (providerPreset, bool) {
+	p, ok := providerPresets[name]
+	return p, ok
+}
 
 func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
 	opts := config.MergeOptions{}
@@ -47,7 +68,7 @@ func buildMergeOptions(cmd *cobra.Command) config.MergeOptions {
 	// This keeps provider knowledge in the CLI layer rather than the
 	// config package.
 	if opts.Provider != nil {
-		preset, ok := provider.GetPreset(*opts.Provider)
+		preset, ok := getProviderPreset(*opts.Provider)
 		if ok {
 			if opts.BaseURL == nil {
 				opts.BaseURL = &preset.BaseURL
@@ -107,10 +128,29 @@ func printDryRun(cmd *cobra.Command, method, url, contentType string, body any) 
 }
 
 type outputContext struct {
-	resp    *provider.ImageResponse
+	resp    *adapter.GenerateResponse
 	model   string
 	params  map[string]any
 	latency int64
+}
+
+// adapterForProvider resolves the adapter for the given provider name and
+// config. In Phase 1, this is a transition helper that maps the old config
+// model to the adapter registry.
+func adapterForProvider(cfg *config.Config) (adapter.Adapter, error) {
+	providerName := cfg.Provider
+	if providerName == "" {
+		providerName = "openai" // default to openai for backward compat
+	}
+
+	opts := adapter.AdapterOpts{
+		BaseURL: cfg.BaseURL,
+	}
+	if cfg.Timeout > 0 {
+		opts.Timeout = cfg.Timeout.String()
+	}
+
+	return adapter.Get(providerName, cfg.APIKey, opts)
 }
 
 func processAndOutput(cmd *cobra.Command, octx outputContext) error {

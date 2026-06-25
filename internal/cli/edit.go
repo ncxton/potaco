@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
@@ -121,7 +122,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := processAndOutput(cmd, outputContext{
-		resp:  resp,
+		resp:  toAdapterResponse(resp),
 		model: model,
 		params: map[string]any{
 			"mode":            "edit",
@@ -135,4 +136,25 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return imageError(err)
 	}
 	return nil
+}
+
+// toAdapterResponse converts a provider.ImageResponse to an
+// adapter.GenerateResponse. This is a temporary Phase 1 shim used until edit
+// is migrated to the adapter interface (Task 7).
+func toAdapterResponse(resp *provider.ImageResponse) *adapter.GenerateResponse {
+	if resp == nil {
+		return nil
+	}
+	data := make([]adapter.ImageData, len(resp.Data))
+	for i, d := range resp.Data {
+		data[i] = adapter.ImageData{
+			B64JSON:       d.B64JSON,
+			URL:           d.URL,
+			RevisedPrompt: d.RevisedPrompt,
+		}
+	}
+	return &adapter.GenerateResponse{
+		Created: resp.Created,
+		Data:    data,
+	}
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -63,7 +63,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 		model = flagString(cmd, "model")
 	}
 
-	req := provider.GenerateRequest{
+	req := adapter.GenerateRequest{
 		Prompt:         prompt,
 		Model:          model,
 		Size:           flagString(cmd, "size"),
@@ -80,15 +80,13 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return printDryRun(cmd, "POST", cfg.BaseURL+"/v1/images/generations", "application/json", req)
 	}
 
-	client := provider.NewClient(provider.ClientConfig{
-		BaseURL: cfg.BaseURL,
-		APIKey:  cfg.APIKey,
-		Retries: cfg.Retries,
-		Timeout: cfg.Timeout,
-	})
+	ad, err := adapterForProvider(cfg)
+	if err != nil {
+		return configError(fmt.Errorf("adapter: %w", err))
+	}
 
 	start := time.Now()
-	resp, err := client.Generate(context.Background(), req)
+	resp, err := ad.Generate(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return apiError(fmt.Errorf("generate: %w", err))

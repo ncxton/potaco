@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ncxton/potaco/internal/provider"
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/spf13/cobra"
 )
 
@@ -25,8 +25,8 @@ func tinyPNGBase64(t *testing.T) string {
 	return base64.StdEncoding.EncodeToString(buf.Bytes())
 }
 
-func tinyImageResponse(t *testing.T) *provider.ImageResponse {
-	return &provider.ImageResponse{Data: []provider.ImageData{{B64JSON: tinyPNGBase64(t)}}}
+func tinyImageResponse(t *testing.T) *adapter.GenerateResponse {
+	return &adapter.GenerateResponse{Data: []adapter.ImageData{{B64JSON: tinyPNGBase64(t)}}}
 }
 
 func newOutputTestCommand(stdout, view bool, output, outputFormat string) *cobra.Command {
@@ -166,8 +166,8 @@ func TestProcessAndOutputAutoFilenamesAreUniqueForMultipleImages(t *testing.T) {
 	cmd := newOutputTestCommand(false, false, "", "png")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	resp := &provider.ImageResponse{
-		Data: []provider.ImageData{
+	resp := &adapter.GenerateResponse{
+		Data: []adapter.ImageData{
 			{B64JSON: tinyPNGBase64(t)},
 			{B64JSON: tinyPNGBase64(t)},
 		},

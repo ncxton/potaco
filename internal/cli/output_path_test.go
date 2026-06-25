@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ncxton/potaco/internal/provider"
+	"github.com/ncxton/potaco/internal/adapter"
 )
 
 func TestProcessAndOutputMultiImageOutputKeepsDottedDirectory(t *testing.T) {
@@ -15,8 +15,8 @@ func TestProcessAndOutputMultiImageOutputKeepsDottedDirectory(t *testing.T) {
 		t.Fatalf("create dotted dir: %v", err)
 	}
 	cmd := newOutputTestCommand(false, false, filepath.Join(dir, "out"), "png")
-	resp := &provider.ImageResponse{
-		Data: []provider.ImageData{
+	resp := &adapter.GenerateResponse{
+		Data: []adapter.ImageData{
 			{B64JSON: tinyPNGBase64(t)},
 			{B64JSON: tinyPNGBase64(t)},
 		},
