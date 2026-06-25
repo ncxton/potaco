@@ -1,4 +1,4 @@
-package provider
+package openai
 
 import (
 	"context"
@@ -14,8 +14,8 @@ import (
 // response body before closing it. It is a variable so tests can lower it.
 var maxRetryDrainBytes int64 = 1 << 20
 
-// defaultBackoff returns the exponential backoff duration for a given attempt.
-// Attempt 0 = 1s, 1 = 2s, 2+ = 4s. Jitter of 0-500ms is added.
+// defaultBackoff returns the exponential backoff duration for a given
+// attempt. Attempt 0 = 1s, 1 = 2s, 2+ = 4s. Jitter of 0-500ms is added.
 func defaultBackoff(attempt int) time.Duration {
 	base := time.Second
 	switch attempt {
@@ -50,19 +50,19 @@ func retryDelay(resp *http.Response, attempt int, fallback func(int) time.Durati
 	return fallback(attempt)
 }
 
-// doWithRetry executes the given request, retrying on 429 and 5xx
-// with exponential backoff up to maxRetries times. The ctx allows
-// cancelling an in-progress retry sequence.
-func (c *Client) doWithRetry(ctx context.Context, req *http.Request, maxRetries int) (*http.Response, error) {
+// doWithRetry executes the given request, retrying on 429 and 5xx with
+// exponential backoff up to a.retries times. The ctx allows cancelling
+// an in-progress retry sequence.
+func (a *Adapter) doWithRetry(ctx context.Context, req *http.Request) (*http.Response, error) {
 	var lastResp *http.Response
 	var lastErr error
 
 	for attempt := 0; ; attempt++ {
-		resp, err := c.http.Do(req)
+		resp, err := a.http.Do(req)
 		if err != nil {
 			lastErr = err
-			if attempt < maxRetries {
-				c.backoffSleep(ctx, retryDelay(nil, attempt, c.backoffOrDefault))
+			if attempt < a.retries {
+				a.backoffSleep(ctx, retryDelay(nil, attempt, a.backoffOrDefault))
 				if req.GetBody != nil {
 					body, err := req.GetBody()
 					if err == nil {
@@ -80,11 +80,12 @@ func (c *Client) doWithRetry(ctx context.Context, req *http.Request, maxRetries 
 
 		lastResp = resp
 
-		if attempt >= maxRetries {
+		if attempt >= a.retries {
 			break
 		}
 
-		drainRetryBody(resp)
+		_, _ = io.CopyN(io.Discard, resp.Body, maxRetryDrainBytes)
+		resp.Body.Close()
 
 		if req.GetBody != nil {
 			body, err := req.GetBody()
@@ -93,34 +94,29 @@ func (c *Client) doWithRetry(ctx context.Context, req *http.Request, maxRetries 
 			}
 		}
 
-		c.backoffSleep(ctx, retryDelay(resp, attempt, c.backoffOrDefault))
+		a.backoffSleep(ctx, retryDelay(resp, attempt, a.backoffOrDefault))
 	}
 
 	if lastResp != nil {
-		return lastResp, nil // let parseResponse handle the error
+		return lastResp, nil
 	}
 	return nil, lastErr
 }
 
-// drainRetryBody discards up to maxRetryDrainBytes from resp.Body and then
-// closes it, bounding memory and fd usage on retry paths.
-func drainRetryBody(resp *http.Response) {
-	_, _ = io.CopyN(io.Discard, resp.Body, maxRetryDrainBytes)
-	resp.Body.Close()
-}
-
 // backoffOrDefault returns the backoff duration for an attempt, using the
 // test-overridable backoff function when set, otherwise the default.
-func (c *Client) backoffOrDefault(attempt int) time.Duration {
-	if c.backoff != nil {
-		return c.backoff(attempt)
+func (a *Adapter) backoffOrDefault(attempt int) time.Duration {
+	if a.backoff != nil {
+		return a.backoff(attempt)
 	}
 	return defaultBackoff(attempt)
 }
 
-func (c *Client) backoffSleep(ctx context.Context, d time.Duration) {
-	if c.sleep != nil {
-		c.sleep(ctx, d)
+// backoffSleep sleeps for d, respecting ctx cancellation. Uses the
+// test-overridable sleep function when set.
+func (a *Adapter) backoffSleep(ctx context.Context, d time.Duration) {
+	if a.sleep != nil {
+		a.sleep(ctx, d)
 		return
 	}
 	timer := time.NewTimer(d)

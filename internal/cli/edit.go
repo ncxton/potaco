@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -96,7 +96,12 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 	defer cleanup()
 
-	req := provider.EditRequest{
+	ad, err := adapterForProvider(cfg)
+	if err != nil {
+		return configError(fmt.Errorf("adapter: %w", err))
+	}
+
+	req := adapter.EditRequest{
 		Prompt:         prompt,
 		Model:          model,
 		N:              flagInt(cmd, "n"),
@@ -106,15 +111,8 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		MaskPath:       maskPath,
 	}
 
-	client := provider.NewClient(provider.ClientConfig{
-		BaseURL: cfg.BaseURL,
-		APIKey:  cfg.APIKey,
-		Retries: cfg.Retries,
-		Timeout: cfg.Timeout,
-	})
-
 	start := time.Now()
-	resp, err := client.Edit(context.Background(), req)
+	resp, err := ad.Edit(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return apiError(fmt.Errorf("edit: %w", err))

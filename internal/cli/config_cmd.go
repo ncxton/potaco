@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -66,7 +66,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if cmd.Flags().Changed("provider") {
-		preset, ok := provider.GetPreset(providerName)
+		preset, ok := getProviderPreset(providerName)
 		if !ok {
 			return configError(fmt.Errorf("unknown provider preset: %s", providerName))
 		}
@@ -196,18 +196,15 @@ func writeConfigFile(path string, data []byte) error {
 }
 
 func runConfigListProviders(cmd *cobra.Command, args []string) error {
-	presets := provider.AllPresets()
 	out := cmd.OutOrStdout()
+	providers := adapter.List()
 
-	fmt.Fprintln(out, "Available provider presets:")
+	fmt.Fprintln(out, "Available provider adapters:")
 	fmt.Fprintln(out)
-	for name, preset := range presets {
-		fmt.Fprintf(out, "  %s:\n", name)
-		fmt.Fprintf(out, "    base_url:      %s\n", preset.BaseURL)
-		fmt.Fprintf(out, "    default_model: %s\n", preset.DefaultModel)
-		fmt.Fprintf(out, "    sizes:         %v\n", preset.Sizes)
-		fmt.Fprintln(out)
+	for _, name := range providers {
+		fmt.Fprintf(out, "  %s\n", name)
 	}
-
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, "Use 'potaco config set --provider <name>' to apply default settings.")
 	return nil
 }

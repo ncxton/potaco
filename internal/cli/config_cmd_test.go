@@ -73,13 +73,10 @@ func TestConfigListProviders(t *testing.T) {
 
 	output := buf.String()
 	if !strings.Contains(output, "openai") {
-		t.Errorf("output should list 'openai' preset, got: %q", output)
+		t.Errorf("output should list 'openai' adapter, got: %q", output)
 	}
-	if !strings.Contains(output, "together") {
-		t.Errorf("output should list 'together' preset, got: %q", output)
-	}
-	if !strings.Contains(output, "fal") {
-		t.Errorf("output should list 'fal' preset, got: %q", output)
+	if !strings.Contains(output, "Available provider adapters:") {
+		t.Errorf("output should mention 'Available provider adapters:', got: %q", output)
 	}
 }
 
