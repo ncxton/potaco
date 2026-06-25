@@ -351,6 +351,35 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	}
 }
 
+func TestEditCommandDryRunUsesAdapter(t *testing.T) {
+	resetRootCmdFlags(t)
+	t.Setenv("POTACO_BASE_URL", "https://api.example.com")
+	t.Setenv("POTACO_API_KEY", "sk-test")
+	t.Setenv("POTACO_MODEL", "gpt-image-2")
+
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "test.png")
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "make it blue", "--image", imgPath, "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("edit --dry-run returned error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "/images/edits") {
+		t.Errorf("dry-run should contain edit endpoint, got: %q", output)
+	}
+	if !strings.Contains(output, "make it blue") {
+		t.Errorf("dry-run should contain prompt, got: %q", output)
+	}
+}
+
 func createTestPNG(t *testing.T, path string, w, h int) {
 	t.Helper()
 	f, err := os.Create(path)

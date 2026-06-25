@@ -8,7 +8,6 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/provider"
 	"github.com/spf13/cobra"
 )
 
@@ -97,7 +96,12 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 	defer cleanup()
 
-	req := provider.EditRequest{
+	ad, err := adapterForProvider(cfg)
+	if err != nil {
+		return configError(fmt.Errorf("adapter: %w", err))
+	}
+
+	req := adapter.EditRequest{
 		Prompt:         prompt,
 		Model:          model,
 		N:              flagInt(cmd, "n"),
@@ -107,22 +111,15 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		MaskPath:       maskPath,
 	}
 
-	client := provider.NewClient(provider.ClientConfig{
-		BaseURL: cfg.BaseURL,
-		APIKey:  cfg.APIKey,
-		Retries: cfg.Retries,
-		Timeout: cfg.Timeout,
-	})
-
 	start := time.Now()
-	resp, err := client.Edit(context.Background(), req)
+	resp, err := ad.Edit(context.Background(), req)
 	latency := time.Since(start).Milliseconds()
 	if err != nil {
 		return apiError(fmt.Errorf("edit: %w", err))
 	}
 
 	if err := processAndOutput(cmd, outputContext{
-		resp:  toAdapterResponse(resp),
+		resp:  resp,
 		model: model,
 		params: map[string]any{
 			"mode":            "edit",
@@ -136,25 +133,4 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		return imageError(err)
 	}
 	return nil
-}
-
-// toAdapterResponse converts a provider.ImageResponse to an
-// adapter.GenerateResponse. This is a temporary Phase 1 shim used until edit
-// is migrated to the adapter interface (Task 7).
-func toAdapterResponse(resp *provider.ImageResponse) *adapter.GenerateResponse {
-	if resp == nil {
-		return nil
-	}
-	data := make([]adapter.ImageData, len(resp.Data))
-	for i, d := range resp.Data {
-		data[i] = adapter.ImageData{
-			B64JSON:       d.B64JSON,
-			URL:           d.URL,
-			RevisedPrompt: d.RevisedPrompt,
-		}
-	}
-	return &adapter.GenerateResponse{
-		Created: resp.Created,
-		Data:    data,
-	}
 }
