@@ -26,7 +26,7 @@ type providerPreset struct {
 }
 
 var providerPresets = map[string]providerPreset{
-	"openai": {BaseURL: "https://api.openai.com", DefaultModel: "gpt-image-2"},
+	"openai": {BaseURL: "https://api.openai.com/v1", DefaultModel: "gpt-image-2"},
 	"fal":    {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux/dev"},
 	"vercel": {BaseURL: "https://ai-gateway.vercel.sh/v1", DefaultModel: "openai/gpt-image-2"},
 }
