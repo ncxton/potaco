@@ -16,9 +16,9 @@ import (
 )
 
 // providerPreset holds known defaults for a provider preset. This is a
-// temporary Phase 1 shim that mirrors internal/provider/presets.go so the
-// CLI layer no longer imports the provider package. It will be replaced
-// in Phase 2 when adapters expose their own preset metadata.
+// temporary Phase 1 shim so the CLI layer no longer needs a separate
+// provider package. It will be replaced in Phase 2 when adapters expose
+// their own preset metadata.
 type providerPreset struct {
 	BaseURL      string
 	DefaultModel string
