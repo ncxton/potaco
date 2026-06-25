@@ -1,5 +1,9 @@
 # Sync Instructions for programming Skill
 
+## When to sync
+
+**Only sync when the user explicitly asks you to.** Do not sync proactively, do not sync as part of routine maintenance, and do not sync because a skill activation triggered. Syncing modifies skill files and can introduce regressions; it must be a deliberate, user-initiated action.
+
 ## Source of truth
 
 This skill is a Droid-native port of the upstream repository at:
@@ -20,6 +24,8 @@ The upstream directory contains:
 
 ## How to check for upstream changes
 
+> **Path convention**: `<SKILL_ROOT>` refers to the directory containing this `SYNC.md` file. This skill may live at `~/.factory/skills/programming` (global) or at `<project>/.agents/skills/programming` (project-local). Use whichever path matches your current location.
+
 1. Fetch the upstream directory listing to see if files were added, removed, or renamed:
 
 ```bash
@@ -28,7 +34,7 @@ git ls-remote --heads https://github.com/code-yeongyu/oh-my-openagent.git dev
 
 Then either:
 
-- Option A: open https://github.com/code-yeongyu/oh-my-openagent/tree/dev/packages/shared-skills/skills/programming in a browser and compare the file tree to `~/.factory/skills/programming/`.
+- Option A: open https://github.com/code-yeongyu/oh-my-openagent/tree/dev/packages/shared-skills/skills/programming in a browser and compare the file tree to `<SKILL_ROOT>/`.
 - Option B: sparse-checkout the upstream directory to `/tmp/omo-sync-programming/` and diff against the local copy:
 
 ```bash
@@ -43,7 +49,7 @@ echo "packages/shared-skills/skills/programming/" > .git/info/sparse-checkout
 git fetch --depth 1 origin dev
 git checkout dev
 
-diff -r /home/ngct/.factory/skills/programming/ packages/shared-skills/skills/programming/
+diff -r <SKILL_ROOT>/ packages/shared-skills/skills/programming/
 ```
 
 3. Look for three kinds of changes:
@@ -58,7 +64,7 @@ Pay special attention to `SKILL.md` and files under `references/` and `scripts/`
 
 ### If only `references/` or `scripts/` files changed and they are still omo-free
 
-1. Copy the changed upstream files into the matching local directories.
+1. Copy the changed upstream files into the matching local directories under `<SKILL_ROOT>/`.
 2. Re-run the omo-reference check (see below) to confirm they remain clean.
 3. Update this `SYNC.md` with the new sync date if desired.
 
@@ -76,7 +82,7 @@ Pay special attention to `SKILL.md` and files under `references/` and `scripts/`
 ### If new supporting files were added upstream
 
 1. Determine if they are omo-free technical references/scripts or omo-specific workflow files.
-2. If omo-free, copy them into the matching local directory.
+2. If omo-free, copy them into the matching local directory under `<SKILL_ROOT>/`.
 3. If omo-specific (e.g., a file that references `call_omo_agent`, `lsp_diagnostics`, team mode, or `~/.omo`), port the concepts to Droid-native tooling before saving.
 
 ## Mandatory omo-cleanliness check
@@ -84,7 +90,7 @@ Pay special attention to `SKILL.md` and files under `references/` and `scripts/`
 After every sync, run this exact command from the skill root and verify it returns no matches:
 
 ```bash
-cd /home/ngct/.factory/skills/programming
+cd <SKILL_ROOT>
 grep -RinE '\bomo\b|oh-my-openagent|call_omo|lsp_diagnostics|lsp_diagnostic|lsp_prepare|lsp_rename|LspGoto|LspFind|LspDocument|LspWorkspace|ast_grep|ast-grep|\$omo:|lazycodex|sisyphus|background_output|multi_agent|team_create|team_send|team_task|team_delete|team_shutdown|team_list|team_mode|team_status|team_approve|REFACTOR_TEAM|REFACTOR_TEMPLATE' .
 ```
 

@@ -312,3 +312,9 @@ Final Status: CLEAN | ISSUES FIXED | REQUIRES ATTENTION
 - ALWAYS preserve test coverage; add tests rather than remove them.
 - If uncertain about a change, err on the side of keeping the original code.
 - The default action when in doubt is SKIP, not GUESS.
+
+---
+
+## Sync
+
+This skill is a Droid-native port with a `SYNC.md` file in its root directory that documents the upstream source of truth and the sync procedure. **Do not sync unless the user explicitly asks you to.** When asked, read `SYNC.md` (located alongside this `SKILL.md`) and follow the instructions there.

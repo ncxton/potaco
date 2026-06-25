@@ -549,3 +549,9 @@ When you encounter deprecated methods/APIs during refactoring:
 ---
 
 **Remember: Refactoring without tests is reckless. Refactoring without understanding is destructive. This command ensures you do neither.**
+
+---
+
+## Sync
+
+This skill is a Droid-native port with a `SYNC.md` file in its root directory that documents the upstream source of truth and the sync procedure. **Do not sync unless the user explicitly asks you to.** When asked, read `SYNC.md` (located alongside this `SKILL.md`) and follow the instructions there.

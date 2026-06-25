@@ -360,3 +360,9 @@ These two skills are not optional cosmetics. They are the recovery path for the 
 This skill activates whenever you are writing or modifying any `.py`, `.pyi`, `.rs`, `.ts`, `.tsx`, `.mts`, `.cts`, `.go` file, or any project manifest (`pyproject.toml`, `Cargo.toml`, `package.json`, `tsconfig.json`, `biome.json`, `go.mod`, `go.sum`, `.golangci.yml`, `Taskfile.yml`, `buf.yaml`, `sqlc.yaml`). **Even one-off scripts get the full treatment** — that is the whole point of `uv run` + PEP 723, `rust-script`, `bun run`, and `go run` + `//go:build ignore`: production hygiene with throwaway ergonomics.
 
 The references contain the recipes. **Read them before writing code. Re-read them when the model drifts.** The post-write review loop is non-negotiable.
+
+---
+
+## Sync
+
+This skill is a Droid-native port with a `SYNC.md` file in its root directory that documents the upstream source of truth and the sync procedure. **Do not sync unless the user explicitly asks you to.** When asked, read `SYNC.md` (located alongside this `SKILL.md`) and follow the instructions there.
