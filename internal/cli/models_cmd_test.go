@@ -10,6 +10,8 @@ import (
 )
 
 func TestModelsListActiveProvider(t *testing.T) {
+	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 	// Set up auth with openai as active provider
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 
@@ -49,6 +51,8 @@ func TestModelsListActiveProvider(t *testing.T) {
 }
 
 func TestModelsListJSON(t *testing.T) {
+	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,6 +85,7 @@ func TestModelsListNoActiveProvider(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	resetRootCmdFlags(t)
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -109,6 +114,7 @@ func TestModelsListSpecificProvider(t *testing.T) {
 	resetAuthAddFlags(t)
 	resetRootCmdFlags(t)
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	// Mock fal models endpoint
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -141,6 +147,7 @@ func TestModelsListSpecificProviderNotConnected(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	resetRootCmdFlags(t)
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -157,6 +164,7 @@ func TestModelsListSpecificProviderNotConnected(t *testing.T) {
 func TestModelsParamsKnownModel(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -177,6 +185,7 @@ func TestModelsParamsKnownModel(t *testing.T) {
 func TestModelsParamsJSON(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -200,6 +209,7 @@ func TestModelsParamsJSON(t *testing.T) {
 func TestModelsParamsUnknownModel(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -216,6 +226,7 @@ func TestModelsParamsUnknownModel(t *testing.T) {
 func TestModelsListWithApiKeyOverride(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-stored", "gpt-image-2")
 	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
 	var gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
