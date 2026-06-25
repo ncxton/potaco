@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/potaco-banner.png" alt="Potaco" width="480">
+  <img src="assets/potaco-banner.png" alt="Potaco" width="100%">
 </p>
 
 # Potaco
