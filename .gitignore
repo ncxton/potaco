@@ -1,0 +1,22 @@
+# Binaries
+/potaco
+/bin/
+
+# Test/coverage artifacts
+*.out
+*.test
+coverage.txt
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Distribution/build
+/dist/
