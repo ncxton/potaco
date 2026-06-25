@@ -80,7 +80,8 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	maskPath := ""
 
 	if dryRun {
-		return printEditDryRun(cmd, resolved.BaseURL, prompt, model, imagePath, cmd.Flags())
+		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
+		return printEditDryRun(cmd, resolved.BaseURL, resolved.Adapter.Name(), authHeader, prompt, model, imagePath, cmd.Flags())
 	}
 
 	cleanup := noopCleanup

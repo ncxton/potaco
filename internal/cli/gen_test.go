@@ -172,6 +172,72 @@ func setupAuthProvider(t *testing.T, apiKey string) {
 	rootCmd.SetErr(&buf)
 }
 
+func setupAuthProviderForProvider(t *testing.T, providerName, apiKey, model string) {
+	t.Helper()
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"auth", "add", providerName, "--api-key", apiKey, "--force", "--model", model})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add %s: %v", providerName, err)
+	}
+
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+}
+
+func TestGenDryRunFalProvider(t *testing.T) {
+	setupAuthProviderForProvider(t, "fal", "fal-key", "fal-ai/flux/dev")
+	resetGenCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run", "--provider", "fal", "--base-url", "https://fal.run"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Key [REDACTED]") {
+		t.Errorf("dry-run should show 'Key [REDACTED]' for fal, got: %s", output)
+	}
+	if !strings.Contains(output, "fal.run") {
+		t.Errorf("dry-run should show fal.run URL, got: %s", output)
+	}
+}
+
+func TestGenDryRunVercelProvider(t *testing.T) {
+	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
+	resetGenCmdFlags(t)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run", "--provider", "vercel", "--base-url", "https://ai-gateway.vercel.sh/v1"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Bearer [REDACTED]") {
+		t.Errorf("dry-run should show 'Bearer [REDACTED]' for vercel, got: %s", output)
+	}
+	if !strings.Contains(output, "images/generations") {
+		t.Errorf("dry-run should show images/generations URL, got: %s", output)
+	}
+}
+
 func TestGenWithAuthCredentials(t *testing.T) {
 	setupAuthProvider(t, "sk-from-auth")
 	resetGenCmdFlags(t)

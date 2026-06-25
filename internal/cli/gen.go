@@ -71,7 +71,16 @@ func runGen(cmd *cobra.Command, args []string) error {
 
 	dryRun := flagBool(cmd, "dry-run")
 	if dryRun {
-		return printDryRun(cmd, "POST", resolved.BaseURL+"/v1/images/generations", "application/json", req)
+		dryRunURL := resolved.BaseURL + "/v1/images/generations"
+		if resolved.Adapter.Name() == "fal" {
+			if model != "" {
+				dryRunURL = resolved.BaseURL + "/" + model
+			} else {
+				dryRunURL = resolved.BaseURL + "/<model>"
+			}
+		}
+		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
+		return printDryRun(cmd, "POST", dryRunURL, "application/json", authHeader, req)
 	}
 
 	start := time.Now()

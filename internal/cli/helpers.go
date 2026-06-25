@@ -56,7 +56,7 @@ func flagBool(cmd *cobra.Command, name string) bool {
 	return v
 }
 
-func printDryRun(cmd *cobra.Command, method, url, contentType string, body any) error {
+func printDryRun(cmd *cobra.Command, method, url, contentType, authHeader string, body any) error {
 	bodyJSON, err := json.MarshalIndent(body, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal dry-run body: %w", err)
@@ -67,7 +67,7 @@ func printDryRun(cmd *cobra.Command, method, url, contentType string, body any) 
 		"url":          url,
 		"content_type": contentType,
 		"headers": map[string]string{
-			"Authorization": "Bearer [REDACTED]",
+			"Authorization": authHeader,
 		},
 		"body": json.RawMessage(bodyJSON),
 	}

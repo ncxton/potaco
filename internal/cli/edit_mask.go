@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func printEditDryRun(cmd *cobra.Command, baseURL, prompt, model, imagePath string, flags *pflag.FlagSet) error {
+func printEditDryRun(cmd *cobra.Command, baseURL, providerName, authHeader, prompt, model, imagePath string, flags *pflag.FlagSet) error {
 	extendFlag, _ := flags.GetString("extend")
 	maskFlag, _ := flags.GetString("mask")
 	maskRectFlag, _ := flags.GetString("mask-rect")
@@ -51,7 +51,13 @@ func printEditDryRun(cmd *cobra.Command, baseURL, prompt, model, imagePath strin
 		body[k] = v
 	}
 
-	return printDryRun(cmd, "POST", baseURL+"/v1/images/edits", "multipart/form-data", body)
+	editURL := baseURL + "/v1/images/edits"
+	contentType := "multipart/form-data"
+	if providerName == "fal" {
+		editURL = baseURL + "/" + model + "/image-to-image"
+		contentType = "application/json"
+	}
+	return printDryRun(cmd, "POST", editURL, contentType, authHeader, body)
 }
 
 func noopCleanup() {}

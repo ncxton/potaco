@@ -495,6 +495,27 @@ func TestEditWithBaseUrlOverride(t *testing.T) {
 	}
 }
 
+func TestEditDryRunFalProvider(t *testing.T) {
+	setupAuthProviderForProvider(t, "fal", "fal-key", "fal-ai/flux/dev")
+
+	tmpDir := t.TempDir()
+	imgPath := tmpDir + "/test.png"
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run", "--provider", "fal", "--base-url", "https://fal.run"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "Key [REDACTED]") {
+		t.Errorf("dry-run should show 'Key [REDACTED]' for fal, got: %s", output)
+	}
+}
+
 func createTestPNG(t *testing.T, path string, w, h int) {
 	t.Helper()
 	f, err := os.Create(path)
