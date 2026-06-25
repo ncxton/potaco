@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ncxton/potaco/internal/tui"
 )
 
 var rootCmd = &cobra.Command{
@@ -28,4 +30,14 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().Bool("json", false, "output JSON metadata to stdout")
 	rootCmd.PersistentFlags().Bool("verbose", false, "print retry attempts and debug info to stderr")
+	rootCmd.PersistentFlags().Bool("non-interactive", false, "force non-interactive mode (skip TUI)")
+
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		ni, err := cmd.Flags().GetBool("non-interactive")
+		if err != nil {
+			return fmt.Errorf("read non-interactive flag: %w", err)
+		}
+		tui.SetNonInteractive(ni)
+		return nil
+	}
 }

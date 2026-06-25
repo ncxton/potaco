@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/ncxton/potaco/internal/tui"
 )
 
 // resetRootCmdFlags restores persistent flags on the shared global rootCmd to
@@ -12,12 +14,13 @@ import (
 // when -shuffle=on reorders test execution.
 func resetRootCmdFlags(t *testing.T) {
 	t.Helper()
-	if err := rootCmd.PersistentFlags().Set("json", "false"); err != nil {
-		t.Fatalf("reset json flag: %v", err)
+	flags := rootCmd.PersistentFlags()
+	for _, name := range []string{"json", "verbose", "non-interactive"} {
+		if err := flags.Set(name, "false"); err != nil {
+			t.Fatalf("reset %s flag: %v", name, err)
+		}
 	}
-	if err := rootCmd.PersistentFlags().Set("verbose", "false"); err != nil {
-		t.Fatalf("reset verbose flag: %v", err)
-	}
+	tui.SetNonInteractive(false)
 }
 
 func TestRootCommandPrintsHelp(t *testing.T) {
@@ -54,4 +57,47 @@ func TestRootCommandHasVerboseFlag(t *testing.T) {
 	if verboseFlag.DefValue != "false" {
 		t.Errorf("verbose flag default should be false, got %s", verboseFlag.DefValue)
 	}
+}
+
+func TestRootCommandHasNonInteractiveFlag(t *testing.T) {
+	resetRootCmdFlags(t)
+	niFlag := rootCmd.PersistentFlags().Lookup("non-interactive")
+	if niFlag == nil {
+		t.Fatal("root command should have persistent --non-interactive flag")
+	}
+	if niFlag.DefValue != "false" {
+		t.Errorf("non-interactive flag default should be false, got %s", niFlag.DefValue)
+	}
+}
+
+func TestNonInteractiveFlagWiresToTUI(t *testing.T) {
+	resetRootCmdFlags(t)
+	t.Cleanup(func() { tui.SetNonInteractive(false) })
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"--non-interactive"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if tui.IsInteractive() {
+		t.Error("IsInteractive() should return false after --non-interactive is set")
+	}
+}
+
+func TestNonInteractiveFlagDefaultsToInteractive(t *testing.T) {
+	resetRootCmdFlags(t)
+	t.Cleanup(func() { tui.SetNonInteractive(false) })
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	// Without the flag set, the package-level variable should remain false
+	// (interactive mode), so the only thing suppressing interactivity is the
+	// env var or absence of a TTY.
 }
