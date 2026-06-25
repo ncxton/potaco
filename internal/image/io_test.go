@@ -84,6 +84,32 @@ func TestWriteImagePNG(t *testing.T) {
 	}
 }
 
+func TestWriteImageUnsupportedFormatDoesNotClobberExistingFile(t *testing.T) {
+	// Given
+	dir := t.TempDir()
+	path := filepath.Join(dir, "output.png")
+	original := []byte("keep me")
+	if err := os.WriteFile(path, original, 0644); err != nil {
+		t.Fatalf("write original file: %v", err)
+	}
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+
+	// When
+	err := WriteImage(img, path, "webp")
+
+	// Then
+	if err == nil {
+		t.Fatal("WriteImage should reject unsupported output format")
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatalf("read output file: %v", readErr)
+	}
+	if !bytes.Equal(got, original) {
+		t.Fatalf("unsupported format should not clobber existing file, got %q", string(got))
+	}
+}
+
 func TestAutoFilename(t *testing.T) {
 	name := AutoFilename()
 	if !strings.HasPrefix(name, "potaco-") {

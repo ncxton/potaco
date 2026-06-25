@@ -37,19 +37,34 @@ func ReadImage(path string) (image.Image, string, error) {
 // WriteImage encodes and writes an image to a file in the specified format.
 // Supported formats: "png" (default), "jpeg".
 func WriteImage(img image.Image, path string, format string) error {
+	normalizedFormat, err := normalizeOutputFormat(format)
+	if err != nil {
+		return err
+	}
+
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create file: %w", err)
 	}
 	defer f.Close()
 
+	switch normalizedFormat {
+	case "jpeg":
+		return jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
+	case "png":
+		return png.Encode(f, img)
+	}
+	return fmt.Errorf("unsupported output format: %s", format)
+}
+
+func normalizeOutputFormat(format string) (string, error) {
 	switch strings.ToLower(format) {
 	case "jpeg", "jpg":
-		return jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
+		return "jpeg", nil
 	case "png", "":
-		return png.Encode(f, img)
+		return "png", nil
 	default:
-		return fmt.Errorf("unsupported output format: %s", format)
+		return "", fmt.Errorf("unsupported output format: %s", format)
 	}
 }
 
