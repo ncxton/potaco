@@ -4,7 +4,6 @@ package vercel
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -79,22 +78,6 @@ func (a *Adapter) modelsURL() string {
 
 func (a *Adapter) endpointsURL(modelID string) string {
 	return a.baseURL + "/models/" + modelID + "/endpoints"
-}
-
-func (a *Adapter) Edit(context.Context, adapter.EditRequest) (*adapter.GenerateResponse, error) {
-	return nil, fmt.Errorf("vercel edit: %w", adapter.ErrEditNotSupported)
-}
-
-func (a *Adapter) DiscoverModels(context.Context) ([]adapter.Model, error) {
-	return nil, fmt.Errorf("vercel discover models: %w", adapter.ErrDiscoveryFailed)
-}
-
-func (a *Adapter) Verify(context.Context) error {
-	return fmt.Errorf("vercel verify: %w", adapter.ErrVerificationFailed)
-}
-
-func (a *Adapter) ModelParams(context.Context, string) ([]adapter.Param, error) {
-	return nil, fmt.Errorf("vercel model params: %w", adapter.ErrModelNotFound)
 }
 
 func init() {
