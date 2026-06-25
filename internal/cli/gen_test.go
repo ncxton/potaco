@@ -243,6 +243,29 @@ func TestGenDryRunVercelProvider(t *testing.T) {
 	}
 }
 
+// TestGenDryRunVercelProviderPresetNoBaseURL verifies that the Vercel provider
+// preset includes /v1 in the base URL so that the generate endpoint URL is
+// constructed correctly even without an explicit --base-url override.
+// This is a regression test for a 404 bug where the preset was missing /v1.
+func TestGenDryRunVercelProviderPresetNoBaseURL(t *testing.T) {
+	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
+	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run", "--provider", "vercel"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "ai-gateway.vercel.sh/v1/images/generations") {
+		t.Errorf("dry-run should show full URL with /v1/images/generations from preset (no --base-url), got: %s", output)
+	}
+}
+
 func TestGenWithAuthCredentials(t *testing.T) {
 	setupAuthProvider(t, "sk-from-auth")
 	resetGenCmdFlags(t)

@@ -103,3 +103,36 @@ func TestNonInteractiveFlagDefaultsToInteractive(t *testing.T) {
 		t.Error("IsInteractive() should return false in test environment (no TTY)")
 	}
 }
+
+// TestErrorNotDuplicated verifies that when a command returns an error,
+// Cobra does not print the error to stderr (SilenceErrors is set). The
+// Execute() wrapper function handles all error printing. This is a
+// regression test for a bug where the error appeared twice in the output
+// because both Cobra and Execute() printed it.
+func TestErrorNotDuplicated(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var errBuf bytes.Buffer
+	rootCmd.SetOut(&errBuf)
+	rootCmd.SetErr(&errBuf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing provider config")
+	}
+	if !strings.Contains(err.Error(), "no active provider") {
+		t.Errorf("error should mention 'no active provider', got: %v", err)
+	}
+	// With SilenceErrors=true, Cobra should NOT print the error to stderr.
+	if errBuf.String() != "" {
+		t.Errorf("Cobra should not print error to stderr with SilenceErrors=true, got: %q", errBuf.String())
+	}
+}
