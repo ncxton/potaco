@@ -184,3 +184,201 @@ func TestAuthAddWithModelOverride(t *testing.T) {
 		t.Errorf("active model = %q, want 'custom-model'", model)
 	}
 }
+
+func TestAuthRemoveCommandExists(t *testing.T) {
+	found := false
+	for _, cmd := range authCmd.Commands() {
+		if cmd.Use == "remove" || strings.HasPrefix(cmd.Use, "remove ") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("auth command should have 'remove' subcommand")
+	}
+}
+
+func TestAuthListCommandExists(t *testing.T) {
+	found := false
+	for _, cmd := range authCmd.Commands() {
+		if cmd.Use == "list" || strings.HasPrefix(cmd.Use, "list ") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("auth command should have 'list' subcommand")
+	}
+}
+
+func TestAuthRemoveCommand(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	// First add a provider
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	// Now remove it
+	rootCmd.SetArgs([]string{"auth", "remove", "openai"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth remove error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "removed") || !strings.Contains(output, "openai") {
+		t.Errorf("output should mention removal of openai, got: %q", output)
+	}
+
+	// Verify it is actually removed from config
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	list := mgr.List()
+	for _, p := range list {
+		if p.Name == "openai" {
+			t.Errorf("openai should have been removed from config, but found in list")
+		}
+	}
+}
+
+func TestAuthRemoveAliasRm(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	rootCmd.Execute()
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "rm", "openai"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth rm error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "removed") {
+		t.Errorf("output should mention removal, got: %q", output)
+	}
+}
+
+func TestAuthRemoveRequiresProviderArg(t *testing.T) {
+	newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "remove"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("auth remove without provider argument should error")
+	}
+}
+
+func TestAuthListCommand(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	// Add two providers
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-1", "--force"})
+	rootCmd.Execute()
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "add", "fal", "--api-key", "fal-1", "--force"})
+	rootCmd.Execute()
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	// List
+	rootCmd.SetArgs([]string{"auth", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "openai") {
+		t.Errorf("list should include openai, got: %q", output)
+	}
+	if !strings.Contains(output, "fal") {
+		t.Errorf("list should include fal, got: %q", output)
+	}
+}
+
+func TestAuthListAliasLs(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-1", "--force"})
+	rootCmd.Execute()
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "ls"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth ls error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "openai") {
+		t.Errorf("ls output should include openai, got: %q", output)
+	}
+}
+
+func TestAuthListEmpty(t *testing.T) {
+	_, buf := newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "No providers") {
+		t.Errorf("empty list output should mention no providers, got: %q", output)
+	}
+}
+
+func TestAuthListJSON(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-1", "--force"})
+	rootCmd.Execute()
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set json flag: %v", err)
+	}
+	rootCmd.SetArgs([]string{"auth", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list --json error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "[") {
+		t.Errorf("JSON output should be an array, got: %q", output)
+	}
+	if !strings.Contains(output, "openai") {
+		t.Errorf("JSON output should include openai, got: %q", output)
+	}
+}
