@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"charm.land/lipgloss/v2"
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
 	"github.com/ncxton/potaco/internal/tui"
@@ -171,6 +172,28 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 
 	if len(providers) == 0 {
 		fmt.Fprintln(out, "No providers connected. Use 'potaco auth add <provider>' to connect one.")
+		return nil
+	}
+
+	if tui.IsTTY() {
+		titleStyle := lipgloss.NewStyle().Bold(true)
+		activeStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
+		keyOkStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+		keyMissingStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+
+		fmt.Fprintln(out, titleStyle.Render("Connected providers:"))
+		fmt.Fprintln(out)
+		for _, p := range providers {
+			name := p.Name
+			if p.IsActive {
+				name = activeStyle.Render(p.Name + " (active)")
+			}
+			keyStatus := keyOkStyle.Render("configured")
+			if !p.HasKey {
+				keyStatus = keyMissingStyle.Render("missing")
+			}
+			fmt.Fprintf(out, "  %s  %s  key: %s\n", name, p.Model, keyStatus)
+		}
 		return nil
 	}
 

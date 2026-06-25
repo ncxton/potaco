@@ -5,9 +5,16 @@ import (
 	"fmt"
 	"io"
 
+	"charm.land/lipgloss/v2"
 	"github.com/ncxton/potaco/internal/auth"
 	"github.com/ncxton/potaco/internal/config"
+	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
+)
+
+var (
+	statusLabelStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	statusActiveStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
 )
 
 var statusCmd = &cobra.Command{
@@ -41,6 +48,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if provider == "" {
 		fmt.Fprintln(out, "No active provider configured.")
 		fmt.Fprintln(out, "Use 'potaco auth add <provider>' to connect one.")
+	} else if tui.IsTTY() {
+		fmt.Fprintf(out, "%s %s\n", statusLabelStyle.Render("Active provider:"), statusActiveStyle.Render(provider))
+		fmt.Fprintf(out, "%s %s\n", statusLabelStyle.Render("Active model:"), model)
 	} else {
 		fmt.Fprintf(out, "Active provider: %s\n", provider)
 		fmt.Fprintf(out, "Active model:    %s\n", model)

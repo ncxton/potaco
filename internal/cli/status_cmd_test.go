@@ -83,6 +83,23 @@ func TestStatusNoActiveProvider(t *testing.T) {
 	}
 }
 
+func TestStatusStyledOutputContainsHeaders(t *testing.T) {
+	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"status"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	// Even without a TTY, the output should contain the key information
+	if !strings.Contains(output, "Active provider") {
+		t.Errorf("status should show active provider header, got: %s", output)
+	}
+}
+
 func TestStatusJSON(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 
