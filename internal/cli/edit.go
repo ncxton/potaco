@@ -80,6 +80,9 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	maskPath := ""
 
 	if dryRun {
+		if resolved.Adapter.Name() == "vercel" {
+			return apiError(fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider. Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing."))
+		}
 		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
 		return printEditDryRun(cmd, resolved.BaseURL, resolved.Adapter.Name(), authHeader, prompt, model, imagePath, cmd.Flags())
 	}

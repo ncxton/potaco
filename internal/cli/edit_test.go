@@ -516,6 +516,26 @@ func TestEditDryRunFalProvider(t *testing.T) {
 	}
 }
 
+func TestEditDryRunVercelNotSupported(t *testing.T) {
+	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
+
+	tmpDir := t.TempDir()
+	imgPath := tmpDir + "/test.png"
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run", "--provider", "vercel"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for vercel edit, got nil")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("error should mention 'not supported', got: %v", err)
+	}
+}
+
 func createTestPNG(t *testing.T, path string, w, h int) {
 	t.Helper()
 	f, err := os.Create(path)

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
@@ -71,13 +72,17 @@ func runGen(cmd *cobra.Command, args []string) error {
 
 	dryRun := flagBool(cmd, "dry-run")
 	if dryRun {
-		dryRunURL := resolved.BaseURL + "/v1/images/generations"
+		var dryRunURL string
 		if resolved.Adapter.Name() == "fal" {
 			if model != "" {
 				dryRunURL = resolved.BaseURL + "/" + model
 			} else {
 				dryRunURL = resolved.BaseURL + "/<model>"
 			}
+		} else if strings.HasSuffix(resolved.BaseURL, "/v1") {
+			dryRunURL = resolved.BaseURL + "/images/generations"
+		} else {
+			dryRunURL = resolved.BaseURL + "/v1/images/generations"
 		}
 		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
 		return printDryRun(cmd, "POST", dryRunURL, "application/json", authHeader, req)

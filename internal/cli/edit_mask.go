@@ -56,6 +56,8 @@ func printEditDryRun(cmd *cobra.Command, baseURL, providerName, authHeader, prom
 	if providerName == "fal" {
 		editURL = baseURL + "/" + model + "/image-to-image"
 		contentType = "application/json"
+	} else if strings.HasSuffix(baseURL, "/v1") {
+		editURL = baseURL + "/images/edits"
 	}
 	return printDryRun(cmd, "POST", editURL, contentType, authHeader, body)
 }
