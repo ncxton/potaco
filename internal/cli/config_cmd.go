@@ -2,13 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"sort"
+	"time"
 
-	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 var configCmd = &cobra.Command{
@@ -18,7 +16,7 @@ var configCmd = &cobra.Command{
 
 var configSetCmd = &cobra.Command{
 	Use:   "set",
-	Short: "Set configuration values",
+	Short: "Set configuration values for the active provider",
 	RunE:  runConfigSet,
 }
 
@@ -28,77 +26,58 @@ var configShowCmd = &cobra.Command{
 	RunE:  runConfigShow,
 }
 
-var configListProvidersCmd = &cobra.Command{
-	Use:   "list-providers",
-	Short: "List available provider presets",
-	RunE:  runConfigListProviders,
-}
-
 func init() {
-	configSetCmd.Flags().String("base-url", "", "API base URL")
-	configSetCmd.Flags().String("api-key", "", "API key")
-	configSetCmd.Flags().String("model", "", "default model")
-	configSetCmd.Flags().Int("retries", 0, "max retry attempts")
-	configSetCmd.Flags().String("timeout", "", "request timeout (e.g., 120s)")
-	configSetCmd.Flags().String("provider", "", "apply preset defaults (openai, together, fal)")
+	configSetCmd.Flags().String("model", "", "model for the active provider")
+	configSetCmd.Flags().Int("retries", 0, "max retry attempts for the active provider")
+	configSetCmd.Flags().Duration("timeout", 0, "request timeout for the active provider (e.g., 120s)")
 
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configShowCmd)
-	configCmd.AddCommand(configListProvidersCmd)
 	rootCmd.AddCommand(configCmd)
 }
 
 func runConfigSet(cmd *cobra.Command, args []string) error {
 	path := config.DefaultConfigPath()
 
-	baseURL, _ := cmd.Flags().GetString("base-url")
-	apiKey, _ := cmd.Flags().GetString("api-key")
-	model, _ := cmd.Flags().GetString("model")
-	retries, _ := cmd.Flags().GetInt("retries")
-	timeoutStr, _ := cmd.Flags().GetString("timeout")
-	providerName, _ := cmd.Flags().GetString("provider")
-
-	fc := config.FileConfig{}
-	if existing, err := readConfigFile(path); err != nil {
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
 		return configError(err)
-	} else if existing != nil {
-		fc = *existing
 	}
 
-	if cmd.Flags().Changed("provider") {
-		preset, ok := getProviderPreset(providerName)
-		if !ok {
-			return configError(fmt.Errorf("unknown provider preset: %s", providerName))
-		}
-		if !cmd.Flags().Changed("base-url") {
-			fc.Default.BaseURL = preset.BaseURL
-		}
-		if !cmd.Flags().Changed("model") {
-			fc.Default.Model = preset.DefaultModel
-		}
+	if cfg.ActiveProvider == "" {
+		return configError(fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one"))
 	}
-	if cmd.Flags().Changed("base-url") {
-		fc.Default.BaseURL = baseURL
+
+	pc, ok := cfg.Providers[cfg.ActiveProvider]
+	if !ok {
+		return configError(fmt.Errorf("active provider %q has no config entry. Use 'potaco auth add %s' first", cfg.ActiveProvider, cfg.ActiveProvider))
 	}
-	if cmd.Flags().Changed("api-key") {
-		fc.Default.APIKey = apiKey
-	}
+
+	changed := false
 	if cmd.Flags().Changed("model") {
-		fc.Default.Model = model
+		model, _ := cmd.Flags().GetString("model")
+		pc.Model = model
+		cfg.ActiveModel = model
+		changed = true
 	}
 	if cmd.Flags().Changed("retries") {
-		fc.Default.Retries = retries
+		retries, _ := cmd.Flags().GetInt("retries")
+		pc.Retries = retries
+		changed = true
 	}
 	if cmd.Flags().Changed("timeout") {
-		fc.Default.Timeout = timeoutStr
+		timeout, _ := cmd.Flags().GetDuration("timeout")
+		pc.Timeout = timeout
+		changed = true
 	}
 
-	data, err := yaml.Marshal(&fc)
-	if err != nil {
-		return configError(fmt.Errorf("marshal config: %w", err))
+	if !changed {
+		return configError(fmt.Errorf("no flags specified. Use --model, --retries, or --timeout"))
 	}
 
-	if err := writeConfigFile(path, data); err != nil {
+	cfg.Providers[cfg.ActiveProvider] = pc
+
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
 		return configError(err)
 	}
 
@@ -109,102 +88,55 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 func runConfigShow(cmd *cobra.Command, args []string) error {
 	path := config.DefaultConfigPath()
 
-	fc, err := readConfigFile(path)
+	cfg, err := config.LoadMultiProvider(path)
 	if err != nil {
 		return configError(err)
 	}
-	if fc == nil {
-		fmt.Fprintln(cmd.OutOrStdout(), "No configuration file found at", path)
-		fmt.Fprintln(cmd.OutOrStdout(), "Use 'potaco config set' to create one.")
+
+	// LoadMultiProvider returns an empty config (not an error) when the
+	// file does not exist. Treat an empty config as "not configured".
+	if cfg.ActiveProvider == "" && len(cfg.Providers) == 0 {
+		fmt.Fprintln(cmd.OutOrStdout(), "No configuration found. Use 'potaco auth add <provider>' to connect.")
 		return nil
 	}
-	if fc.Default.APIKey != "" {
-		fc.Default.APIKey = "REDACTED"
-	}
-	data, err := yaml.Marshal(fc)
-	if err != nil {
-		return configError(fmt.Errorf("marshal config: %w", err))
-	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Config file: %s\n\n", path)
-	fmt.Fprint(cmd.OutOrStdout(), string(data))
-	return nil
-}
-
-func readConfigFile(path string) (*config.FileConfig, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read config: %w", err)
-	}
-	var fc config.FileConfig
-	if err := yaml.Unmarshal(data, &fc); err != nil {
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-	return &fc, nil
-}
-
-func writeConfigFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("create config directory: %w", err)
-	}
-	if err := os.Chmod(dir, 0700); err != nil {
-		return fmt.Errorf("set config directory permissions: %w", err)
-	}
-	if info, err := os.Lstat(path); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("refusing to write symlinked config file: %s", path)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("stat config: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(dir, ".config-*.tmp")
-	if err != nil {
-		return fmt.Errorf("create temp config: %w", err)
-	}
-	tmpPath := tmp.Name()
-	cleanup := true
-	defer func() {
-		if cleanup {
-			_ = os.Remove(tmpPath)
-		}
-	}()
-
-	if err := tmp.Chmod(0600); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("set temp config permissions: %w", err)
-	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("write temp config: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("close temp config: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("replace config: %w", err)
-	}
-	cleanup = false
-	if err := os.Chmod(path, 0600); err != nil {
-		return fmt.Errorf("set config permissions: %w", err)
-	}
-	return nil
-}
-
-func runConfigListProviders(cmd *cobra.Command, args []string) error {
 	out := cmd.OutOrStdout()
-	providers := adapter.List()
+	fmt.Fprintf(out, "Config file: %s\n\n", path)
+	fmt.Fprintf(out, "Active provider: %s\n", cfg.ActiveProvider)
+	fmt.Fprintf(out, "Active model:    %s\n", cfg.ActiveModel)
+	fmt.Fprintln(out)
 
-	fmt.Fprintln(out, "Available provider adapters:")
-	fmt.Fprintln(out)
-	for _, name := range providers {
-		fmt.Fprintf(out, "  %s\n", name)
+	if len(cfg.Providers) == 0 {
+		return nil
 	}
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, "Use 'potaco config set --provider <name>' to apply default settings.")
+
+	// Print providers in a stable order with the active one first.
+	names := make([]string, 0, len(cfg.Providers))
+	for name := range cfg.Providers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	fmt.Fprintln(out, "Providers:")
+	for _, name := range names {
+		pc := cfg.Providers[name]
+		active := ""
+		if name == cfg.ActiveProvider {
+			active = " (active)"
+		}
+		fmt.Fprintf(out, "  %s%s\n", name, active)
+		fmt.Fprintf(out, "    model:   %s\n", pc.Model)
+		fmt.Fprintf(out, "    retries: %d\n", pc.Retries)
+		fmt.Fprintf(out, "    timeout: %s\n", formatTimeout(pc.Timeout))
+	}
 	return nil
+}
+
+// formatTimeout renders a duration for display, returning "default" for a
+// zero value so the output is informative rather than showing "0s".
+func formatTimeout(d time.Duration) string {
+	if d <= 0 {
+		return "default"
+	}
+	return d.String()
 }

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ncxton/potaco/internal/config"
 )
@@ -25,7 +26,7 @@ func TestConfigCommandExists(t *testing.T) {
 
 func resetConfigSetFlags(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"base-url", "api-key", "model", "retries", "timeout", "provider"} {
+	for _, name := range []string{"model", "retries", "timeout"} {
 		flag := configSetCmd.Flags().Lookup(name)
 		if flag == nil {
 			t.Fatalf("config set flag %q should exist", name)
@@ -50,204 +51,212 @@ func newConfigTest(t *testing.T) (string, *bytes.Buffer) {
 	return path, &buf
 }
 
-func TestConfigSetHasFlags(t *testing.T) {
-	if configSetCmd.Flags().Lookup("base-url") == nil {
-		t.Fatal("config set should have --base-url flag")
-	}
-	if configSetCmd.Flags().Lookup("api-key") == nil {
-		t.Fatal("config set should have --api-key flag")
-	}
-	if configSetCmd.Flags().Lookup("model") == nil {
-		t.Fatal("config set should have --model flag")
+// writeMultiProviderConfig writes a MultiProviderConfig YAML file at the
+// given path so tests start from a known state.
+func writeMultiProviderConfig(t *testing.T, path string, cfg *config.MultiProviderConfig) {
+	t.Helper()
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("seed config: %v", err)
 	}
 }
 
-func TestConfigListProviders(t *testing.T) {
-	_, buf := newConfigTest(t)
-	rootCmd.SetArgs([]string{"config", "list-providers"})
-
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("config list-providers error: %v", err)
-	}
-
-	output := buf.String()
-	if !strings.Contains(output, "openai") {
-		t.Errorf("output should list 'openai' adapter, got: %q", output)
-	}
-	if !strings.Contains(output, "Available provider adapters:") {
-		t.Errorf("output should mention 'Available provider adapters:', got: %q", output)
+func TestConfigSetHasNewFlags(t *testing.T) {
+	for _, name := range []string{"model", "retries", "timeout"} {
+		if configSetCmd.Flags().Lookup(name) == nil {
+			t.Fatalf("config set should have --%s flag", name)
+		}
 	}
 }
 
-func TestConfigSetWritesValidConfigFile(t *testing.T) {
+func TestConfigSetDoesNotHaveOldFlags(t *testing.T) {
+	for _, name := range []string{"base-url", "api-key", "provider"} {
+		if configSetCmd.Flags().Lookup(name) != nil {
+			t.Fatalf("config set should NOT have --%s flag (removed in Phase 6)", name)
+		}
+	}
+}
+
+func TestConfigDoesNotHaveListProviders(t *testing.T) {
+	for _, cmd := range configCmd.Commands() {
+		if cmd.Use == "list-providers" {
+			t.Fatal("config should NOT have 'list-providers' subcommand (replaced by 'auth list')")
+		}
+	}
+}
+
+func TestConfigSetRetriesOnActiveProvider(t *testing.T) {
 	path, _ := newConfigTest(t)
-	rootCmd.SetArgs([]string{"config", "set",
-		"--base-url", "https://api.test.com",
-		"--api-key", "sk-test",
-		"--model", "m1",
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
 	})
 
+	rootCmd.SetArgs([]string{"config", "set", "--retries", "5"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("config set error: %v", err)
 	}
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("failed to read written config: %v", err)
-	}
-
-	cfg, err := config.Load(path)
-	if err != nil {
-		t.Fatalf("config file should be parseable by config.Load: %v", err)
-	}
-	if cfg.BaseURL != "https://api.test.com" {
-		t.Errorf("BaseURL = %q, want %q", cfg.BaseURL, "https://api.test.com")
-	}
-	if cfg.APIKey != "sk-test" {
-		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "sk-test")
-	}
-	if cfg.Model != "m1" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "m1")
-	}
-
-	content := string(data)
-	if !strings.Contains(content, "base_url") {
-		t.Errorf("config file should contain base_url field, got: %q", content)
-	}
-	if !strings.Contains(content, "api_key") {
-		t.Errorf("config file should contain api_key field, got: %q", content)
-	}
-	if !strings.Contains(content, "model") {
-		t.Errorf("config file should contain model field, got: %q", content)
-	}
-}
-
-func TestConfigSetPartialUpdatePreservesExistingValues(t *testing.T) {
-	path, _ := newConfigTest(t)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		t.Fatalf("create config dir: %v", err)
-	}
-	initial := []byte("default:\n  base_url: https://api.example.test\n  api_key: placeholder-key\n  model: old-model\n  retries: 1\n  timeout: 30s\n")
-	if err := os.WriteFile(path, initial, 0600); err != nil {
-		t.Fatalf("write initial config: %v", err)
-	}
-
-	rootCmd.SetArgs([]string{"config", "set", "--retries", "4"})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("config set partial update error: %v", err)
-	}
-
-	cfg, err := config.Load(path)
+	cfg, err := config.LoadMultiProvider(path)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.BaseURL != "https://api.example.test" {
-		t.Errorf("BaseURL = %q, want preserved base URL", cfg.BaseURL)
+	pc := cfg.Providers["openai"]
+	if pc.Retries != 5 {
+		t.Errorf("openai retries = %d, want 5", pc.Retries)
 	}
-	if cfg.APIKey != "placeholder-key" {
-		t.Errorf("APIKey was not preserved")
+	// Model and timeout should be preserved.
+	if pc.Model != "gpt-image-2" {
+		t.Errorf("openai model = %q, want preserved gpt-image-2", pc.Model)
 	}
-	if cfg.Model != "old-model" {
-		t.Errorf("Model = %q, want old-model", cfg.Model)
-	}
-	if cfg.Retries != 4 {
-		t.Errorf("Retries = %d, want 4", cfg.Retries)
-	}
-	if cfg.Timeout.String() != "30s" {
-		t.Errorf("Timeout = %s, want 30s", cfg.Timeout)
+	if pc.Timeout != 120*time.Second {
+		t.Errorf("openai timeout = %v, want preserved 120s", pc.Timeout)
 	}
 }
 
-func TestConfigSetProviderPreservesExplicitValues(t *testing.T) {
+func TestConfigSetModelUpdatesActiveModel(t *testing.T) {
 	path, _ := newConfigTest(t)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		t.Fatalf("create config dir: %v", err)
-	}
-	initial := []byte("default:\n  base_url: https://api.example.test\n  api_key: placeholder-key\n  model: old-model\n  retries: 1\n  timeout: 30s\n")
-	if err := os.WriteFile(path, initial, 0600); err != nil {
-		t.Fatalf("write initial config: %v", err)
-	}
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
 
-	rootCmd.SetArgs([]string{"config", "set", "--provider", "openai", "--model", "explicit-model"})
-
+	rootCmd.SetArgs([]string{"config", "set", "--model", "gpt-image-3"})
 	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("config set provider update error: %v", err)
+		t.Fatalf("config set error: %v", err)
 	}
 
-	cfg, err := config.Load(path)
+	cfg, err := config.LoadMultiProvider(path)
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.BaseURL != "https://api.openai.com" {
-		t.Errorf("BaseURL = %q, want openai preset base URL", cfg.BaseURL)
+	pc := cfg.Providers["openai"]
+	if pc.Model != "gpt-image-3" {
+		t.Errorf("openai model = %q, want gpt-image-3", pc.Model)
 	}
-	if cfg.APIKey != "placeholder-key" {
-		t.Errorf("APIKey was not preserved")
+	if cfg.ActiveModel != "gpt-image-3" {
+		t.Errorf("ActiveModel = %q, want gpt-image-3", cfg.ActiveModel)
 	}
-	if cfg.Model != "explicit-model" {
-		t.Errorf("Model = %q, want explicit-model", cfg.Model)
-	}
-	if cfg.Retries != 1 {
-		t.Errorf("Retries = %d, want preserved retries", cfg.Retries)
-	}
-}
-
-func TestConfigShowRedactsAPIKey(t *testing.T) {
-	path, buf := newConfigTest(t)
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		t.Fatalf("create config dir: %v", err)
-	}
-	if err := os.WriteFile(path, []byte("default:\n  base_url: https://api.example.test\n  api_key: placeholder-key\n  model: model-a\n"), 0600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	rootCmd.SetArgs([]string{"config", "show"})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("config show error: %v", err)
-	}
-
-	output := buf.String()
-	if strings.Contains(output, "placeholder-key") {
-		t.Fatalf("config show printed the API key: %q", output)
-	}
-	if !strings.Contains(output, "api_key: REDACTED") {
-		t.Fatalf("config show should include redacted api_key, got: %q", output)
+	// Other settings preserved.
+	if pc.Retries != 2 {
+		t.Errorf("openai retries = %d, want preserved 2", pc.Retries)
 	}
 }
 
-func TestConfigSetRejectsSymlinkConfigFile(t *testing.T) {
+func TestConfigSetTimeoutOnActiveProvider(t *testing.T) {
 	path, _ := newConfigTest(t)
-	tmpHome := filepath.Dir(filepath.Dir(path))
-	configDir := filepath.Dir(path)
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		t.Fatalf("create config dir: %v", err)
-	}
-	target := filepath.Join(tmpHome, "elsewhere.yaml")
-	if err := os.WriteFile(target, []byte("default: {}\n"), 0600); err != nil {
-		t.Fatalf("write target: %v", err)
-	}
-	if err := os.Symlink(target, path); err != nil {
-		t.Skipf("symlink unavailable on this platform: %v", err)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "fal",
+		ActiveModel:    "fal-ai/flux/dev",
+		Providers: map[string]config.ProviderConfig{
+			"fal": {Model: "fal-ai/flux/dev", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--timeout", "90s"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set error: %v", err)
 	}
 
-	rootCmd.SetArgs([]string{"config", "set", "--model", "model-a"})
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["fal"]
+	if pc.Timeout != 90*time.Second {
+		t.Errorf("fal timeout = %v, want 90s", pc.Timeout)
+	}
+	if pc.Retries != 2 {
+		t.Errorf("fal retries = %d, want preserved 2", pc.Retries)
+	}
+}
 
+func TestConfigSetPreservesOtherProviders(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--retries", "7"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.Providers["openai"].Retries != 7 {
+		t.Errorf("openai retries = %d, want 7", cfg.Providers["openai"].Retries)
+	}
+	fal := cfg.Providers["fal"]
+	if fal.Model != "fal-ai/flux/dev" {
+		t.Errorf("fal model = %q, want preserved", fal.Model)
+	}
+	if fal.Retries != 3 {
+		t.Errorf("fal retries = %d, want preserved 3", fal.Retries)
+	}
+	if fal.Timeout != 60*time.Second {
+		t.Errorf("fal timeout = %v, want preserved 60s", fal.Timeout)
+	}
+}
+
+func TestConfigSetErrorsWhenNoActiveProvider(t *testing.T) {
+	path, _ := newConfigTest(t)
+	// No config file exists; LoadMultiProvider returns empty config.
+	_ = path
+
+	rootCmd.SetArgs([]string{"config", "set", "--retries", "5"})
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Fatal("config set should reject symlinked config files")
+		t.Fatal("config set should error when no active provider is configured")
 	}
-	if !strings.Contains(err.Error(), "symlink") {
-		t.Fatalf("error should mention symlink, got: %v", err)
+	if !strings.Contains(err.Error(), "no active provider") {
+		t.Fatalf("error should mention 'no active provider', got: %v", err)
+	}
+}
+
+func TestConfigSetErrorsWhenNoFlags(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("config set should error when no flags are given")
+	}
+	if !strings.Contains(err.Error(), "no flags specified") {
+		t.Fatalf("error should mention 'no flags specified', got: %v", err)
 	}
 }
 
 func TestConfigSetWritesPrivateFileMode(t *testing.T) {
 	path, _ := newConfigTest(t)
-	rootCmd.SetArgs([]string{"config", "set", "--base-url", "https://api.example.test", "--api-key", "placeholder-key", "--model", "model-a"})
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
 
+	rootCmd.SetArgs([]string{"config", "set", "--retries", "4"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("config set error: %v", err)
 	}
@@ -265,5 +274,113 @@ func TestConfigSetWritesPrivateFileMode(t *testing.T) {
 	}
 	if got := dirInfo.Mode().Perm(); got != 0700 {
 		t.Fatalf("config dir mode = %o, want 0700", got)
+	}
+}
+
+func TestConfigShowDisplaysActiveProvider(t *testing.T) {
+	path, buf := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 3, Timeout: 90 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	for _, want := range []string{"openai", "gpt-image-2", "Active provider:", "Active model:"} {
+		if !strings.Contains(output, want) {
+			t.Errorf("config show should contain %q, got: %q", want, output)
+		}
+	}
+	if !strings.Contains(output, "retries: 3") {
+		t.Errorf("config show should display retries: 3, got: %q", output)
+	}
+	if !strings.Contains(output, "timeout: 1m30s") {
+		t.Errorf("config show should display timeout: 1m30s, got: %q", output)
+	}
+}
+
+func TestConfigShowMarksActiveProvider(t *testing.T) {
+	path, buf := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "fal",
+		ActiveModel:    "fal-ai/flux/dev",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "fal (active)") {
+		t.Errorf("config show should mark 'fal (active)', got: %q", output)
+	}
+	if !strings.Contains(output, "openai") {
+		t.Errorf("config show should list openai provider, got: %q", output)
+	}
+	// openai should NOT be marked active.
+	if strings.Contains(output, "openai (active)") {
+		t.Errorf("config show should NOT mark openai as active, got: %q", output)
+	}
+}
+
+func TestConfigShowNoConfig(t *testing.T) {
+	_, buf := newConfigTest(t)
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "No configuration found") {
+		t.Errorf("config show with no config should print 'No configuration found', got: %q", output)
+	}
+	if !strings.Contains(output, "potaco auth add") {
+		t.Errorf("config show with no config should hint at 'potaco auth add', got: %q", output)
+	}
+}
+
+func TestConfigShowDoesNotPrintAPIKey(t *testing.T) {
+	path, buf := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
+
+	// Drop a fake-looking secret into the config file to ensure show
+	// never reads or prints credential-store contents.
+	raw := []byte("active_provider: openai\nactive_model: gpt-image-2\nproviders:\n  openai:\n    model: gpt-image-2\n    retries: 2\n    timeout: 2m0s\n")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	// API keys live in the credential store, not the config file, so
+	// there should be no api_key field in the output at all.
+	if strings.Contains(output, "api_key") {
+		t.Errorf("config show should not display api_key, got: %q", output)
+	}
+	if strings.Contains(output, "sk-") {
+		t.Errorf("config show should not print any API key, got: %q", output)
 	}
 }
