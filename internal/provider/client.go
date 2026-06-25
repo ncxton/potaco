@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+// maxProviderResponseBytes bounds the number of bytes read from a provider
+// HTTP response body. It is a variable so tests can lower it without
+// allocating huge fixtures.
+var maxProviderResponseBytes int64 = 128 << 20
+
 // ClientConfig holds the parameters for constructing a Client.
 type ClientConfig struct {
 	BaseURL string
@@ -28,7 +33,8 @@ type Client struct {
 	apiKey  string
 	retries int
 	http    *http.Client
-	backoff func(attempt int) time.Duration // override for testing
+	backoff func(attempt int) time.Duration            // override for testing
+	sleep   func(ctx context.Context, d time.Duration) // override for testing
 }
 
 // NewClient creates a provider Client from the given config.
@@ -68,11 +74,26 @@ func (c *Client) Generate(ctx context.Context, req GenerateRequest) (*ImageRespo
 	return parseResponse(resp)
 }
 
+// readLimitedBody reads up to limit+1 bytes from r. If the body exceeds
+// limit bytes, it returns an error mentioning the label. The +1 byte
+// lets us detect overflow without buffering the entire stream.
+func readLimitedBody(r io.Reader, limit int64, label string) ([]byte, error) {
+	limited := io.LimitReader(r, limit+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", label, err)
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("%s too large: limit is %d bytes", label, limit)
+	}
+	return data, nil
+}
+
 // parseResponse reads the HTTP response and returns an ImageResponse or an error.
 func parseResponse(resp *http.Response) (*ImageResponse, error) {
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := readLimitedBody(resp.Body, maxProviderResponseBytes, "provider response")
 	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
+		return nil, err
 	}
 
 	if resp.StatusCode >= 400 {

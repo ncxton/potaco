@@ -36,6 +36,8 @@ func TestRetryOn429ThenSuccess(t *testing.T) {
 	client.backoff = func(attempt int) time.Duration {
 		return 1 * time.Millisecond
 	}
+	// Override sleep so Retry-After: 1 does not cause a real 1s wait.
+	client.sleep = func(ctx context.Context, d time.Duration) {}
 
 	resp, err := client.Generate(context.Background(), GenerateRequest{Prompt: "test"})
 	if err != nil {
@@ -155,5 +157,72 @@ func TestContextCancellationDuringBackoff(t *testing.T) {
 	}
 	if elapsed > 5*time.Second {
 		t.Errorf("elapsed = %v, want < 5s (backoff should be cancelled)", elapsed)
+	}
+}
+
+func TestRetryHonorsRetryAfterHeader(t *testing.T) {
+	var slept []time.Duration
+	var callCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count := callCount.Add(1)
+		if count == 1 {
+			w.Header().Set("Retry-After", "2")
+			w.WriteHeader(http.StatusTooManyRequests)
+			fmt.Fprint(w, `{"error":{"message":"rate limited"}}`)
+			return
+		}
+		fmt.Fprint(w, `{"created":1,"data":[{"b64_json":"aGVsbG8="}]}`)
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientConfig{BaseURL: server.URL, APIKey: "placeholder-key", Retries: 1, Timeout: time.Second})
+	client.backoff = func(attempt int) time.Duration {
+		return time.Millisecond
+	}
+	client.sleep = func(ctx context.Context, d time.Duration) {
+		slept = append(slept, d)
+	}
+
+	_, err := client.Generate(context.Background(), GenerateRequest{Prompt: "test"})
+	if err != nil {
+		t.Fatalf("Generate error: %v", err)
+	}
+	if len(slept) != 1 || slept[0] != 2*time.Second {
+		t.Fatalf("sleep durations = %v, want [2s]", slept)
+	}
+}
+
+func TestRetryDrainLimit(t *testing.T) {
+	oldLimit := maxRetryDrainBytes
+	maxRetryDrainBytes = 4
+	t.Cleanup(func() { maxRetryDrainBytes = oldLimit })
+
+	var callCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count := callCount.Add(1)
+		if count == 1 {
+			w.WriteHeader(http.StatusTooManyRequests)
+			fmt.Fprint(w, `{"error":{"message":"rate limited"}} and a lot of trailing body bytes that exceed the drain limit so the bounded copy stops early`)
+			return
+		}
+		fmt.Fprint(w, `{"created":1,"data":[{"b64_json":"aGVsbG8="}]}`)
+	}))
+	defer server.Close()
+
+	client := NewClient(ClientConfig{BaseURL: server.URL, APIKey: "sk-test", Retries: 1, Timeout: 30 * time.Second})
+	client.backoff = func(attempt int) time.Duration {
+		return time.Millisecond
+	}
+	client.sleep = func(ctx context.Context, d time.Duration) {}
+
+	resp, err := client.Generate(context.Background(), GenerateRequest{Prompt: "test"})
+	if err != nil {
+		t.Fatalf("Generate error: %v", err)
+	}
+	if resp.Data[0].B64JSON != "aGVsbG8=" {
+		t.Errorf("B64JSON = %q, want 'aGVsbG8='", resp.Data[0].B64JSON)
+	}
+	if callCount.Load() != 2 {
+		t.Errorf("callCount = %d, want 2", callCount.Load())
 	}
 }

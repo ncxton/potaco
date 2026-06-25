@@ -73,6 +73,30 @@ func TestParseExtendInvalid(t *testing.T) {
 	}
 }
 
+func TestParseExtendRejectsNegativeValues(t *testing.T) {
+	cases := []string{"top=-1", "all=-5", "left=10,right=-2"}
+	for _, tc := range cases {
+		t.Run(tc, func(t *testing.T) {
+			_, err := ParseExtend(tc)
+			if err == nil {
+				t.Fatal("ParseExtend should reject negative values")
+			}
+		})
+	}
+}
+
+func TestParseExtendRejectsZeroEffect(t *testing.T) {
+	cases := []string{"top=0", "all=0", "top=0,bottom=0,left=0,right=0"}
+	for _, tc := range cases {
+		t.Run(tc, func(t *testing.T) {
+			_, err := ParseExtend(tc)
+			if err == nil {
+				t.Fatal("ParseExtend should reject all-zero extend values")
+			}
+		})
+	}
+}
+
 func TestExpandCanvas(t *testing.T) {
 	src := image.NewRGBA(image.Rect(0, 0, 100, 100))
 	src.Set(50, 50, color.RGBA{R: 255, G: 0, B: 0, A: 255})
@@ -159,5 +183,28 @@ func TestPrepareOutpaint(t *testing.T) {
 	}
 	if expanded.Bounds().Dx() != 75 || expanded.Bounds().Dy() != 50 {
 		t.Errorf("dimensions = %dx%d, want 75x50", expanded.Bounds().Dx(), expanded.Bounds().Dy())
+	}
+}
+
+func TestPrepareOutpaintRejectsExpandedImageOverPixelLimit(t *testing.T) {
+	oldLimit := maxImagePixels
+	maxImagePixels = 10
+	t.Cleanup(func() { maxImagePixels = oldLimit })
+
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "source.png")
+	src := image.NewRGBA(image.Rect(0, 0, 3, 3))
+	f, err := os.Create(srcPath)
+	if err != nil {
+		t.Fatalf("create source: %v", err)
+	}
+	if err := png.Encode(f, src); err != nil {
+		t.Fatalf("encode source: %v", err)
+	}
+	f.Close()
+
+	_, _, err = PrepareOutpaint(srcPath, ExtendConfig{Right: 2})
+	if err == nil {
+		t.Fatal("PrepareOutpaint should reject expanded image over pixel limit")
 	}
 }
