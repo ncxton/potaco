@@ -77,11 +77,6 @@ func (a *Adapter) AuthHeader(apiKey string) string {
 	return "Key " + apiKey
 }
 
-// Edit edits an image with the fal API.
-func (a *Adapter) Edit(_ context.Context, _ adapter.EditRequest) (*adapter.GenerateResponse, error) {
-	return nil, fmt.Errorf("fal edit: %w", errNotImplemented)
-}
-
 // DiscoverModels returns image-generation-capable models from fal.
 func (a *Adapter) DiscoverModels(_ context.Context) ([]adapter.Model, error) {
 	return nil, fmt.Errorf("fal discover models: %w", errNotImplemented)
