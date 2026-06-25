@@ -3,15 +3,38 @@ package openai
 import (
 	"context"
 	"encoding/json"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
 )
+
+func writeMinimalPNG(t *testing.T, path string, w, h int) {
+	t.Helper()
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create file: %v", err)
+	}
+	defer f.Close()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			img.Set(x, y, color.Black)
+		}
+	}
+	if err := png.Encode(f, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+}
 
 func TestOpenAIAdapterRegistered(t *testing.T) {
 	a, err := adapter.Get("openai", "sk-test", adapter.AdapterOpts{})
@@ -145,5 +168,123 @@ func TestOpenAIGenerateExtraParamsPassthrough(t *testing.T) {
 	}
 	if receivedBody["output_format"] != "webp" {
 		t.Errorf("output_format = %v, want 'webp'", receivedBody["output_format"])
+	}
+}
+
+func TestOpenAIEditSuccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "test.png")
+	maskPath := filepath.Join(tmpDir, "mask.png")
+	writeMinimalPNG(t, imgPath, 4, 4)
+	writeMinimalPNG(t, maskPath, 4, 4)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/images/edits" && r.URL.Path != "/images/edits" {
+			t.Errorf("path = %q, want images/edits", r.URL.Path)
+		}
+		if r.Method != "POST" {
+			t.Errorf("method = %q, want POST", r.Method)
+		}
+		ct := r.Header.Get("Content-Type")
+		if !strings.HasPrefix(ct, "multipart/form-data") {
+			t.Errorf("content-type = %q, want multipart/form-data", ct)
+		}
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		if r.FormValue("prompt") != "make it blue" {
+			t.Errorf("prompt = %q, want 'make it blue'", r.FormValue("prompt"))
+		}
+		if r.FormValue("model") != "gpt-image-2" {
+			t.Errorf("model = %q, want 'gpt-image-2'", r.FormValue("model"))
+		}
+		_, _, err := r.FormFile("image")
+		if err != nil {
+			t.Errorf("image file missing: %v", err)
+		}
+		_, _, err = r.FormFile("mask")
+		if err != nil {
+			t.Errorf("mask file missing: %v", err)
+		}
+		resp := adapter.GenerateResponse{
+			Created: 1234567890,
+			Data:    []adapter.ImageData{{B64JSON: "ZWRpdGVk"}},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	req := adapter.EditRequest{
+		Prompt:    "make it blue",
+		Model:     "gpt-image-2",
+		ImagePath: imgPath,
+		MaskPath:  maskPath,
+		N:         1,
+		Size:      "1024x1024",
+	}
+
+	resp, err := a.Edit(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Edit error: %v", err)
+	}
+	if resp.Data[0].B64JSON != "ZWRpdGVk" {
+		t.Errorf("B64JSON = %q, want 'ZWRpdGVk'", resp.Data[0].B64JSON)
+	}
+}
+
+func TestOpenAIEditWithoutMask(t *testing.T) {
+	tmpDir := t.TempDir()
+	imgPath := filepath.Join(tmpDir, "test.png")
+	writeMinimalPNG(t, imgPath, 4, 4)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseMultipartForm(10 << 20); err != nil {
+			t.Fatalf("parse multipart: %v", err)
+		}
+		if _, _, err := r.FormFile("mask"); err == nil {
+			t.Error("mask file should not be present")
+		}
+		if _, _, err := r.FormFile("image"); err != nil {
+			t.Errorf("image file missing: %v", err)
+		}
+		resp := adapter.GenerateResponse{Data: []adapter.ImageData{{B64JSON: "dGVzdA=="}}}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	req := adapter.EditRequest{
+		Prompt:    "test",
+		ImagePath: imgPath,
+		Model:     "gpt-image-2",
+	}
+
+	resp, err := a.Edit(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Edit error: %v", err)
+	}
+	if resp.Data[0].B64JSON != "dGVzdA==" {
+		t.Errorf("B64JSON = %q, want 'dGVzdA=='", resp.Data[0].B64JSON)
+	}
+}
+
+func TestOpenAIEditMissingImageFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
+
+	_, err := a.Edit(context.Background(), adapter.EditRequest{
+		Prompt:    "test",
+		ImagePath: "/nonexistent/file.png",
+	})
+	if err == nil {
+		t.Fatal("Edit should error on missing image file")
+	}
+	if !strings.Contains(err.Error(), "image file") {
+		t.Errorf("error should mention image file, got: %v", err)
 	}
 }
