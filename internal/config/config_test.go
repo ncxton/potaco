@@ -22,7 +22,7 @@ func TestLoadValidConfig(t *testing.T) {
 	content := `default:
   base_url: "https://api.openai.com"
   api_key: "sk-test123"
-  model: "dall-e-3"
+  model: "gpt-image-2"
   retries: 3
   timeout: "90s"
 `
@@ -37,8 +37,8 @@ func TestLoadValidConfig(t *testing.T) {
 	if cfg.APIKey != "sk-test123" {
 		t.Errorf("APIKey = %q, want %q", cfg.APIKey, "sk-test123")
 	}
-	if cfg.Model != "dall-e-3" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "dall-e-3")
+	if cfg.Model != "gpt-image-2" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "gpt-image-2")
 	}
 	if cfg.Retries != 3 {
 		t.Errorf("Retries = %d, want 3", cfg.Retries)

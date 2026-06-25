@@ -10,8 +10,8 @@ func TestGetPresetOpenAI(t *testing.T) {
 	if p.BaseURL != "https://api.openai.com" {
 		t.Errorf("BaseURL = %q, want https://api.openai.com", p.BaseURL)
 	}
-	if p.DefaultModel != "dall-e-3" {
-		t.Errorf("DefaultModel = %q, want dall-e-3", p.DefaultModel)
+	if p.DefaultModel != "gpt-image-2" {
+		t.Errorf("DefaultModel = %q, want gpt-image-2", p.DefaultModel)
 	}
 	if len(p.Sizes) == 0 {
 		t.Error("Sizes should not be empty")

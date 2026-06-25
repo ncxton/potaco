@@ -199,7 +199,7 @@ func TestFormatResultDefault(t *testing.T) {
 		Format:  "png",
 		Widths:  []int{1024},
 		Heights: []int{1024},
-		Model:   "dall-e-3",
+		Model:   "gpt-image-2",
 		Params:  map[string]any{"size": "1024x1024", "quality": "standard", "n": 1},
 	}
 	opts := OutputOptions{JSON: false, Stdout: false, View: false}
@@ -225,7 +225,7 @@ func TestFormatResultJSON(t *testing.T) {
 		Format:    "png",
 		Widths:    []int{1024},
 		Heights:   []int{1024},
-		Model:     "dall-e-3",
+		Model:     "gpt-image-2",
 		Params:    map[string]any{"size": "1024x1024"},
 		LatencyMs: 3420,
 	}
@@ -238,7 +238,7 @@ func TestFormatResultJSON(t *testing.T) {
 	if !strings.Contains(output, `"path":`) {
 		t.Errorf("JSON output should contain 'path' key, got: %q", output)
 	}
-	if !strings.Contains(output, `"model": "dall-e-3"`) {
+	if !strings.Contains(output, `"model": "gpt-image-2"`) {
 		t.Errorf("JSON output should contain model, got: %q", output)
 	}
 	if !strings.Contains(output, `"latency_ms": 3420`) {
@@ -252,7 +252,7 @@ func TestFormatResultMultipleImagesJSON(t *testing.T) {
 		Format:    "png",
 		Widths:    []int{1024, 1024},
 		Heights:   []int{1024, 1024},
-		Model:     "dall-e-3",
+		Model:     "gpt-image-2",
 		Params:    map[string]any{"n": 2},
 		LatencyMs: 5000,
 	}

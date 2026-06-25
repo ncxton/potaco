@@ -1,14 +1,6 @@
-```
- ____                    ____      _    
-|  _ \ _____   _____ _  |  _ \  | |      __ _ ___ _ __ ___  
-| |_) / _ \ \ / / __ \ | |_) | | |____ / _` / __| '_ \ _ \ 
-|  _ <  __/\ V / (__ | |  _ <  | |__|| | (_| (__| |_) | |
-|_| \_\___| \_/ \___| |_| \_\ | |    \__,_\___| .__/|_|
-                               |_|               |_|
-                    Terminal image generation & editing CLI
-```
-
-> **Note:** The ASCII banner above may not render correctly in all markdown viewers. The tool itself is a polished CLI for image generation and editing from the terminal.
+<p align="center">
+  <img src="assets/potaco-banner.png" alt="Potaco" width="480">
+</p>
 
 # Potaco
 
@@ -61,7 +53,7 @@ Supported platforms:
 
 ```sh
 # Set up your provider credentials
-potaco config set --base-url https://api.openai.com --api-key sk-xxx --model dall-e-3
+potaco config set --base-url https://api.openai.com --api-key sk-xxx --model gpt-image-2
 
 # Generate an image
 potaco gen --prompt "a red fox in a forest"
@@ -79,11 +71,10 @@ Generate new images from a text prompt.
 | Flag | Type | Required | Default | Description |
 |------|------|----------|---------|-------------|
 | `--prompt`, `-p` | string | yes | | Text description of the desired image(s) |
-| `--model` | string | no | from config | Model to use (e.g., `dall-e-3`) |
+| `--model` | string | no | from config | Model to use (e.g., `gpt-image-2`) |
 | `--size` | string | no | `1024x1024` | Image dimensions (WxH) |
-| `--quality` | string | no | `standard` | Image quality (`standard` or `hd`) |
+| `--quality` | string | no | `auto` | Image quality (`low`, `medium`, `high`, or `auto`) |
 | `--n` | int | no | `1` | Number of images to generate |
-| `--style` | string | no | | Visual style (`vivid` or `natural`) |
 | `--seed` | int | no | `0` | Reproducibility seed |
 | `--output`, `-o` | string | no | auto | Output file path (auto: `potaco-YYYYMMDD-HHMMSS.png`) |
 | `--output-format` | string | no | `png` | Output format (`png` or `jpeg`) |
@@ -96,8 +87,8 @@ Generate new images from a text prompt.
 
 ```sh
 potaco gen --prompt "a red fox in a forest"
-potaco gen --prompt "a cityscape at night" --size 1792x1024 --quality hd --n 2
-potaco gen --prompt "portrait of a woman" --style vivid --seed 42 --json
+potaco gen --prompt "a cityscape at night" --size 1536x1024 --quality high --n 2
+potaco gen --prompt "portrait of a woman" --seed 42 --json
 potaco gen --prompt "test" --dry-run
 ```
 
@@ -130,7 +121,7 @@ potaco edit --prompt "extend the landscape" --image photo.png --extend right=256
 Manage provider settings stored in `~/.potaco/config.yaml`.
 
 ```sh
-potaco config set --base-url https://api.openai.com --api-key sk-xxx --model dall-e-3
+potaco config set --base-url https://api.openai.com --api-key sk-xxx --model gpt-image-2
 potaco config set --provider openai          # apply preset defaults
 potaco config set --retries 3 --timeout 120s
 potaco config show                            # display current config
@@ -141,7 +132,7 @@ potaco config list-providers                  # list available presets
 
 | Provider | Base URL | Default Model | Sizes |
 |----------|----------|---------------|-------|
-| `openai` | `https://api.openai.com` | `dall-e-3` | `1024x1024`, `1792x1024`, `1024x1792` |
+| `openai` | `https://api.openai.com` | `gpt-image-2` | `1024x1024`, `1536x1024`, `1024x1536` |
 | `together` | `https://api.together.ai` | `black-forest-labs/flux-1` | `1024x1024` |
 | `fal` | `https://fal.run` | `fal-ai/flux` | `1024x1024` |
 
@@ -166,7 +157,7 @@ Potaco reads configuration from `~/.potaco/config.yaml`. Values are resolved wit
 default:
   base_url: https://api.openai.com
   api_key: sk-xxx
-  model: dall-e-3
+  model: gpt-image-2
   retries: 3
   timeout: 120s
 ```

@@ -20,11 +20,10 @@ func init() {
 	genCmd.Flags().StringP("prompt", "p", "", "text description of the desired image(s)")
 	_ = genCmd.MarkFlagRequired("prompt")
 
-	genCmd.Flags().String("model", "", "model to use (e.g., dall-e-3)")
+	genCmd.Flags().String("model", "", "model to use (e.g., gpt-image-2)")
 	genCmd.Flags().String("size", "1024x1024", "image dimensions (WxH)")
-	genCmd.Flags().String("quality", "standard", "image quality (standard or hd)")
+	genCmd.Flags().String("quality", "auto", "image quality (low, medium, high, or auto)")
 	genCmd.Flags().Int("n", 1, "number of images to generate")
-	genCmd.Flags().String("style", "", "visual style (vivid or natural)")
 
 	genCmd.Flags().Int("seed", 0, "reproducibility seed")
 	genCmd.Flags().Float64("guidance-scale", 0, "guidance scale")
@@ -70,7 +69,6 @@ func runGen(cmd *cobra.Command, args []string) error {
 		Size:           flagString(cmd, "size"),
 		Quality:        flagString(cmd, "quality"),
 		N:              flagInt(cmd, "n"),
-		Style:          flagString(cmd, "style"),
 		ResponseFormat: flagString(cmd, "response-format"),
 		Seed:           flagInt(cmd, "seed"),
 		GuidanceScale:  flagFloat64(cmd, "guidance-scale"),
@@ -103,7 +101,6 @@ func runGen(cmd *cobra.Command, args []string) error {
 			"size":            req.Size,
 			"quality":         req.Quality,
 			"n":               req.N,
-			"style":           req.Style,
 			"response_format": req.ResponseFormat,
 		},
 		latency: latency,

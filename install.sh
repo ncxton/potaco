@@ -113,16 +113,7 @@ print_banner() {
     if [ "$NON_INTERACTIVE" = "1" ]; then
         return
     fi
-    cat <<'BANNER'
- ____                    ____    _   
-|  _ \ _____   _____ _  |  _ \  | |      
-| |_) / _ \ \ / / __ \ | |_) | | |____ 
-|  _ <  __/\ V / (__ | |  _ <  | |__|| 
-|_| \_\___| \_/ \___| |_| \_\ | |    
-                                 |_|    
-BANNER
-    printf "\n"
-    info "Terminal image generation & editing CLI"
+    info "Potaco - Terminal image generation & editing CLI"
     printf "\n"
 }
 

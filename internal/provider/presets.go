@@ -10,8 +10,8 @@ type Preset struct {
 var presets = map[string]Preset{
 	"openai": {
 		BaseURL:      "https://api.openai.com",
-		DefaultModel: "dall-e-3",
-		Sizes:        []string{"1024x1024", "1792x1024", "1024x1792"},
+		DefaultModel: "gpt-image-2",
+		Sizes:        []string{"1024x1024", "1536x1024", "1024x1536"},
 	},
 	"together": {
 		BaseURL:      "https://api.together.ai",

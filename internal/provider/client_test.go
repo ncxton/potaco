@@ -78,7 +78,7 @@ func TestGenerateSuccess(t *testing.T) {
 
 	req := GenerateRequest{
 		Prompt: "a cat",
-		Model:  "dall-e-3",
+		Model:  "gpt-image-2",
 		N:      1,
 		Size:   "1024x1024",
 	}
@@ -183,8 +183,8 @@ func TestEditSuccess(t *testing.T) {
 		if r.FormValue("prompt") != "make it blue" {
 			t.Errorf("prompt = %q, want 'make it blue'", r.FormValue("prompt"))
 		}
-		if r.FormValue("model") != "dall-e-3" {
-			t.Errorf("model = %q, want 'dall-e-3'", r.FormValue("model"))
+		if r.FormValue("model") != "gpt-image-2" {
+			t.Errorf("model = %q, want 'gpt-image-2'", r.FormValue("model"))
 		}
 
 		_, _, err := r.FormFile("image")
@@ -214,7 +214,7 @@ func TestEditSuccess(t *testing.T) {
 
 	req := EditRequest{
 		Prompt:    "make it blue",
-		Model:     "dall-e-3",
+		Model:     "gpt-image-2",
 		ImagePath: imgPath,
 		MaskPath:  maskPath,
 		N:         1,
@@ -259,7 +259,7 @@ func TestEditWithoutMask(t *testing.T) {
 	req := EditRequest{
 		Prompt:    "test",
 		ImagePath: imgPath,
-		Model:     "dall-e-3",
+		Model:     "gpt-image-2",
 	}
 
 	resp, err := client.Edit(context.Background(), req)
