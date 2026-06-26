@@ -54,13 +54,17 @@ func pickProvider(providers []auth.ProviderInfo) (string, error) {
 	}
 
 	var providerName string
-	form := huh.NewForm(huh.NewGroup(
+	form := newForm(huh.NewGroup(
 		huh.NewSelect[string]().
 			Title("Select a provider:").
 			Options(options...).
 			Value(&providerName),
 	))
 	if err := form.Run(); err != nil {
+		if isCancelled(err) {
+			fmt.Println("Cancelled.")
+			return "", nil
+		}
 		return "", fmt.Errorf("provider select: %w", err)
 	}
 	return providerName, nil
@@ -71,12 +75,16 @@ func pickProvider(providers []auth.ProviderInfo) (string, error) {
 // empty string to keep the existing configured model.
 func pickModel(providers []auth.ProviderInfo, providerName string) (string, error) {
 	var changeModel bool
-	confirmForm := huh.NewForm(huh.NewGroup(
+	confirmForm := newForm(huh.NewGroup(
 		huh.NewConfirm().
 			Title("Change the model for this provider?").
 			Value(&changeModel),
 	))
 	if err := confirmForm.Run(); err != nil {
+		if isCancelled(err) {
+			fmt.Println("Cancelled.")
+			return "", nil
+		}
 		return "", fmt.Errorf("confirm model change: %w", err)
 	}
 
@@ -85,12 +93,16 @@ func pickModel(providers []auth.ProviderInfo, providerName string) (string, erro
 	}
 
 	modelID := currentModel(providers, providerName)
-	modelForm := huh.NewForm(huh.NewGroup(
+	modelForm := newForm(huh.NewGroup(
 		huh.NewInput().
 			Title("Enter model ID:").
 			Value(&modelID),
 	))
 	if err := modelForm.Run(); err != nil {
+		if isCancelled(err) {
+			fmt.Println("Cancelled.")
+			return "", nil
+		}
 		return "", fmt.Errorf("model input: %w", err)
 	}
 	return modelID, nil

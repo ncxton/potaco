@@ -30,13 +30,17 @@ func RunAuthAdd(providerName string) error {
 	}
 
 	var apiKey string
-	keyForm := huh.NewForm(huh.NewGroup(
+	keyForm := newForm(huh.NewGroup(
 		huh.NewInput().
 			Title(fmt.Sprintf("Enter API key for %s:", providerName)).
 			EchoMode(huh.EchoModePassword).
 			Value(&apiKey),
 	))
 	if err := keyForm.Run(); err != nil {
+		if isCancelled(err) {
+			fmt.Println("Cancelled.")
+			return nil
+		}
 		return fmt.Errorf("key input: %w", err)
 	}
 	if apiKey == "" {
@@ -51,12 +55,16 @@ func RunAuthAdd(providerName string) error {
 	verifyErr := ad.Verify(context.Background())
 	if verifyErr != nil {
 		var proceed bool
-		confirmForm := huh.NewForm(huh.NewGroup(
+		confirmForm := newForm(huh.NewGroup(
 			huh.NewConfirm().
 				Title(fmt.Sprintf("Verification failed: %s\nAdd anyway?", verifyErr)).
 				Value(&proceed),
 		))
 		if err := confirmForm.Run(); err != nil {
+			if isCancelled(err) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
 			return fmt.Errorf("confirm: %w", err)
 		}
 		if !proceed {
@@ -75,13 +83,17 @@ func RunAuthAdd(providerName string) error {
 			}
 			options = append(options, huh.NewOption(label, m.ID))
 		}
-		selectForm := huh.NewForm(huh.NewGroup(
+		selectForm := newForm(huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Select a model:").
 				Options(options...).
 				Value(&modelID),
 		))
 		if err := selectForm.Run(); err != nil {
+			if isCancelled(err) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
 			return fmt.Errorf("model select: %w", err)
 		}
 	}
