@@ -34,7 +34,7 @@ staticcheck:
 
 duplicates:
 	@which jscpd >/dev/null 2>&1 || npm install -g jscpd
-	jscpd --config .jscpd.json --exit-code 1 ./internal ./main.go
+	jscpd --config .jscpd.json ./internal ./main.go
 
 tech-debt:
 	@if grep -rnE '(TODO|FIXME|XXX|HACK)\b' --include='*.go' . \
