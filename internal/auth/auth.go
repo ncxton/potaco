@@ -170,6 +170,27 @@ func (m *AuthManager) SetActiveProvider(provider, model string) error {
 	return m.saveConfig(cfg)
 }
 
+// SetBaseURL persists a base URL for the given provider. It is separate
+// from Add so that Add stays focused on credentials and the basic config
+// entry; callers that need to store a base URL (e.g., the custom provider
+// auth flow) can do so explicitly after Add.
+func (m *AuthManager) SetBaseURL(provider, baseURL string) error {
+	cfg, err := m.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	if _, ok := cfg.Providers[provider]; !ok {
+		return fmt.Errorf("provider %q is not configured. Use 'potaco auth add %s' first", provider, provider)
+	}
+
+	pc := cfg.Providers[provider]
+	pc.BaseURL = baseURL
+	cfg.Providers[provider] = pc
+
+	return m.saveConfig(cfg)
+}
+
 // GetActiveAPIKey returns the API key for the active provider.
 func (m *AuthManager) GetActiveAPIKey() (string, error) {
 	cfg, err := m.LoadConfig()
