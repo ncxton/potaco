@@ -105,7 +105,8 @@ func isWriterTTY(w io.Writer) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
 
-// debugLog writes the raw error to ~/.potaco/debug.log with a timestamp.
+// debugLog writes the raw error to ~/.potaco/debug.log with a timestamp,
+// error category, and structured key=value format for machine parsing.
 // Silently skips if the log file cannot be opened.
 func debugLog(ue *UserError) {
 	home, err := os.UserHomeDir()
@@ -140,7 +141,7 @@ func debugLog(ue *UserError) {
 		rawMsg = ue.Raw.Error()
 	}
 	ts := time.Now().Format(time.RFC3339)
-	fmt.Fprintf(f, "%s [%s] %s\n", ts, catName, rawMsg)
+	fmt.Fprintf(f, "%s level=error category=%s msg=%q\n", ts, catName, rawMsg)
 }
 
 // renderAnyError is the fallback for errors that are not *UserError.

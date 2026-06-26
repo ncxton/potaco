@@ -146,8 +146,8 @@ func TestDebugLog(t *testing.T) {
 		t.Fatalf("debug log should be created at %s (HOME=%s, UserHomeDir=%s): %v", logPath, tmpHome, home, err)
 	}
 	logStr := string(data)
-	if !strings.Contains(logStr, "[api]") {
-		t.Errorf("log should contain [api] category, got: %s", logStr)
+	if !strings.Contains(logStr, "category=api") {
+		t.Errorf("log should contain category=api, got: %s", logStr)
 	}
 	if !strings.Contains(logStr, "connection refused") {
 		t.Errorf("log should contain raw error, got: %s", logStr)
