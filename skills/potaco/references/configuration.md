@@ -66,6 +66,7 @@ Default: 120 seconds
 
 `POTACO_NON_INTERACTIVE=1` is equivalent to passing `--non-interactive` and
 causes all commands to skip TUI flows and use direct non-interactive paths.
+This is the expected mode for agents running in non-TTY environments.
 
 ## Config File
 

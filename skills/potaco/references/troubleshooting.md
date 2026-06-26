@@ -19,7 +19,7 @@ Potaco produces two tiers of error output:
 2. **Raw error** (debug log): The underlying error is written to
    `~/.potaco/debug.log` with a timestamp and category.
 
-When not on a TTY (piped, scripted, or agent context), errors are plain
+When not on a TTY (agents, pipes, non-interactive mode), errors are plain
 text without ANSI colors. When on a TTY, they use colored styling.
 
 ### Common error patterns and fixes
@@ -207,7 +207,7 @@ In non-interactive mode (set by `--non-interactive` flag or
 - Color output is disabled (plain text).
 - The spinner is suppressed.
 
-This mode is essential for scripts, CI/CD, and agent usage.
+This mode is designed for agents and non-TTY environments.
 
 ## Programmatic Usage (JSON Output)
 
@@ -221,5 +221,5 @@ Most commands support `--json` for machine-readable output:
 - `potaco info <path> --json`: path, format, width, height, file_size, color_model.
 - `potaco gen --json` / `potaco edit --json`: path, format, dimensions, model, params, latency_ms.
 
-Use `--json` when scripting or when an agent needs to parse output
-programmatically. JSON output goes to stdout, error output goes to stderr.
+Use `--json` when an agent needs to parse output programmatically.
+JSON output goes to stdout, error output goes to stderr.

@@ -2,10 +2,10 @@
 name: potaco
 version: 1.1.0
 description: |
-  Use when working with the potaco CLI for terminal image generation,
-  image editing, text-to-image, inpainting, outpainting, provider auth
-  setup (OpenAI, fal, Vercel AI Gateway), model discovery, or debugging
-  potaco command failures.
+  Use when you want to generate images from text prompts, edit existing
+  images, perform inpainting or outpainting, set up provider credentials,
+  discover models, or troubleshoot potaco CLI failures. Covers OpenAI,
+  fal, and Vercel AI Gateway providers.
 ---
 
 # Potaco CLI Usage
@@ -30,7 +30,7 @@ fetched from GitHub releases:
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | sh
 ```
 
-For non-interactive installation (CI, automated environments):
+For non-interactive installation (agents, non-TTY environments):
 
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh
@@ -278,9 +278,9 @@ potaco edit --prompt "test edit" --image input.png --dry-run
   requires a single image. Use `--output` for multiple images.
 - **Editing with the Vercel provider**: Vercel AI Gateway does not support
   image editing. Switch with `potaco use openai` or `potaco use fal`.
-- **Forgetting `--non-interactive` in scripts/CI**: Without it, commands
+- **Forgetting `--non-interactive` in non-TTY sessions**: Without it, commands
   that need a TTY will hang. Set `POTACO_NON_INTERACTIVE=1` or pass
-  `--non-interactive`.
+  `--non-interactive`. This is the default mode for agents.
 - **Wrong model name**: Causes API errors. Run `potaco models` to list
   available models, or `potaco models --params <model>` to check parameters.
 - **Output path is a directory**: Returns an image error. `--output` expects
