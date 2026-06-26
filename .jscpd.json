@@ -1,0 +1,14 @@
+{
+  "threshold": 5,
+  "reporters": ["console", "html"],
+  "ignore": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/*.sum",
+    "**/docs/superpowers/**"
+  ],
+  "format": ["go"],
+  "min-lines": 20,
+  "min-tokens": 100,
+  "absolute": true
+}

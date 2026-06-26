@@ -22,6 +22,11 @@ jobs:
         with:
           go-version: '1.26'
 
+      - name: Set up Node.js (for jscpd)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
       - name: Download modules
         run: go mod download
 
@@ -78,6 +83,27 @@ jobs:
             echo "::error::functions exceed cyclomatic complexity threshold of 30"
             exit 1
           fi
+
+      - name: Check duplicate code (jscpd)
+        run: |
+          npx jscpd --config .jscpd.json --exit-code 1 ./internal ./main.go
+
+      - name: Check tech debt markers (TODO/FIXME must reference an issue)
+        run: |
+          # Scan Go files for TODO/FIXME/XXX/HACK without an issue reference.
+          # Allowed: TODO(#123), FIXME(#456) — bare TODO/FIXME will fail.
+          if grep -rnE '(TODO|FIXME|XXX|HACK)\b' --include='*.go' . \
+              | grep -v '_test.go' \
+              | grep -vE '(TODO|FIXME|XXX|HACK)\(#[0-9]+\)' \
+              | grep -q .; then
+            echo "::error::Found TODO/FIXME/XXX/HACK comments without issue references."
+            echo "Use the format: TODO(#123) or FIXME(#456) to link to an issue."
+            grep -rnE '(TODO|FIXME|XXX|HACK)\b' --include='*.go' . \
+              | grep -v '_test.go' \
+              | grep -vE '(TODO|FIXME|XXX|HACK)\(#[0-9]+\)'
+            exit 1
+          fi
+          echo "All tech debt markers reference issues."
 
       - name: Test with coverage
         run: |

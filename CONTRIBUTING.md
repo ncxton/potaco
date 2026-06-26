@@ -32,6 +32,8 @@ go install honnef.co/go/tools/cmd/staticcheck@latest   # Dead code, complexity
 go install github.com/fzipp/gocyclo/cmd/gocyclo@latest  # Cyclomatic complexity
 make staticcheck   # Run staticcheck
 make complexity    # Run gocyclo (threshold: 30)
+make duplicates    # Run jscpd (duplicate code, threshold: 5%)
+make tech-debt     # Scan for TODO/FIXME without issue references
 make cover         # Generate coverage report
 ```
 
@@ -149,6 +151,8 @@ The following checks run on every PR:
 - **Format**: `gofmt -l .`
 - **Staticcheck**: Dead code, complexity, unused variable detection
 - **Cyclomatic complexity**: `gocyclo -over 30 .`
+- **Duplicate code**: `jscpd` (threshold 5%, min 20 lines/100 tokens)
+- **Tech debt markers**: TODO/FIXME must reference issues (e.g., `TODO(#123)`)
 - **go mod tidy**: Ensures no unused dependencies
 - **Coverage**: `go test -coverprofile` with artifact upload
 - **Secret scanning**: Gitleaks on all changes

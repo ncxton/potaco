@@ -110,6 +110,7 @@ All packages live under `internal/` (not importable externally). Adapter sub-pac
 
 ```
 go build -o potaco .       # Build the binary
+make setup                  # Install pre-commit hooks (gofmt, vet, tidy) and pre-push (tests)
 go test ./...              # Run all tests
 go test ./... -v           # Run all tests with verbose output
 go test ./... -coverprofile=coverage.out -covermode=atomic  # Run tests with coverage
@@ -121,6 +122,8 @@ make test                  # Test via Makefile
 make cover                 # Coverage report via Makefile
 make staticcheck           # Run staticcheck (dead code, complexity, unused)
 make complexity            # Run gocyclo (cyclomatic complexity, threshold 30)
+make duplicates            # Run jscpd (duplicate code detection, threshold 5%)
+make tech-debt             # Scan for TODO/FIXME without issue references
 make tidy                  # Run go mod tidy
 make check                 # Run vet, fmt, test
 ```
@@ -135,6 +138,8 @@ sh scripts/install-hooks.sh   # Installs pre-commit (gofmt, vet, tidy) and pre-p
 - `gofmt -l .` - Format check
 - `staticcheck` - Dead code, complexity, unused variable detection
 - `gocyclo -over 30 .` - Cyclomatic complexity threshold enforcement
+- `jscpd` - Duplicate code detection (threshold 5%, min 20 lines/100 tokens)
+- `grep` - Tech debt marker scanner (TODO/FIXME must reference issues)
 - `go mod tidy` - Unused dependency detection (fails if go.mod/go.sum not tidy)
 - `go test -coverprofile` - Coverage measurement with artifact upload
 - `gitleaks` - Secret scanning on all PRs and scheduled
