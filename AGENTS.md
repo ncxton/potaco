@@ -123,7 +123,9 @@ fix(cli): silence duplicated error output and exit codes
 refactor(config): migrate to multi-provider YAML config format
 ```
 
-Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(scope):` for bug fixes, `refactor(scope):` for restructuring, `docs:` for documentation, `chore:` for maintenance. The scope should match the package name (`adapter`, `cli`, `config`, `credential`, `auth`, `tui`, `image`) or a logical feature area. Reference the design spec (`docs/superpowers/specs/`) and plan (`docs/superpowers/plans/`) when adding features.
+Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(scope):` for bug fixes, `refactor(scope):` for restructuring, `docs:` for documentation, `chore:` for maintenance. The scope should match the package name (`adapter`, `cli`, `config`, `credential`, `auth`, `tui`, `image`) or a logical feature area.
+
+**NEVER commit files under `docs/superpowers/` (specs, plans, or any other superpowers artifacts).** This directory is gitignored for a reason — these are local design documents, not shipped code. Do not use `git add -f` to force-add them.
 
 ## Exit Codes
 
