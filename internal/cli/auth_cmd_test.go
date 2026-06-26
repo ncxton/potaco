@@ -282,6 +282,52 @@ func TestAuthRemoveRequiresProviderArg(t *testing.T) {
 	}
 }
 
+func TestAuthRemoveNoArgsNonInteractiveErrors(t *testing.T) {
+	newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "remove"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("auth remove without args in non-interactive mode should error")
+	}
+	if !strings.Contains(err.Error(), "specify") && !strings.Contains(err.Error(), "Specify") {
+		t.Errorf("error should ask to specify a provider, got: %v", err)
+	}
+}
+
+func TestAuthRemoveUnknownProviderNonInteractive(t *testing.T) {
+	newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "remove", "nonexistent"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("auth remove with unknown provider should error")
+	}
+}
+
+func TestAuthRemoveKnownProviderNonInteractiveStillWorks(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "remove", "openai"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth remove error: %v", err)
+	}
+	output := buf.String()
+	if !strings.Contains(output, "removed") || !strings.Contains(output, "openai") {
+		t.Errorf("output should mention removal of openai, got: %q", output)
+	}
+}
+
 func TestAuthListCommand(t *testing.T) {
 	_, buf := newAuthTest(t)
 

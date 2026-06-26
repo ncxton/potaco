@@ -26,9 +26,9 @@ var authAddCmd = &cobra.Command{
 }
 
 var authRemoveCmd = &cobra.Command{
-	Use:     "remove <provider>",
+	Use:     "remove [provider]",
 	Short:   "Remove a provider's credentials and config",
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	RunE:    runAuthRemove,
 	Aliases: []string{"rm"},
 }
@@ -121,19 +121,30 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {
-	providerName := args[0]
-
-	mgr, err := auth.New()
-	if err != nil {
-		return configError(fmt.Errorf("init auth: %w", err))
+	providerName := ""
+	if len(args) > 0 {
+		providerName = args[0]
 	}
 
-	if err := mgr.Remove(providerName); err != nil {
-		return configError(fmt.Errorf("remove provider: %w", err))
+	// Non-interactive mode: require provider arg and remove directly.
+	if !tui.IsInteractive() {
+		if providerName == "" {
+			return configError(fmt.Errorf("specify a provider: potaco auth remove <provider>"))
+		}
+
+		mgr, err := auth.New()
+		if err != nil {
+			return configError(fmt.Errorf("init auth: %w", err))
+		}
+		if err := mgr.Remove(providerName); err != nil {
+			return configError(fmt.Errorf("remove provider: %w", err))
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "Provider '%s' removed.\n", providerName)
+		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Provider '%s' removed.\n", providerName)
-	return nil
+	// Interactive mode: launch TUI flow (picker if no arg, then confirm)
+	return tui.RunAuthRemove(providerName)
 }
 
 func runAuthList(cmd *cobra.Command, args []string) error {
