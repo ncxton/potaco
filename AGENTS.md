@@ -155,6 +155,42 @@ Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(
 
 **NEVER commit files under `docs/superpowers/` (specs, plans, or any other superpowers artifacts).** This directory is gitignored for a reason — these are local design documents, not shipped code. Do not use `git add -f` to force-add them.
 
+## Code Quality Guidelines (Learned from Review Passes)
+
+### Comments
+
+- **Do not write comments that restate the code.** `// Set as active provider` above `cfg.ActiveProvider = provider` adds noise. Comments should explain *why*, not *what*.
+- **Do not leave "reserved for future use" or "temporary Phase X shim" comments.** They rot. If a parameter or code path is unused, either use it or remove it. Do not annotate it with speculative future plans.
+- **Do not silence unused imports with `var _ = pkg.Symbol`.** Remove the import. If the import is genuinely needed later, add it back then.
+- **Do not write section-header inline comments** (`// Help line`, `// Model list`, `// Cache the result`) that label the next few lines. The code is the label.
+- **Keep godoc comments** on exported identifiers. These are documentation, not slop. `"GenerateRequest is the normalized request for image generation."` is correct and useful.
+- **Comments that explain algorithm decisions are valuable.** `// If any channel is non-zero, treat as white` documents the binarization rule, not the code.
+- **Flag-group separators** in `init()` blocks (`// Mask flags`, `// Output flags`) are acceptable as visual navigation in long registration blocks.
+
+### Dead Code
+
+- Before adding a parameter to a function, verify it will be used. If verification moves to a different layer (e.g. CLI does the `--force` check, not `auth.Add`), do not pass `force` through to the function that ignores it.
+- Helper functions extracted "for future use" that are never called are dead code. Delete them. `friendlyPath()` survived multiple commits without a single caller.
+- Always grep the full project before removing or renaming. A function may have callers in `*_test.go`, TUI files, or sibling packages that compile checks will flag only after staging.
+
+### Input Validation Patterns
+
+- **URL normalization:** Always `strings.TrimRight(baseURL, "/")` before URL joins. A trailing slash in `--base-url` or `POTACO_BASE_URL` produces double-slash endpoints (`/v1//images/generations`) that fail silently.
+- **Image file bounds:** Every code path that reads and decodes a user-supplied image file must check `maxImageFileBytes` (file size) and `validateImageDimensionsFromBytes` (pixel count via header) *before* `image.Decode`. This includes `ReadImage`, `LoadMaskFile`, and any future function that accepts image paths. Without bounds, a large image can OOM the CLI.
+- **Stdout with multiple images:** Never write multiple image blobs (PNG/JPEG) to `os.Stdout` in sequence. Downstream tools cannot decode the result. Reject `--stdout` with `--n > 1` early with a `UserError` and a helpful hint.
+- **Cancellation propagation:** When a TUI picker returns `("", nil)` on cancel, the caller must check for the empty string and return early. Do not let an empty provider name flow through to `SetActiveProvider("")` which produces a confusing downstream error.
+
+### Credential Lookup
+
+- `GetActiveAPIKey()` returns the key for the *active* provider. When a specific provider name is given (e.g. `--provider fal` while `openai` is active), use `GetAPIKey(providerName)` instead. Never fall through to `GetActiveAPIKey()` when an explicit provider was specified.
+- When adding a method to `AuthManager`, keep it thin: delegate to `m.store.Get(provider)` rather than reimplementing the lookup.
+
+### Documentation In sync
+
+- When adding a new command (`version`, `update`, `uninstall`), update all three docs in the same commit: `README.md` (user-facing), `AGENTS.md` (agent guidelines), `CONTRIBUTING.md` (contributor guide). Out-of-sync docs cause agents and contributors to miss features.
+- When adding a CLI flag, add it to the README flag table in the same commit. Do not document flags that do not exist (e.g. `--view` was listed in the README with no corresponding code).
+- The file structure tree in AGENTS.md and CONTRIBUTING.md must list every `.go` file. Missing files cause agents to not know they exist.
+
 ## Exit Codes
 
 Defined in `internal/cli/errors.go`: 0 success, 2 config error, 3 API error, 4 image error. New code should use `configUserErr`, `apiUserErr`, `imageUserErr` constructors from `usererr.go` which produce `UserError` values with a friendly message and hint. Legacy `configError()`, `apiError()`, `imageError()` wrappers still exist for backward compatibility. `Execute()` in `root.go` renders the error (colored on TTY, plain text otherwise) and writes the raw error to `~/.potaco/debug.log` before exiting with the appropriate code.
