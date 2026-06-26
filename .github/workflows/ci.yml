@@ -67,9 +67,9 @@ jobs:
           fi
 
       - name: Staticcheck (dead code, complexity, unused)
-        uses: dominikh/staticcheck-action@v1
-        with:
-          version: latest
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          staticcheck ./...
 
       - name: Check cyclomatic complexity
         run: |

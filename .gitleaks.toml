@@ -3,7 +3,7 @@ title = "gitleaks config"
 [extend]
 useDefault = true
 
-[[allowlist]]
+[[allowlists]]
 description = "Allow test API keys in test files and install script"
 paths = [
   '''*_test\.go''',
@@ -14,7 +14,7 @@ paths = [
   '''skills/.*\.md''',
 ]
 
-[[allowlist]]
+[[allowlists]]
 description = "Allow placeholder API key patterns"
 regexes = [
   '''sk-test''',
