@@ -13,7 +13,6 @@ import (
 func resetVersionCache() {
 	latestCache = ""
 	latestCacheTime = time.Time{}
-	latestCacheErr = nil
 }
 
 func TestCheckLatestVersion(t *testing.T) {

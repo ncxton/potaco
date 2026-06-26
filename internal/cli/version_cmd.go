@@ -20,7 +20,6 @@ var githubReleaseURL = "https://api.github.com/repos/ncxton/potaco/releases/late
 var (
 	latestCache     string
 	latestCacheTime time.Time
-	latestCacheErr  error
 )
 
 const latestCacheTTL = 1 * time.Hour
