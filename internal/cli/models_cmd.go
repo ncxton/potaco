@@ -11,90 +11,167 @@ import (
 	"github.com/ncxton/potaco/internal/auth"
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/credential"
+	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
 
 var modelsCmd = &cobra.Command{
 	Use:   "models [provider]",
-	Short: "List available image models for the active or specified provider",
+	Short: "Pick a model for the active or specified provider",
 	Args:  cobra.MaximumNArgs(1),
 	RunE:  runModels,
 }
 
+var modelsListCmd = &cobra.Command{
+	Use:   "list [provider]",
+	Short: "List available models for the active or specified provider",
+	Args:  cobra.MaximumNArgs(1),
+	RunE:  runModelsList,
+}
+
 func init() {
-	modelsCmd.Flags().String("base-url", "", "override API base URL")
-	modelsCmd.Flags().String("api-key", "", "override API key")
+	modelsCmd.PersistentFlags().String("base-url", "", "override API base URL")
+	modelsCmd.PersistentFlags().String("api-key", "", "override API key")
+	modelsCmd.AddCommand(modelsListCmd)
 	rootCmd.AddCommand(modelsCmd)
 }
 
 func runModels(cmd *cobra.Command, args []string) error {
-	mgr, err := auth.New()
+	providerName, apiKey, baseURL, err := resolveModelsProvider(cmd, args)
 	if err != nil {
-		return configError(fmt.Errorf("init auth: %w", err))
+		return err
 	}
 
-	providerName := ""
+	if tui.IsInteractive() {
+		return tui.RunModelList(providerName, apiKey, baseURL)
+	}
+
+	return printModels(cmd, providerName, apiKey, baseURL)
+}
+
+func runModelsList(cmd *cobra.Command, args []string) error {
+	providerName, apiKey, baseURL, err := resolveModelsProvider(cmd, args)
+	if err != nil {
+		return err
+	}
+	return printModels(cmd, providerName, apiKey, baseURL)
+}
+
+// resolveModelsProvider resolves the provider, API key, and base URL for the
+// models command and its list subcommand. The provider comes from the first
+// positional argument, or the active provider when no argument is given.
+// The API key and base URL follow flag > env > config > preset precedence.
+func resolveModelsProvider(cmd *cobra.Command, args []string) (providerName, apiKey, baseURL string, err error) {
+	mgr, err := auth.New()
+	if err != nil {
+		return "", "", "", configUserErr(
+			"Could not load configuration.",
+			"Check that ~/.potaco/ is readable.",
+			fmt.Errorf("init auth: %w", err),
+		)
+	}
+
 	if len(args) > 0 {
 		providerName = args[0]
+		if !isKnownProvider(providerName) {
+			return "", "", "", configUserErr(
+				fmt.Sprintf("Unknown provider '%s'.", providerName),
+				"Run 'potaco auth list' to see connected providers.",
+				fmt.Errorf("unknown provider: %s", providerName),
+			)
+		}
 	} else {
 		providerName, _, err = mgr.GetActiveProvider()
 		if err != nil || providerName == "" {
-			return configError(fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one"))
+			return "", "", "", configUserErr(
+				"No active provider configured.",
+				"Run 'potaco auth add <provider>' to connect one.",
+				fmt.Errorf("no active provider"),
+			)
 		}
 	}
 
-	apiKey := flagString(cmd, "api-key")
-	if apiKey == "" {
-		if v := os.Getenv("POTACO_API_KEY"); v != "" {
-			apiKey = v
-		}
-	}
-	if apiKey == "" && len(args) == 0 {
-		k, kErr := mgr.GetActiveAPIKey()
-		if kErr == nil {
-			apiKey = k
-		}
-	}
-	if apiKey == "" && len(args) > 0 {
-		cfg, cfgErr := mgr.LoadConfig()
-		if cfgErr == nil && cfg != nil {
-			if _, ok := cfg.Providers[providerName]; ok {
-				credPath := config.DefaultCredentialPath()
-				saltPath := config.DefaultSaltPath()
-				store, storeErr := credential.New(credPath, saltPath)
-				if storeErr == nil {
-					k, kErr := store.Get(providerName)
-					if kErr == nil {
-						apiKey = k
-					}
-				}
-			}
-		}
-	}
-	if apiKey == "" {
-		return configError(fmt.Errorf("provider %q is not connected. Use 'potaco auth add %s' first", providerName, providerName))
+	apiKey, err = resolveModelsAPIKey(cmd, mgr, providerName, len(args) > 0)
+	if err != nil {
+		return "", "", "", configUserErr(
+			fmt.Sprintf("Provider '%s' is not connected.", providerName),
+			fmt.Sprintf("Run 'potaco auth add %s' to store an API key.", providerName),
+			fmt.Errorf("provider %q is not connected: %w", providerName, err),
+		)
 	}
 
-	baseURL := flagString(cmd, "base-url")
+	cfg, _ := mgr.LoadConfig()
+	baseURL = resolveBaseURL(cmd, providerName, cfg)
+
+	return providerName, apiKey, baseURL, nil
+}
+
+func isKnownProvider(name string) bool {
+	for _, n := range adapter.List() {
+		if n == name {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveModelsAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName string, explicitProvider bool) (string, error) {
+	if v := flagString(cmd, "api-key"); v != "" {
+		return v, nil
+	}
+	if v := os.Getenv("POTACO_API_KEY"); v != "" {
+		return v, nil
+	}
+
+	if !explicitProvider {
+		return mgr.GetActiveAPIKey()
+	}
+
+	cfg, err := mgr.LoadConfig()
+	if err != nil {
+		return "", err
+	}
+	if cfg == nil || cfg.Providers == nil {
+		return "", fmt.Errorf("provider not configured")
+	}
+	if _, ok := cfg.Providers[providerName]; !ok {
+		return "", fmt.Errorf("provider not configured")
+	}
+
+	credPath := config.DefaultCredentialPath()
+	saltPath := config.DefaultSaltPath()
+	store, err := credential.New(credPath, saltPath)
+	if err != nil {
+		return "", err
+	}
+	return store.Get(providerName)
+}
+
+func printModels(cmd *cobra.Command, providerName, apiKey, baseURL string) error {
 	opts := adapter.AdapterOpts{BaseURL: baseURL}
 	ad, err := adapter.Get(providerName, apiKey, opts)
 	if err != nil {
-		return configError(fmt.Errorf("create adapter: %w", err))
+		return configUserErr(
+			fmt.Sprintf("Could not connect to provider '%s'.", providerName),
+			"Check that the provider name is correct and the provider is registered.",
+			fmt.Errorf("create adapter: %w", err),
+		)
 	}
-
-	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 
 	models, err := ad.DiscoverModels(context.Background())
 	if err != nil {
-		return apiError(fmt.Errorf("discover models: %w", err))
+		return apiUserErr(
+			"Could not discover models.",
+			"Check your API key, base URL, and network connection.",
+			fmt.Errorf("discover models: %w", err),
+		)
 	}
 
 	out := cmd.OutOrStdout()
-
+	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	if jsonMode {
 		return printModelsJSON(out, models)
 	}
-
 	return printModelsText(out, models)
 }
 
