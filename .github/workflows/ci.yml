@@ -57,8 +57,39 @@ jobs:
             exit 1
           fi
 
-      - name: Test
-        run: go test ./... -v
+      - name: Check go mod tidy
+        run: |
+          go mod tidy
+          if ! git diff --exit-code go.mod go.sum; then
+            echo "::error::go.mod or go.sum is not tidy; run 'go mod tidy' and commit"
+            git diff go.mod go.sum
+            exit 1
+          fi
+
+      - name: Staticcheck (dead code, complexity, unused)
+        uses: dominikh/staticcheck-action@v1
+        with:
+          version: latest
+
+      - name: Check cyclomatic complexity
+        run: |
+          go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+          if ! gocyclo -over 15 .; then
+            echo "::error::functions exceed cyclomatic complexity threshold of 15"
+            exit 1
+          fi
+
+      - name: Test with coverage
+        run: |
+          go test ./... -v -coverprofile=coverage.out -covermode=atomic
+          go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | sed 's/%//' | awk '{if ($1 < 50) {print "::warning::Coverage below 50%: " $1 "%"} else {print "Coverage: " $1 "%"}}'
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.out
 
   cross-compile:
     runs-on: ubuntu-latest

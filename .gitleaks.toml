@@ -1,0 +1,24 @@
+title = "gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlist]]
+description = "Allow test API keys in test files and install script"
+paths = [
+  '''*_test\.go''',
+  '''install\.sh''',
+  '''README\.md''',
+  '''AGENTS\.md''',
+  '''CONTRIBUTING\.md''',
+  '''skills/.*\.md''',
+]
+
+[[allowlist]]
+description = "Allow placeholder API key patterns"
+regexes = [
+  '''sk-test''',
+  '''sk-xxx''',
+  '''sk-\.\.\.''',
+  '''\[REDACTED\]''',
+]

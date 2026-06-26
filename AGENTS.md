@@ -62,6 +62,8 @@ internal/
   config/                Multi-provider YAML config (~/.potaco/config.yaml)
     config.go            Load/Save MultiProviderConfig, default path helpers
     types.go             MultiProviderConfig, ProviderConfig structs
+  observability/         Request ID propagation, metrics collection, structured error context
+    metrics.go           Metrics tracking, request ID context, structured error logging
   tui/                   Interactive terminal flows (huh forms, lipgloss styling)
     tui.go               IsInteractive/IsTTY/NonInteractive mode detection
     auth_add.go          Interactive auth add flow (key prompt, verify, model picker)
@@ -74,19 +76,33 @@ internal/
     io.go                Read/decode (PNG, JPEG, WebP), write, base64 decode, auto-filename
     mask.go              RectMask, CircleMask, LoadMaskFile, WriteMask
     canvas.go            ParseExtend, PrepareOutpaint (outpaint canvas expansion)
-docs/superpowers/        Design specs and implementation plans
-  specs/                Design documents
-  plans/                Phase-by-phase implementation plans
+scripts/                 Git hooks and installation scripts
+  pre-commit.sh          Pre-commit: gofmt, go vet, go mod tidy
+  pre-push.sh            Pre-push: go test ./...
+  install-hooks.sh       Install git hooks into .git/hooks/
+Makefile                 Build, test, coverage, staticcheck, complexity targets
+.env.example             Environment variable template
+.github/
+  workflows/
+    ci.yml               CI: build, vet, gofmt, staticcheck, gocyclo, coverage, go mod tidy
+    security.yml         Gitleaks secret scanning, AGENTS.md validation
+    release.yml          GoReleaser release automation
+    docs-guard.yml        Block PRs modifying maintainer docs
+  CODEOWNERS             Code ownership assignments
+  dependabot.yml         Dependency update automation (weekly)
+  ISSUE_TEMPLATE/        Structured bug report and feature request forms
+  PULL_REQUEST_TEMPLATE.md  PR template with checklist
+.gitleaks.toml            Gitleaks secret scanning config
 ```
 
 Layered monolith dependency graph:
 
 ```
-cli --> adapter, auth, config, credential, tui, image
+cli --> adapter, auth, config, credential, tui, image, observability
 tui  --> adapter, auth
 auth --> config, credential
-adapter/openai|fal|vercel --> adapter (parent), config
-config, credential, image --> (no internal deps)
+adapter/openai|fal|vercel --> adapter (parent), config, observability
+config, credential, image, observability --> (no internal deps)
 ```
 
 All packages live under `internal/` (not importable externally). Adapter sub-packages register themselves via `init()` and are imported for side effects in `cli/helpers.go`.
@@ -97,9 +113,32 @@ All packages live under `internal/` (not importable externally). Adapter sub-pac
 go build -o potaco .       # Build the binary
 go test ./...              # Run all tests
 go test ./... -v           # Run all tests with verbose output
+go test ./... -coverprofile=coverage.out -covermode=atomic  # Run tests with coverage
+go tool cover -func=coverage.out  # Show coverage summary
 go vet ./...               # Lint
 gofmt -l .                 # Check formatting (should output nothing)
+make build                 # Build via Makefile
+make test                  # Test via Makefile
+make cover                 # Coverage report via Makefile
+make staticcheck           # Run staticcheck (dead code, complexity, unused)
+make complexity            # Run gocyclo (cyclomatic complexity, threshold 15)
+make tidy                  # Run go mod tidy
+make check                 # Run vet, fmt, test
 ```
+
+**Pre-commit hooks**: Install locally after cloning:
+```
+sh scripts/install-hooks.sh   # Installs pre-commit (gofmt, vet, tidy) and pre-push (tests) hooks
+```
+
+**Static analysis tools configured in CI**:
+- `go vet ./...` - Standard Go linter
+- `gofmt -l .` - Format check
+- `staticcheck` - Dead code, complexity, unused variable detection
+- `gocyclo -over 15 .` - Cyclomatic complexity threshold enforcement
+- `go mod tidy` - Unused dependency detection (fails if go.mod/go.sum not tidy)
+- `go test -coverprofile` - Coverage measurement with artifact upload
+- `gitleaks` - Secret scanning on all PRs and scheduled
 
 Config file lives at `~/.potaco/config.yaml`. Encrypted credentials at `~/.potaco/credentials.enc` with salt at `~/.potaco/.salt`. For local testing without a real provider, use `--dry-run`:
 ```

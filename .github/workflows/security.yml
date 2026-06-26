@@ -1,0 +1,83 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: true
+
+  docs-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+
+      - name: Validate AGENTS.md build commands
+        run: |
+          # Verify commands documented in AGENTS.md actually work
+          go build -o potaco .
+          go vet ./...
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "::error::gofmt check failed"
+            gofmt -l .
+            exit 1
+          fi
+          echo "AGENTS.md build/vet/gofmt commands validated successfully"
+
+      - name: Validate AGENTS.md file tree
+        run: |
+          # Check that files referenced in AGENTS.md structure exist
+          for f in main.go \
+            internal/cli/root.go internal/cli/gen.go internal/cli/edit.go internal/cli/edit_mask.go \
+            internal/cli/auth_cmd.go internal/cli/config_cmd.go internal/cli/models_cmd.go \
+            internal/cli/status_cmd.go internal/cli/use_cmd.go internal/cli/info.go \
+            internal/cli/update_cmd.go internal/cli/version_cmd.go internal/cli/version.go \
+            internal/cli/uninstall_cmd.go internal/cli/resolve.go internal/cli/helpers.go \
+            internal/cli/output.go internal/cli/usererr.go internal/cli/errors.go internal/cli/spinner.go \
+            internal/adapter/adapter.go internal/adapter/registry.go \
+            internal/adapter/openai/openai.go internal/adapter/openai/generate.go \
+            internal/adapter/openai/edit.go internal/adapter/openai/discover.go \
+            internal/adapter/openai/models.go internal/adapter/openai/response.go \
+            internal/adapter/openai/retry.go \
+            internal/adapter/fal/fal.go internal/adapter/fal/generate.go \
+            internal/adapter/fal/edit.go internal/adapter/fal/discover.go \
+            internal/adapter/fal/models.go internal/adapter/fal/response.go \
+            internal/adapter/fal/retry.go \
+            internal/adapter/vercel/vercel.go internal/adapter/vercel/generate.go \
+            internal/adapter/vercel/edit.go internal/adapter/vercel/discover.go \
+            internal/adapter/vercel/models.go internal/adapter/vercel/response.go \
+            internal/adapter/vercel/retry.go \
+            internal/auth \
+            internal/credential/store.go internal/credential/encrypt.go internal/credential/types.go \
+            internal/config/config.go internal/config/types.go \
+            internal/tui/tui.go internal/tui/auth_add.go internal/tui/auth_remove.go \
+            internal/tui/model_list.go internal/tui/model_search.go internal/tui/use_picker.go \
+            internal/image/init.go internal/image/io.go internal/image/mask.go internal/image/canvas.go; do
+            if [ ! -e "$f" ]; then
+              echo "::error::File referenced in AGENTS.md not found: $f"
+              exit 1
+            fi
+          done
+          echo "AGENTS.md file tree validated successfully"

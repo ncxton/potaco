@@ -269,11 +269,11 @@ providers:
   openai:
     model: gpt-image-2
     retries: 3
-    timeout: 120s
+    timeout: 120
   fal:
     model: fal-ai/flux/dev
     retries: 3
-    timeout: 120s
+    timeout: 120
 ```
 
 API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a machine-derived key.
@@ -301,6 +301,20 @@ API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and the pull request process.
+
+### CI Checks
+
+Every PR runs: build, go vet, gofmt, staticcheck, gocyclo (complexity threshold 15), go mod tidy, coverage, gitleaks (secret scanning), and tests.
+
+### Pre-commit Hooks
+
+```sh
+sh scripts/install-hooks.sh   # Install gofmt, vet, tidy, and test hooks
+```
+
+### Environment Variables
+
+See `.env.example` for a template of all supported environment variables.
 
 ## License
 

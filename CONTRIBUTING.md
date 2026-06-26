@@ -11,6 +11,30 @@ go build -o potaco .
 go test ./...
 ```
 
+### Pre-commit Hooks
+
+Install git hooks for local quality checks:
+
+```sh
+sh scripts/install-hooks.sh
+```
+
+This installs:
+- **pre-commit**: runs `gofmt`, `go vet`, and `go mod tidy` check
+- **pre-push**: runs `go test ./...`
+
+### Static Analysis
+
+CI runs the following static analysis tools. Install locally for faster feedback:
+
+```sh
+go install honnef.co/go/tools/cmd/staticcheck@latest   # Dead code, complexity
+go install github.com/fzipp/gocyclo/cmd/gocyclo@latest  # Cyclomatic complexity
+make staticcheck   # Run staticcheck
+make complexity    # Run gocyclo (threshold: 15)
+make cover         # Generate coverage report
+```
+
 For local testing without a real provider:
 
 ```sh
@@ -71,6 +95,7 @@ internal/
   auth/                  AuthManager: coordinates credential store and multi-provider config
   credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
   config/                Multi-provider YAML config (~/.potaco/config.yaml)
+  observability/         Request ID propagation, metrics collection, structured error context
   tui/                   Interactive terminal flows (huh forms, lipgloss styling)
     tui.go               IsInteractive/IsTTY/NonInteractive mode detection
     auth_add.go          Interactive auth add flow (key prompt, verify, model picker)
@@ -83,6 +108,9 @@ internal/
     io.go                Read/decode (PNG, JPEG, WebP), write, base64 decode, auto-filename
     mask.go              RectMask, CircleMask, LoadMaskFile, WriteMask
     canvas.go            ParseExtend, PrepareOutpaint (outpaint canvas expansion)
+scripts/                 Git hooks and installation scripts
+Makefile                 Build, test, coverage, staticcheck, complexity targets
+.env.example             Environment variable template
 ```
 
 All packages live under `internal/`. Adapter sub-packages register via `init()` and are blank-imported in `cli/helpers.go`.
@@ -108,8 +136,25 @@ Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(
 1. Create a branch from `main`
 2. Run `go test ./...` and `go vet ./...`
 3. Ensure `gofmt -l .` outputs nothing
-4. Open a PR with a conventional commit-style title
-5. CI runs automatically: build, vet, gofmt, test
+4. Run `go mod tidy` and commit any changes
+5. Run `staticcheck ./...` and `gocyclo -over 15 .` locally
+6. Open a PR with a conventional commit-style title
+7. CI runs automatically: build, vet, gofmt, staticcheck, gocyclo, coverage, go mod tidy, gitleaks
+
+### CI Checks
+
+The following checks run on every PR:
+- **Build**: `go build ./...`
+- **Vet**: `go vet ./...`
+- **Format**: `gofmt -l .`
+- **Staticcheck**: Dead code, complexity, unused variable detection
+- **Cyclomatic complexity**: `gocyclo -over 15 .`
+- **go mod tidy**: Ensures no unused dependencies
+- **Coverage**: `go test -coverprofile` with artifact upload
+- **Secret scanning**: Gitleaks on all changes
+- **Tests**: `go test ./... -v`
+- **Cross-compile**: Builds for linux/darwin amd64/arm64
+- **Static binary verification**: Ensures CGO_ENABLED=0
 
 ## Testing Guidelines
 
