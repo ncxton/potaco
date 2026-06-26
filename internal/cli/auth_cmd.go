@@ -19,9 +19,9 @@ var authCmd = &cobra.Command{
 }
 
 var authAddCmd = &cobra.Command{
-	Use:   "add <provider>",
+	Use:   "add [provider]",
 	Short: "Connect to a provider by storing its API key",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE:  runAuthAdd,
 }
 
@@ -52,7 +52,19 @@ func init() {
 }
 
 func runAuthAdd(cmd *cobra.Command, args []string) error {
-	providerName := args[0]
+	providerName := ""
+	if len(args) > 0 {
+		providerName = args[0]
+	}
+
+	// Interactive mode with no provider arg: launch TUI flow which
+	// includes a provider picker.
+	if providerName == "" {
+		if !tui.IsInteractive() {
+			return configError(fmt.Errorf("specify a provider: potaco auth add <provider>"))
+		}
+		return tui.RunAuthAdd("")
+	}
 
 	// Check provider is a known adapter.
 	available := adapter.List()

@@ -61,7 +61,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(out)
 
 	if len(providers) == 0 {
-		fmt.Fprintln(out, "No providers connected.")
+		if provider != "" {
+			fmt.Fprintln(out, "No providers connected.")
+		}
 	} else {
 		fmt.Fprintln(out, "Connected providers:")
 		for _, p := range providers {

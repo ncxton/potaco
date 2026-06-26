@@ -13,9 +13,33 @@ import (
 // RunAuthAdd launches the interactive auth add flow using huh forms.
 // It prompts for an API key, verifies the provider, discovers models,
 // lets the user pick a model, and stores the credential.
+// If providerName is empty, shows a provider picker first.
 func RunAuthAdd(providerName string) error {
 	if providerName == "" {
-		return fmt.Errorf("provider name is required")
+		available := adapter.List()
+		if len(available) == 0 {
+			return fmt.Errorf("no providers available")
+		}
+		options := make([]huh.Option[string], 0, len(available))
+		for _, name := range available {
+			options = append(options, huh.NewOption(name, name))
+		}
+		selectForm := newForm(huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Select a provider to connect:").
+				Options(options...).
+				Value(&providerName),
+		))
+		if err := selectForm.Run(); err != nil {
+			if isCancelled(err) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
+			return fmt.Errorf("provider select: %w", err)
+		}
+		if providerName == "" {
+			return nil
+		}
 	}
 
 	known := false
