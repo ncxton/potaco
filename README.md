@@ -11,6 +11,15 @@
 
 Potaco is a Go CLI for image generation and editing via multiple AI image providers. Connect to OpenAI, fal, or the Vercel AI Gateway with per-provider adapters that handle different API shapes, auth methods, and model discovery.
 
+<table>
+  <tr>
+    <td align="left" style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 12px 16px;">
+      <strong>⚠️ Early Stage Warning</strong><br>
+      This project is in an early stage of development. It has not been thoroughly tested yet, and critical breakages or bugs are to be expected. Use at your own risk, and please report any issues you encounter.
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - **Multi-provider** support for OpenAI, fal, and Vercel AI Gateway via adapter interface
