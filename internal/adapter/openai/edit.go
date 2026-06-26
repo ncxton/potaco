@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	"github.com/ncxton/potaco/internal/observability"
 )
 
 // Edit calls POST /v1/images/edits with multipart form data.
@@ -95,6 +96,9 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (*adapter.G
 	}
 	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
 	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
+	if rid := observability.RequestIDFromContext(ctx); rid != "" {
+		httpReq.Header.Set("X-Request-ID", rid)
+	}
 
 	resp, err := a.doWithRetry(ctx, httpReq)
 	if err != nil {

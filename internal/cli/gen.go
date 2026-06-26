@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	"github.com/ncxton/potaco/internal/observability"
 	"github.com/spf13/cobra"
 )
 
@@ -96,9 +97,10 @@ func runGen(cmd *cobra.Command, args []string) error {
 
 	sp := startSpinner(cmd, "Generating image...")
 	start := time.Now()
-	resp, err := resolved.Adapter.Generate(context.Background(), req)
+	ctx := observability.WithRequestID(context.Background(), observability.NewRequestID())
+	resp, err := resolved.Adapter.Generate(ctx, req)
 	sp.stop()
-	latency := time.Since(start).Milliseconds()
+	elapsed := time.Since(start)
 	if err != nil {
 		return apiUserErr(
 			"Image generation failed.",
@@ -116,7 +118,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 			"n":               req.N,
 			"response_format": req.ResponseFormat,
 		},
-		latency: latency,
+		latency: elapsed.Milliseconds(),
 	}); err != nil {
 		return imageError(err)
 	}
