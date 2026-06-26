@@ -17,6 +17,10 @@ internal/
     status_cmd.go        status subcommand
     use_cmd.go           use subcommand (switch active provider)
     info.go              info subcommand (image metadata)
+    update_cmd.go        update subcommand (download and run latest release installer)
+    version_cmd.go       version subcommand (print version, check for updates)
+    version.go           Version variable, SetVersion (ldflags injection)
+    uninstall_cmd.go     uninstall subcommand (remove binary and config)
     resolve.go           Provider/credential/model resolution with flag>env>config precedence
     helpers.go           Flag accessors, provider presets, dry-run output, processAndOutput
     output.go            Output formatting (text, JSON, stdout modes)
@@ -27,8 +31,29 @@ internal/
     adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, ModelParams)
     registry.go          Factory registry: Register/Get/List for provider adapters
     openai/              OpenAI adapter (Images API, /v1/images/generations, /v1/images/edits)
+      openai.go          Adapter struct, AuthHeader, Name
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (inpainting with mask)
+      discover.go        DiscoverModels (GET /v1/models)
+      models.go          Fallback model list, ModelParams
+      response.go        Response types
+      retry.go           Retry with exponential backoff
     fal/                 fal adapter (fal.run inference, api.fal.ai discovery, image-to-image)
+      fal.go             Adapter struct, AuthHeader, Name
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (image-to-image)
+      discover.go        DiscoverModels (POST to api.fal.ai)
+      models.go          Fallback model list, ModelParams
+      response.go        Response types
+      retry.go           Retry with exponential backoff
     vercel/              Vercel AI Gateway adapter (generate-only, no edit support)
+      vercel.go          Adapter struct, AuthHeader, Name
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (returns ErrEditNotSupported)
+      discover.go        DiscoverModels
+      models.go          Fallback model list, ModelParams
+      response.go        Response types
+      retry.go           Retry with exponential backoff
   auth/                  AuthManager: coordinates credential store and multi-provider config
   credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
     store.go             CredentialStore: Get/Set/Remove/List API keys
@@ -40,9 +65,12 @@ internal/
   tui/                   Interactive terminal flows (huh forms, lipgloss styling)
     tui.go               IsInteractive/IsTTY/NonInteractive mode detection
     auth_add.go          Interactive auth add flow (key prompt, verify, model picker)
+    auth_remove.go       Interactive auth remove flow (provider picker, confirm)
     model_list.go        Interactive model list and picker
+    model_search.go      Bubble Tea search model for real-time model filtering
     use_picker.go        Interactive provider/model switcher
   image/                 Image I/O, mask generation, outpaint canvas
+    init.go              Side-effect import: register stdlib PNG/JPEG decoders
     io.go                Read/decode (PNG, JPEG, WebP), write, base64 decode, auto-filename
     mask.go              RectMask, CircleMask, LoadMaskFile, WriteMask
     canvas.go            ParseExtend, PrepareOutpaint (outpaint canvas expansion)

@@ -21,13 +21,12 @@ Potaco is a Go CLI for image generation and editing via multiple AI image provid
 - **Auth management** with `auth add/remove/list` commands
 - **Provider switching** with `potaco use <provider>`
 - **Model discovery** via provider APIs
-- **Generate** images from text prompts with size, quality, style, and seed control
+- **Generate** images from text prompts with size, quality, seed, and guidance control
 - **Edit** existing images with inpainting (mask-based) and outpainting (canvas extension)
 - **Status** and **models** commands to inspect current state and available models
 - **Interactive TUI** with interactive forms for auth, model selection, and provider switching
 - **Info** inspect image metadata (dimensions, format, file size, color model)
 - **Retry** with exponential backoff on rate-limit and server errors
-- **Terminal display** via iTerm2, Kitty, and Sixel protocols
 - **JSON output** for scripting and piping
 - **Dry-run mode** to validate requests without calling the API
 - **Non-interactive mode** with `--non-interactive` flag for CI and agents
@@ -70,9 +69,6 @@ potaco auth add openai --api-key sk-xxx
 # Generate an image
 potaco gen --prompt "a red fox in a forest"
 
-# View it in the terminal (if supported)
-potaco gen --prompt "a cityscape at night" --view
-
 # Switch to another provider
 potaco auth add fal --api-key <fal-key>
 potaco use fal
@@ -98,15 +94,19 @@ Generate new images from a text prompt.
 | `--quality` | string | no | `auto` | Image quality (`low`, `medium`, `high`, or `auto`) |
 | `--n` | int | no | `1` | Number of images to generate |
 | `--seed` | int | no | `0` | Reproducibility seed |
+| `--guidance-scale` | float | no | `0` | Guidance scale |
+| `--negative-prompt` | string | no | | Negative prompt |
+| `--response-format` | string | no | `b64_json` | Response format (`url` or `b64_json`) |
 | `--output`, `-o` | string | no | auto | Output file path (auto: `potaco-YYYYMMDD-HHMMSS.png`) |
 | `--output-format` | string | no | `png` | Output format (`png` or `jpeg`) |
-| `--view` | bool | no | `false` | Attempt terminal image display |
 | `--stdout` | bool | no | `false` | Pipe raw image bytes to stdout |
 | `--dry-run` | bool | no | `false` | Print request payload without calling API |
 | `--json` | bool | no | `false` | Output JSON metadata to stdout |
 | `--provider` | string | no | from config | Override active provider |
 | `--base-url` | string | no | from provider | Override API base URL |
 | `--api-key` | string | no | from credentials | Override API key |
+| `--retries` | int | no | `2` | Max retry attempts |
+| `--timeout` | string | no | `120` | Request timeout in seconds |
 
 **Examples:**
 
@@ -130,11 +130,19 @@ Edit an existing image with inpainting (mask-based editing) or outpainting (canv
 | `--mask-rect` | string | no | | Rectangular mask: `x,y,w,h` in pixels |
 | `--mask-circle` | string | no | | Circular mask: `x,y,r` in pixels |
 | `--extend` | string | no | | Outpaint: `top=N,bottom=N,left=N,right=N` or `all=N` |
+| `--model` | string | no | from config | Model to use |
+| `--size` | string | no | `1024x1024` | Image dimensions (WxH) |
+| `--n` | int | no | `1` | Number of images to generate |
+| `--response-format` | string | no | `b64_json` | Response format (`url` or `b64_json`) |
 | `--output`, `-o` | string | no | auto | Output file path |
+| `--output-format` | string | no | `png` | Output format (`png` or `jpeg`) |
+| `--stdout` | bool | no | `false` | Pipe raw image bytes to stdout |
 | `--dry-run` | bool | no | `false` | Print request payload without calling API |
 | `--provider` | string | no | from config | Override active provider |
 | `--base-url` | string | no | from provider | Override API base URL |
 | `--api-key` | string | no | from credentials | Override API key |
+| `--retries` | int | no | `2` | Max retry attempts |
+| `--timeout` | string | no | `120` | Request timeout in seconds |
 
 **Examples:**
 
@@ -208,6 +216,34 @@ Print metadata about an image file.
 ```sh
 potaco info output.png
 potaco info output.png --json
+```
+
+### `potaco version` -- Print version
+
+Print the current binary version and check for updates.
+
+```sh
+potaco version
+potaco version --json
+```
+
+### `potaco update` -- Update potaco
+
+Download and run the installer for the latest release.
+
+```sh
+potaco update                    # update if newer version available
+potaco update --force            # force update even if already latest
+```
+
+### `potaco uninstall` -- Remove potaco
+
+Remove the potaco binary and optionally its configuration.
+
+```sh
+potaco uninstall                  # interactive removal
+potaco uninstall --remove-config # also remove ~/.potaco/
+potaco uninstall --yes            # skip confirmation prompts
 ```
 
 ### `--non-interactive` flag

@@ -52,6 +52,10 @@ internal/
     status_cmd.go        status subcommand
     use_cmd.go           use subcommand (switch active provider)
     info.go              info subcommand (image metadata)
+    update_cmd.go        update subcommand (download and run latest release installer)
+    version_cmd.go       version subcommand (print version, check for updates)
+    version.go           Version variable, SetVersion (ldflags injection)
+    uninstall_cmd.go     uninstall subcommand (remove binary and config)
     resolve.go           Provider/credential/model resolution with flag>env>config precedence
     helpers.go           Flag accessors, provider presets, dry-run output, processAndOutput
     output.go            Output formatting (text, JSON, stdout modes)
@@ -68,7 +72,17 @@ internal/
   credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
   config/                Multi-provider YAML config (~/.potaco/config.yaml)
   tui/                   Interactive terminal flows (huh forms, lipgloss styling)
+    tui.go               IsInteractive/IsTTY/NonInteractive mode detection
+    auth_add.go          Interactive auth add flow (key prompt, verify, model picker)
+    auth_remove.go       Interactive auth remove flow (provider picker, confirm)
+    model_list.go        Interactive model list and picker
+    model_search.go      Bubble Tea search model for real-time model filtering
+    use_picker.go        Interactive provider/model switcher
   image/                 Image I/O, mask generation, outpaint canvas
+    init.go              Side-effect import: register stdlib PNG/JPEG decoders
+    io.go                Read/decode (PNG, JPEG, WebP), write, base64 decode, auto-filename
+    mask.go              RectMask, CircleMask, LoadMaskFile, WriteMask
+    canvas.go            ParseExtend, PrepareOutpaint (outpaint canvas expansion)
 ```
 
 All packages live under `internal/`. Adapter sub-packages register via `init()` and are blank-imported in `cli/helpers.go`.
