@@ -22,7 +22,8 @@ func RunAuthRemove(providerName string) error {
 	if providerName == "" {
 		providers := mgr.List()
 		if len(providers) == 0 {
-			return fmt.Errorf("no providers connected")
+			fmt.Println("No providers connected.")
+			return nil
 		}
 
 		options := make([]huh.Option[string], 0, len(providers))

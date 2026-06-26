@@ -109,8 +109,8 @@ func runUninstallInteractive(cmd *cobra.Command, binaryPath, configDir string, y
 	if !yes {
 		removeConfig, _ = tui.ConfirmAction(fmt.Sprintf("Also remove configuration and credentials at '%s'?", configDir))
 	} else {
-		// --yes auto-answers; use --remove-config flag value.
-		removeConfig = removeConfigFlag
+		// --yes auto-answers Yes to all prompts, including config removal.
+		removeConfig = true
 	}
 
 	// Step 3: Final confirmation

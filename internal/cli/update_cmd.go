@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,6 +115,14 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := sc.Run(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return apiUserErr(
+				fmt.Sprintf("Installer failed with exit code %d.", exitErr.ExitCode()),
+				"Check the output above for details, or try running the installer manually.",
+				fmt.Errorf("install.sh execution: %w", err),
+			)
+		}
 		return apiUserErr(
 			"Installer failed.",
 			"Check the output above for details, or try running the installer manually.",
