@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Potaco is a Go CLI for image generation and editing via multi-provider adapters (OpenAI, fal, Vercel AI Gateway) with encrypted credential storage and interactive TUI flows.
+Potaco is a Go CLI for image generation and editing via multi-provider adapters (OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible endpoints) with encrypted credential storage and interactive TUI flows.
 
 ## Project Structure & Module Organization
 
@@ -54,6 +54,13 @@ internal/
       models.go          Known image model IDs
       response.go        Response types
       retry.go           Retry with exponential backoff
+    custom/              OpenAI-compatible custom provider adapter (user-supplied base URL)
+      custom.go          Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (inpainting with mask)
+      discover.go        DiscoverModels (GET /models), Verify
+      response.go        Response types
+      retry.go           Retry with exponential backoff
   auth/                  AuthManager: coordinates credential store and multi-provider config
   credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
     store.go             CredentialStore: Get/Set/Remove/List API keys
@@ -94,17 +101,22 @@ Makefile                 Build, test, coverage, staticcheck, complexity targets
 .gitleaks.toml            Gitleaks secret scanning config
 ```
 
+Provider presets in `internal/cli/helpers.go` store only a base URL (`BaseURL`).
+There is no `DefaultModel` preset; models are selected by the user via `potaco
+models` or `potaco config set --model`. The `custom` provider has no preset and
+requires a user-supplied base URL.
+
 Layered monolith dependency graph:
 
 ```
 cli --> adapter, auth, config, credential, tui, image, observability
 tui  --> adapter, auth
 auth --> config, credential
-adapter/openai|fal|vercel --> adapter (parent), config, observability
+adapter/openai|fal|vercel|custom --> adapter (parent), config, observability
 config, credential, image, observability --> (no internal deps)
 ```
 
-All packages live under `internal/` (not importable externally). Adapter sub-packages register themselves via `init()` and are imported for side effects in `cli/helpers.go`.
+All packages live under `internal/` (not importable externally). Adapter sub-packages, including `custom`, register themselves via `init()` and are imported for side effects in `cli/helpers.go`.
 
 ## Build, Test, and Development Commands
 

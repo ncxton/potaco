@@ -9,14 +9,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Latest Release](https://img.shields.io/github/v/release/ncxton/potaco)](https://github.com/ncxton/potaco/releases/latest)
 
-Potaco is a Go CLI for image generation and editing via multiple AI image providers. Connect to OpenAI, fal, or the Vercel AI Gateway.
+Potaco is a Go CLI for image generation and editing via multiple AI image providers. Connect to OpenAI, fal, Vercel AI Gateway, or any OpenAI-compatible API via the custom provider.
 
 > [!WARNING]
 > This project is still in an early stage of development. It has not been thoroughly tested yet, and critical breakages or bugs are to be expected. Use at your own risk, and please report any issues you encounter.
 
 ## Features
 
-- **Multi-provider** support for OpenAI, fal, and Vercel AI Gateway
+- **Multi-provider** support for OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible endpoints
 - **Encrypted credentials** stored locally
 - **Auth management** with `auth add/remove/list` commands
 - **Provider switching** with `potaco use <provider>`
@@ -73,8 +73,10 @@ potaco gen --prompt "a red fox in a forest"
 potaco auth add fal --api-key <fal-key>
 potaco use fal
 
-# List available models from the active provider
-potaco models
+# List or pick available models from the active provider
+potaco models                      # interactive picker (persists the selected model)
+potaco models list                 # static list of models
+potaco models list openai          # static list for a specific provider
 
 # Check current status
 potaco status
@@ -162,6 +164,7 @@ potaco auth add openai                        # interactive TUI flow
 potaco auth add openai --api-key sk-xxx       # non-interactive
 potaco auth add fal --api-key <key>           # connect fal
 potaco auth add vercel --api-key <key>        # connect Vercel AI Gateway
+potaco auth add custom --api-key <key> --base-url <url>  # connect any OpenAI-compatible endpoint
 potaco auth remove openai                     # disconnect a provider
 potaco auth list                               # list connected providers
 potaco auth list --json                        # JSON output
@@ -188,16 +191,20 @@ potaco status                                  # text output
 potaco status --json                            # JSON output
 ```
 
-### `potaco models` -- List available models
+### `potaco models` -- Pick or list available models
 
-Query the active (or specified) provider for available models and their parameters.
+Discover models from the active provider or a specified provider. By default, the command launches an interactive picker that persists the selected model to config. In non-interactive mode it falls back to a static list.
 
 ```sh
-potaco models                                   # list models from active provider
-potaco models --params gpt-image-2               # show parameters for a model
-potaco models --json                             # JSON output
-potaco models openai                             # list models from specific provider
+potaco models                                    # interactive picker for the active provider
+potaco models openai                             # interactive picker for a specific provider
+potaco models --non-interactive                  # static list for the active provider
+potaco models list                               # static list for the active provider
+potaco models list openai                        # static list for a specific provider
+potaco models --json --non-interactive           # JSON output (static list)
 ```
+
+Use `potaco models list` when you only want to see the available models without changing the active model.
 
 ### `potaco config` -- Provider settings
 
@@ -269,13 +276,17 @@ active_model: gpt-image-2
 providers:
   openai:
     model: gpt-image-2
+    base_url: https://api.openai.com/v1
     retries: 3
     timeout: 120
   fal:
     model: fal-ai/flux/dev
+    base_url: https://fal.run
     retries: 3
     timeout: 120
 ```
+
+The `base_url` field is optional and overrides the preset URL for a provider. It is required for the `custom` provider because there is no preset base URL.
 
 API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a machine-derived key.
 
@@ -283,21 +294,23 @@ API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a 
 
 | Variable | Description |
 |----------|-------------|
-| `POTACO_PROVIDER` | Active provider name (e.g., `openai`, `fal`, `vercel`) |
+| `POTACO_PROVIDER` | Active provider name (e.g., `openai`, `fal`, `vercel`, `custom`) |
 | `POTACO_API_KEY` | API key for the active provider |
 | `POTACO_MODEL` | Default model for the active provider |
-| `POTACO_BASE_URL` | Override the provider's base URL |
+| `POTACO_BASE_URL` | Override the provider's base URL (required for `custom`) |
 | `POTACO_RETRIES` | Max retry attempts |
 | `POTACO_TIMEOUT` | Request timeout in seconds (e.g., `120`) |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to disable TUI flows |
 
 **Supported providers:**
 
-| Provider | Default Model | Auth Type | Edit Support |
-|----------|---------------|-----------|--------------|
-| `openai` | `gpt-image-2` | Bearer | Yes |
-| `fal` | `fal-ai/flux/dev` | Key | Yes |
-| `vercel` | `openai/gpt-image-2` | Bearer | No |
+The known providers below ship with preset base URLs. The `custom` provider is also supported for any OpenAI-compatible endpoint, but it has no preset and requires `--base-url` or `base_url` in config.
+
+| Provider | Auth Type | Edit Support |
+|----------|-----------|--------------|
+| `openai` | Bearer | Yes |
+| `fal` | Key | Yes |
+| `vercel` | Bearer | No |
 
 ## Contributing
 
