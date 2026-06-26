@@ -38,7 +38,7 @@ func init() {
 	genCmd.Flags().String("base-url", "", "override API base URL")
 	genCmd.Flags().String("api-key", "", "override API key")
 	genCmd.Flags().Int("retries", 0, "max retry attempts")
-	genCmd.Flags().Duration("timeout", 0, "request timeout")
+	genCmd.Flags().String("timeout", "", "request timeout in seconds")
 
 	genCmd.Flags().Bool("dry-run", false, "validate and print request payload without calling API")
 

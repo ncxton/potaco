@@ -158,7 +158,7 @@ func TestConfigSetTimeoutOnActiveProvider(t *testing.T) {
 		},
 	})
 
-	rootCmd.SetArgs([]string{"config", "set", "--timeout", "90s"})
+	rootCmd.SetArgs([]string{"config", "set", "--timeout", "90"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("config set error: %v", err)
 	}
@@ -173,6 +173,23 @@ func TestConfigSetTimeoutOnActiveProvider(t *testing.T) {
 	}
 	if pc.Retries != 2 {
 		t.Errorf("fal retries = %d, want preserved 2", pc.Retries)
+	}
+}
+
+func TestConfigSetTimeoutRejectsSuffix(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--timeout", "90s"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("config set should reject '90s' with suffix")
 	}
 }
 

@@ -7,6 +7,8 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
 	_ "github.com/ncxton/potaco/internal/adapter/fal"    // register fal adapter
@@ -54,6 +56,23 @@ func flagFloat64(cmd *cobra.Command, name string) float64 {
 func flagBool(cmd *cobra.Command, name string) bool {
 	v, _ := cmd.Flags().GetBool(name)
 	return v
+}
+
+// parseTimeoutString parses a timeout value given as seconds (e.g., "120").
+// Returns the zero duration for empty input. Returns an error if the value
+// is not a valid integer or is negative.
+func parseTimeoutString(s string) (time.Duration, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("timeout must be a number of seconds (e.g., 120), got %q", s)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("timeout must be positive, got %d", n)
+	}
+	return time.Duration(n) * time.Second, nil
 }
 
 func printDryRun(cmd *cobra.Command, method, url, contentType, authHeader string, body any) error {

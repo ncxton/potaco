@@ -61,7 +61,10 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		}
 	}
 
-	retries, timeout := resolveRetriesTimeout(cmd, mgr, providerName)
+	retries, timeout, err := resolveRetriesTimeout(cmd, mgr, providerName)
+	if err != nil {
+		return nil, err
+	}
 
 	opts := adapter.AdapterOpts{
 		BaseURL: baseURL,
@@ -153,7 +156,7 @@ func resolveBaseURL(cmd *cobra.Command) string {
 	return ""
 }
 
-func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerName string) (int, time.Duration) {
+func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerName string) (int, time.Duration, error) {
 	retries := 2
 	timeout := 120 * time.Second
 
@@ -176,7 +179,7 @@ func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerNa
 		}
 	}
 	if v := os.Getenv("POTACO_TIMEOUT"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
+		if d, err := parseTimeoutString(v); err == nil {
 			timeout = d
 		}
 	}
@@ -184,7 +187,16 @@ func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerNa
 		retries = flagInt(cmd, "retries")
 	}
 	if cmd.Flags().Changed("timeout") {
-		timeout, _ = cmd.Flags().GetDuration("timeout")
+		timeoutStr, _ := cmd.Flags().GetString("timeout")
+		d, err := parseTimeoutString(timeoutStr)
+		if err != nil {
+			return 0, 0, configUserErr(
+				"Invalid timeout value.",
+				"Use a number of seconds, e.g., --timeout 120.",
+				err,
+			)
+		}
+		timeout = d
 	}
-	return retries, timeout
+	return retries, timeout, nil
 }

@@ -45,7 +45,7 @@ func init() {
 	editCmd.Flags().String("base-url", "", "override API base URL")
 	editCmd.Flags().String("api-key", "", "override API key")
 	editCmd.Flags().Int("retries", 0, "max retry attempts")
-	editCmd.Flags().Duration("timeout", 0, "request timeout")
+	editCmd.Flags().String("timeout", "", "request timeout in seconds")
 
 	// Mode flags
 	editCmd.Flags().Bool("dry-run", false, "validate and print request payload without calling API")

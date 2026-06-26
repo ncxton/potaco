@@ -29,7 +29,7 @@ var configShowCmd = &cobra.Command{
 func init() {
 	configSetCmd.Flags().String("model", "", "model for the active provider")
 	configSetCmd.Flags().Int("retries", 0, "max retry attempts for the active provider")
-	configSetCmd.Flags().Duration("timeout", 0, "request timeout for the active provider (e.g., 120s)")
+	configSetCmd.Flags().String("timeout", "", "request timeout in seconds for the active provider (e.g., 120)")
 
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configShowCmd)
@@ -66,7 +66,11 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		changed = true
 	}
 	if cmd.Flags().Changed("timeout") {
-		timeout, _ := cmd.Flags().GetDuration("timeout")
+		timeoutStr, _ := cmd.Flags().GetString("timeout")
+		timeout, err := parseTimeoutString(timeoutStr)
+		if err != nil {
+			return configError(err)
+		}
 		pc.Timeout = timeout
 		changed = true
 	}

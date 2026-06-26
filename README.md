@@ -9,24 +9,24 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Latest Release](https://img.shields.io/github/v/release/ncxton/potaco)](https://github.com/ncxton/potaco/releases/latest)
 
-Potaco is a Go CLI for image generation and editing via multiple AI image providers. Connect to OpenAI, fal, or the Vercel AI Gateway with per-provider adapters that handle different API shapes, auth methods, and model discovery.
+Potaco is a Go CLI for image generation and editing via multiple AI image providers. Connect to OpenAI, fal, or the Vercel AI Gateway.
 
 > [!WARNING]
 > This project is still in an early stage of development. It has not been thoroughly tested yet, and critical breakages or bugs are to be expected. Use at your own risk, and please report any issues you encounter.
 
 ## Features
 
-- **Multi-provider** support for OpenAI, fal, and Vercel AI Gateway via adapter interface
-- **Encrypted credentials** stored locally with AES-256-GCM encryption (machine-derived key)
+- **Multi-provider** support for OpenAI, fal, and Vercel AI Gateway
+- **Encrypted credentials** stored locally
 - **Auth management** with `auth add/remove/list` commands
 - **Provider switching** with `potaco use <provider>`
-- **Model discovery** via provider APIs with hardcoded fallbacks
+- **Model discovery** via provider APIs
 - **Generate** images from text prompts with size, quality, style, and seed control
 - **Edit** existing images with inpainting (mask-based) and outpainting (canvas extension)
 - **Status** and **models** commands to inspect current state and available models
-- **Interactive TUI** with Bubbletea/huh forms for auth, model selection, and provider switching
+- **Interactive TUI** with interactive forms for auth, model selection, and provider switching
 - **Info** inspect image metadata (dimensions, format, file size, color model)
-- **Retry** with exponential backoff on 429 and 5xx errors
+- **Retry** with exponential backoff on rate-limit and server errors
 - **Terminal display** via iTerm2, Kitty, and Sixel protocols
 - **JSON output** for scripting and piping
 - **Dry-run mode** to validate requests without calling the API
@@ -40,9 +40,9 @@ Potaco is a Go CLI for image generation and editing via multiple AI image provid
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | sh
 ```
 
-The installer detects your platform, downloads the matching binary, verifies the checksum, and installs to `/usr/local/bin` (or `~/.local/bin` as fallback). It shows a clean interactive TUI by default.
+The installer detects your platform, downloads the matching binary, verifies the checksum, and installs to `~/.local/bin`.
 
-### One-liner (non-interactive, for CI/automation)
+### One-liner (non-interactive)
 
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh
@@ -105,7 +105,7 @@ Generate new images from a text prompt.
 | `--dry-run` | bool | no | `false` | Print request payload without calling API |
 | `--json` | bool | no | `false` | Output JSON metadata to stdout |
 | `--provider` | string | no | from config | Override active provider |
-| `--base-url` | string | no | from adapter | Override API base URL |
+| `--base-url` | string | no | from provider | Override API base URL |
 | `--api-key` | string | no | from credentials | Override API key |
 
 **Examples:**
@@ -133,7 +133,7 @@ Edit an existing image with inpainting (mask-based editing) or outpainting (canv
 | `--output`, `-o` | string | no | auto | Output file path |
 | `--dry-run` | bool | no | `false` | Print request payload without calling API |
 | `--provider` | string | no | from config | Override active provider |
-| `--base-url` | string | no | from adapter | Override API base URL |
+| `--base-url` | string | no | from provider | Override API base URL |
 | `--api-key` | string | no | from credentials | Override API key |
 
 **Examples:**
@@ -147,7 +147,7 @@ potaco edit --prompt "extend the landscape" --image photo.png --extend right=256
 
 ### `potaco auth` -- Manage provider credentials
 
-Connect providers, add API keys, and manage credentials. Credentials are encrypted at rest with AES-256-GCM.
+Connect providers, add API keys, and manage credentials. Credentials are encrypted at rest.
 
 ```sh
 potaco auth add openai                        # interactive TUI flow
@@ -196,7 +196,7 @@ potaco models openai                             # list models from specific pro
 Manage per-provider settings stored in `~/.potaco/config.yaml`. API keys are stored separately in the encrypted credential file.
 
 ```sh
-potaco config set --retries 3 --timeout 120s   # set retries and timeout for active provider
+potaco config set --retries 3 --timeout 120   # set retries and timeout (seconds) for active provider
 potaco config set --model gpt-image-2           # change default model
 potaco config show                               # display current config
 ```
@@ -239,7 +239,7 @@ providers:
     timeout: 120s
 ```
 
-API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with AES-256-GCM using a machine-derived key.
+API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a machine-derived key.
 
 **Environment variables:**
 
@@ -250,7 +250,7 @@ API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with AE
 | `POTACO_MODEL` | Default model for the active provider |
 | `POTACO_BASE_URL` | Override the provider's base URL |
 | `POTACO_RETRIES` | Max retry attempts |
-| `POTACO_TIMEOUT` | Request timeout (e.g., `120s`) |
+| `POTACO_TIMEOUT` | Request timeout in seconds (e.g., `120`) |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to disable TUI flows |
 
 **Supported providers:**
@@ -258,7 +258,7 @@ API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with AE
 | Provider | Default Model | Auth Type | Edit Support |
 |----------|---------------|-----------|--------------|
 | `openai` | `gpt-image-2` | Bearer | Yes |
-| `fal` | `fal-ai/flux/dev` | Key | Yes (base64) |
+| `fal` | `fal-ai/flux/dev` | Key | Yes |
 | `vercel` | `openai/gpt-image-2` | Bearer | No |
 
 ## Contributing
