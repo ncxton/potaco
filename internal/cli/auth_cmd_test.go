@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +21,7 @@ func newAuthTest(t *testing.T) (string, *bytes.Buffer) {
 	// Ensure POTACO_API_KEY does not leak from the environment so that
 	// tests relying on "no api-key" behave deterministically.
 	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
@@ -27,7 +30,7 @@ func newAuthTest(t *testing.T) (string, *bytes.Buffer) {
 
 func resetAuthAddFlags(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"api-key", "force", "model"} {
+	for _, name := range []string{"api-key", "force", "model", "base-url"} {
 		flag := authAddCmd.Flags().Lookup(name)
 		if flag == nil {
 			return // flags not registered yet
@@ -426,5 +429,116 @@ func TestAuthListJSON(t *testing.T) {
 	}
 	if !strings.Contains(output, "openai") {
 		t.Errorf("JSON output should include openai, got: %q", output)
+	}
+}
+
+func TestAuthAddCustomRequiresBaseURL(t *testing.T) {
+	newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test", "--force"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("auth add custom without base-url should error")
+	}
+	if !strings.Contains(err.Error(), "base URL") && !strings.Contains(err.Error(), "base-url") {
+		t.Errorf("error should mention base URL, got: %v", err)
+	}
+}
+
+func TestAuthAddCustomWithBaseURLForce(t *testing.T) {
+	tmpHome, buf := newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test", "--base-url", "https://example.com/v1", "--force"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth add custom with base-url --force error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "custom") {
+		t.Errorf("output should mention custom, got: %q", output)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpHome, ".potaco", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "base_url: https://example.com/v1") {
+		t.Errorf("config should contain base_url, got: %s", string(data))
+	}
+}
+
+func TestAuthAddCustomWithEnvBaseURL(t *testing.T) {
+	tmpHome, _ := newAuthTest(t)
+	t.Setenv("POTACO_BASE_URL", "https://env.example.com/v1")
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test", "--force"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth add custom with env base-url error: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpHome, ".potaco", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "base_url: https://env.example.com/v1") {
+		t.Errorf("config should contain env base_url, got: %s", string(data))
+	}
+}
+
+func TestAuthAddCustomVerifyUsesBaseURL(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method != "GET" || r.URL.Path != "/v1/models" {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data": [{"id": "test-model"}]}`))
+	}))
+	defer srv.Close()
+
+	tmpHome, _ := newAuthTest(t)
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test", "--base-url", srv.URL})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth add custom with verify error: %v", err)
+	}
+	if calls == 0 {
+		t.Error("verification should have called the mock server")
+	}
+
+	data, err := os.ReadFile(filepath.Join(tmpHome, ".potaco", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "base_url:") {
+		t.Errorf("config should contain base_url, got: %s", string(data))
+	}
+}
+
+func TestAuthListIncludesCustom(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test", "--base-url", "https://example.com/v1", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add custom: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "list"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "custom") {
+		t.Errorf("list should include custom, got: %q", output)
 	}
 }

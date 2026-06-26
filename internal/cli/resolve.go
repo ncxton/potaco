@@ -77,6 +77,16 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		)
 	}
 
+	// The custom provider has no preset base URL; it must be supplied
+	// explicitly via flag, env, or config.
+	if providerName == "custom" && baseURL == "" {
+		return nil, configUserErr(
+			"A base URL is required for the custom provider.",
+			"Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.",
+			fmt.Errorf("base URL required for provider custom"),
+		)
+	}
+
 	return &resolvedConfig{
 		Adapter: ad,
 		Model:   model,
