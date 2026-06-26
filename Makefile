@@ -32,4 +32,4 @@ tidy:
 	go mod tidy
 
 check-tidy: tidy
-	@git diff --exit-code go.mod go.sum || (echo "go.mod/go.sum not tidy" && exit 1)
+	@git diff --exit-code go.mod || (echo "go.mod/go.sum not tidy" && exit 1)
