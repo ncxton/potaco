@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/spf13/cobra"
 )
 
 // githubReleaseURL is the GitHub API endpoint for the latest release.
@@ -61,4 +63,61 @@ func checkLatestVersion() (string, error) {
 	latestCacheTime = time.Now()
 
 	return release.TagName, nil
+}
+
+var versionCmd = &cobra.Command{
+	Use:   "version",
+	Short: "Print the current version and check for updates",
+	RunE:  runVersion,
+}
+
+func init() {
+	rootCmd.AddCommand(versionCmd)
+}
+
+func runVersion(cmd *cobra.Command, args []string) error {
+	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
+	out := cmd.OutOrStdout()
+
+	// Try to fetch latest version; graceful degradation on failure.
+	latest, latestErr := checkLatestVersion()
+
+	updateAvailable := false
+	if latestErr == nil && latest != "" && latest != Version {
+		updateAvailable = true
+	}
+
+	if jsonMode {
+		type versionJSON struct {
+			Current         string `json:"current"`
+			Latest          string `json:"latest"`
+			UpdateAvailable bool   `json:"update_available"`
+		}
+		vj := versionJSON{
+			Current:         Version,
+			Latest:          latest,
+			UpdateAvailable: updateAvailable,
+		}
+		data, err := json.MarshalIndent(vj, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal JSON: %w", err)
+		}
+		fmt.Fprintln(out, string(data))
+		return nil
+	}
+
+	// Text mode: print current version.
+	fmt.Fprintf(out, "potaco %s", Version)
+
+	if latestErr == nil && latest != "" {
+		if updateAvailable {
+			fmt.Fprintf(out, " (latest: %s, update available)\n", latest)
+		} else {
+			fmt.Fprintf(out, " (latest: %s, up to date)\n", latest)
+		}
+	} else {
+		fmt.Fprintln(out)
+	}
+
+	return nil
 }

@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -99,5 +101,161 @@ func TestCheckLatestVersionFailsGracefully(t *testing.T) {
 	}
 	if tag != "" {
 		t.Errorf("tag should be empty on error, got %q", tag)
+	}
+}
+
+func TestVersionCommandExists(t *testing.T) {
+	found := false
+	for _, cmd := range rootCmd.Commands() {
+		if cmd.Use == "version" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("root command should have 'version' subcommand")
+	}
+}
+
+func TestVersionCommandPrintsVersion(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetVersionCache()
+	origVer := Version
+	Version = "v1.0.0"
+	defer func() { Version = origVer }()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+
+	// Mock the GitHub API to fail so we test graceful degradation.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	origURL := githubReleaseURL
+	githubReleaseURL = srv.URL
+	defer func() { githubReleaseURL = origURL }()
+
+	rootCmd.SetArgs([]string{"version"})
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("version command error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "v1.0.0") {
+		t.Errorf("output should contain version v1.0.0, got: %q", output)
+	}
+}
+
+func TestVersionCommandJSON(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetVersionCache()
+	origVer := Version
+	Version = "v1.0.0"
+	defer func() { Version = origVer }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
+	}))
+	defer srv.Close()
+	origURL := githubReleaseURL
+	githubReleaseURL = srv.URL
+	defer func() { githubReleaseURL = origURL }()
+
+	if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set json flag: %v", err)
+	}
+	t.Cleanup(func() { _ = rootCmd.PersistentFlags().Set("json", "false") })
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"version"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("version --json error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, `"current"`) {
+		t.Errorf("JSON output should contain 'current' field, got: %q", output)
+	}
+	if !strings.Contains(output, `"latest"`) {
+		t.Errorf("JSON output should contain 'latest' field, got: %q", output)
+	}
+	if !strings.Contains(output, `"update_available"`) {
+		t.Errorf("JSON output should contain 'update_available' field, got: %q", output)
+	}
+}
+
+func TestVersionCommandUpToDate(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetVersionCache()
+	origVer := Version
+	Version = "v1.0.0"
+	defer func() { Version = origVer }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
+	}))
+	defer srv.Close()
+	origURL := githubReleaseURL
+	githubReleaseURL = srv.URL
+	defer func() { githubReleaseURL = origURL }()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"version"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("version command error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "up to date") {
+		t.Errorf("output should say 'up to date' when versions match, got: %q", output)
+	}
+}
+
+func TestVersionCommandUpdateAvailable(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetVersionCache()
+	origVer := Version
+	Version = "v1.0.0"
+	defer func() { Version = origVer }()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v2.0.0"})
+	}))
+	defer srv.Close()
+	origURL := githubReleaseURL
+	githubReleaseURL = srv.URL
+	defer func() { githubReleaseURL = origURL }()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"version"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("version command error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "update available") {
+		t.Errorf("output should say 'update available' when latest > current, got: %q", output)
 	}
 }
