@@ -193,6 +193,7 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 		type providerJSON struct {
 			Name     string `json:"name"`
 			Model    string `json:"model"`
+			BaseURL  string `json:"base_url,omitempty"`
 			HasKey   bool   `json:"has_key"`
 			IsActive bool   `json:"is_active"`
 		}
@@ -201,6 +202,7 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 			items = append(items, providerJSON{
 				Name:     p.Name,
 				Model:    p.Model,
+				BaseURL:  p.BaseURL,
 				HasKey:   p.HasKey,
 				IsActive: p.IsActive,
 			})
@@ -236,6 +238,9 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 				keyStatus = keyMissingStyle.Render("missing")
 			}
 			fmt.Fprintf(out, "  %s  %s  key: %s\n", name, p.Model, keyStatus)
+			if p.BaseURL != "" {
+				fmt.Fprintf(out, "    base_url: %s\n", p.BaseURL)
+			}
 		}
 		return nil
 	}
@@ -252,6 +257,9 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 			keyStatus = "configured"
 		}
 		fmt.Fprintf(out, "  %s\t%s\tkey: %s%s\n", p.Name, p.Model, keyStatus, active)
+		if p.BaseURL != "" {
+			fmt.Fprintf(out, "    base_url: %s\n", p.BaseURL)
+		}
 	}
 	return nil
 }

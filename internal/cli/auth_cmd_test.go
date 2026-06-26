@@ -430,6 +430,65 @@ func TestAuthListJSON(t *testing.T) {
 	if !strings.Contains(output, "openai") {
 		t.Errorf("JSON output should include openai, got: %q", output)
 	}
+	if strings.Contains(output, "base_url") {
+		t.Errorf("JSON output should omit base_url for providers without one, got: %q", output)
+	}
+}
+
+func TestAuthListJSONIncludesBaseURL(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-1", "--base-url", "https://example.com/v1", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add custom: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
+		t.Fatalf("set json flag: %v", err)
+	}
+	rootCmd.SetArgs([]string{"auth", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list --json error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "base_url") {
+		t.Errorf("JSON output should include base_url, got: %q", output)
+	}
+	if !strings.Contains(output, "https://example.com/v1") {
+		t.Errorf("JSON output should include the configured base URL, got: %q", output)
+	}
+}
+
+func TestAuthListShowsBaseURL(t *testing.T) {
+	_, buf := newAuthTest(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-1", "--base-url", "https://example.com/v1", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add custom: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	rootCmd.SetOut(buf)
+	rootCmd.SetErr(buf)
+
+	rootCmd.SetArgs([]string{"auth", "list"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth list error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "https://example.com/v1") {
+		t.Errorf("list output should include the configured base URL, got: %q", output)
+	}
 }
 
 func TestAuthAddCustomRequiresBaseURL(t *testing.T) {
