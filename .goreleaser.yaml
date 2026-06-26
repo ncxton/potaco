@@ -11,6 +11,8 @@ builds:
   - id: potaco
     main: .
     binary: potaco
+    ldflags:
+      - -X main.version={{.Tag}}
     env:
       - CGO_ENABLED=0
     goos:
