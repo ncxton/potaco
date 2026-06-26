@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ncxton/potaco/internal/config"
 )
@@ -90,7 +89,7 @@ func TestConfigSetRetriesOnActiveProvider(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -111,8 +110,8 @@ func TestConfigSetRetriesOnActiveProvider(t *testing.T) {
 	if pc.Model != "gpt-image-2" {
 		t.Errorf("openai model = %q, want preserved gpt-image-2", pc.Model)
 	}
-	if pc.Timeout != 120*time.Second {
-		t.Errorf("openai timeout = %v, want preserved 120s", pc.Timeout)
+	if pc.Timeout != 120 {
+		t.Errorf("openai timeout = %v, want preserved 120", pc.Timeout)
 	}
 }
 
@@ -122,7 +121,7 @@ func TestConfigSetModelUpdatesActiveModel(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -154,7 +153,7 @@ func TestConfigSetTimeoutOnActiveProvider(t *testing.T) {
 		ActiveProvider: "fal",
 		ActiveModel:    "fal-ai/flux/dev",
 		Providers: map[string]config.ProviderConfig{
-			"fal": {Model: "fal-ai/flux/dev", Retries: 2, Timeout: 120 * time.Second},
+			"fal": {Model: "fal-ai/flux/dev", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -168,8 +167,8 @@ func TestConfigSetTimeoutOnActiveProvider(t *testing.T) {
 		t.Fatalf("load config: %v", err)
 	}
 	pc := cfg.Providers["fal"]
-	if pc.Timeout != 90*time.Second {
-		t.Errorf("fal timeout = %v, want 90s", pc.Timeout)
+	if pc.Timeout != 90 {
+		t.Errorf("fal timeout = %v, want 90", pc.Timeout)
 	}
 	if pc.Retries != 2 {
 		t.Errorf("fal retries = %d, want preserved 2", pc.Retries)
@@ -182,7 +181,7 @@ func TestConfigSetTimeoutRejectsSuffix(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -199,8 +198,8 @@ func TestConfigSetPreservesOtherProviders(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
-			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60},
 		},
 	})
 
@@ -223,8 +222,8 @@ func TestConfigSetPreservesOtherProviders(t *testing.T) {
 	if fal.Retries != 3 {
 		t.Errorf("fal retries = %d, want preserved 3", fal.Retries)
 	}
-	if fal.Timeout != 60*time.Second {
-		t.Errorf("fal timeout = %v, want preserved 60s", fal.Timeout)
+	if fal.Timeout != 60 {
+		t.Errorf("fal timeout = %v, want preserved 60", fal.Timeout)
 	}
 }
 
@@ -249,7 +248,7 @@ func TestConfigSetErrorsWhenNoFlags(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -269,7 +268,7 @@ func TestConfigSetWritesPrivateFileMode(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
@@ -300,7 +299,7 @@ func TestConfigShowDisplaysActiveProvider(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 3, Timeout: 90 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 3, Timeout: 90},
 		},
 	})
 
@@ -318,8 +317,8 @@ func TestConfigShowDisplaysActiveProvider(t *testing.T) {
 	if !strings.Contains(output, "retries: 3") {
 		t.Errorf("config show should display retries: 3, got: %q", output)
 	}
-	if !strings.Contains(output, "timeout: 1m30s") {
-		t.Errorf("config show should display timeout: 1m30s, got: %q", output)
+	if !strings.Contains(output, "timeout: 90s") {
+		t.Errorf("config show should display timeout: 90s, got: %q", output)
 	}
 }
 
@@ -329,8 +328,8 @@ func TestConfigShowMarksActiveProvider(t *testing.T) {
 		ActiveProvider: "fal",
 		ActiveModel:    "fal-ai/flux/dev",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
-			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+			"fal":    {Model: "fal-ai/flux/dev", Retries: 3, Timeout: 60},
 		},
 	})
 
@@ -375,13 +374,13 @@ func TestConfigShowDoesNotPrintAPIKey(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]config.ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	})
 
 	// Drop a fake-looking secret into the config file to ensure show
 	// never reads or prints credential-store contents.
-	raw := []byte("active_provider: openai\nactive_model: gpt-image-2\nproviders:\n  openai:\n    model: gpt-image-2\n    retries: 2\n    timeout: 2m0s\n")
+	raw := []byte("active_provider: openai\nactive_model: gpt-image-2\nproviders:\n  openai:\n    model: gpt-image-2\n    retries: 2\n    timeout: 120\n")
 	if err := os.WriteFile(path, raw, 0600); err != nil {
 		t.Fatalf("write config: %v", err)
 	}

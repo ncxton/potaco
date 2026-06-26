@@ -72,7 +72,7 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		Retries: retries,
 	}
 	if timeout > 0 {
-		opts.Timeout = timeout.String()
+		opts.Timeout = timeout
 	}
 
 	ad, err := adapter.Get(providerName, apiKey, opts)
@@ -169,7 +169,7 @@ func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerNa
 				retries = pc.Retries
 			}
 			if pc.Timeout > 0 {
-				timeout = pc.Timeout
+				timeout = time.Duration(pc.Timeout) * time.Second
 			}
 		}
 	}

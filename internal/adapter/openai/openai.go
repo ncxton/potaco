@@ -32,10 +32,8 @@ func New(apiKey string, opts adapter.AdapterOpts) adapter.Adapter {
 		baseURL = opts.BaseURL
 	}
 	timeout := 120 * time.Second
-	if opts.Timeout != "" {
-		if d, err := time.ParseDuration(opts.Timeout); err == nil {
-			timeout = d
-		}
+	if opts.Timeout > 0 {
+		timeout = opts.Timeout
 	}
 	retries := opts.Retries
 	if retries == 0 {

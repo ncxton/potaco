@@ -3,7 +3,6 @@ package auth
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/credential"
@@ -71,7 +70,7 @@ func (m *AuthManager) Add(provider, apiKey string) error {
 		cfg.Providers[provider] = config.ProviderConfig{
 			Model:   defaultModelForProvider(provider),
 			Retries: 2,
-			Timeout: 120 * time.Second,
+			Timeout: 120,
 		}
 	}
 

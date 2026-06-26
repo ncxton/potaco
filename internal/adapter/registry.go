@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 )
 
 // AdapterOpts holds options for constructing an adapter instance.
 type AdapterOpts struct {
-	BaseURL string // override the adapter's default base URL
-	Timeout string // override the adapter's default timeout
-	Retries int    // override the adapter's default retry count
+	BaseURL string        // override the adapter's default base URL
+	Timeout time.Duration // override the adapter's default timeout
+	Retries int           // override the adapter's default retry count
 }
 
 // AdapterFactory creates an Adapter instance for a given API key and options.

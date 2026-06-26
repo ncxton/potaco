@@ -34,7 +34,7 @@ func init() {
 	genCmd.Flags().String("output-format", "png", "output format (png or jpeg)")
 	genCmd.Flags().Bool("stdout", false, "pipe raw image bytes to stdout")
 
-	genCmd.Flags().String("provider", "", "provider preset (openai, together, fal)")
+	genCmd.Flags().String("provider", "", "provider preset (openai, fal, vercel)")
 	genCmd.Flags().String("base-url", "", "override API base URL")
 	genCmd.Flags().String("api-key", "", "override API key")
 	genCmd.Flags().Int("retries", 0, "max retry attempts")

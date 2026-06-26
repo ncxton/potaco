@@ -41,7 +41,7 @@ func init() {
 	editCmd.Flags().Bool("stdout", false, "pipe raw image bytes to stdout")
 
 	// Provider override flags
-	editCmd.Flags().String("provider", "", "provider preset (openai, together, fal)")
+	editCmd.Flags().String("provider", "", "provider preset (openai, fal, vercel)")
 	editCmd.Flags().String("base-url", "", "override API base URL")
 	editCmd.Flags().String("api-key", "", "override API key")
 	editCmd.Flags().Int("retries", 0, "max retry attempts")
@@ -85,18 +85,19 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 	model := resolved.Model
 
+	if resolved.Adapter.Name() == "vercel" {
+		return apiUserErr(
+			"Image editing is not supported by the Vercel AI Gateway provider.",
+			"Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing.",
+			fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider"),
+		)
+	}
+
 	dryRun := flagBool(cmd, "dry-run")
 	editImagePath := imagePath
 	maskPath := ""
 
 	if dryRun {
-		if resolved.Adapter.Name() == "vercel" {
-			return apiUserErr(
-				"Image editing is not supported by the Vercel AI Gateway provider.",
-				"Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing.",
-				fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider"),
-			)
-		}
 		authHeader := resolved.Adapter.AuthHeader("[REDACTED]")
 		return printEditDryRun(cmd, resolved.BaseURL, resolved.Adapter.Name(), authHeader, prompt, model, imagePath, cmd.Flags())
 	}

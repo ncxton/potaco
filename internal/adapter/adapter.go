@@ -22,31 +22,31 @@ type Adapter interface {
 // GenerateRequest is the normalized request for image generation.
 // Provider-specific fields pass through ExtraParams.
 type GenerateRequest struct {
-	Prompt         string
-	Model          string
-	N              int
-	Size           string
-	Quality        string
-	Style          string
-	ResponseFormat string
-	Seed           int
-	GuidanceScale  float64
-	NegativePrompt string
-	ExtraParams    map[string]any
+	Prompt         string         `json:"prompt"`
+	Model          string         `json:"model"`
+	N              int            `json:"n"`
+	Size           string         `json:"size"`
+	Quality        string         `json:"quality"`
+	Style          string         `json:"style"`
+	ResponseFormat string         `json:"response_format"`
+	Seed           int            `json:"seed"`
+	GuidanceScale  float64        `json:"guidance_scale"`
+	NegativePrompt string         `json:"negative_prompt"`
+	ExtraParams    map[string]any `json:"extra_params,omitempty"`
 }
 
 // EditRequest is the normalized request for image editing.
 // Provider-specific fields pass through ExtraParams.
 type EditRequest struct {
-	Prompt         string
-	Model          string
-	N              int
-	Size           string
-	ResponseFormat string
-	ImagePath      string
-	MaskPath       string
-	User           string
-	ExtraParams    map[string]any
+	Prompt         string         `json:"prompt"`
+	Model          string         `json:"model"`
+	N              int            `json:"n"`
+	Size           string         `json:"size"`
+	ResponseFormat string         `json:"response_format"`
+	ImagePath      string         `json:"image_path"`
+	MaskPath       string         `json:"mask_path"`
+	User           string         `json:"user"`
+	ExtraParams    map[string]any `json:"extra_params,omitempty"`
 }
 
 // GenerateResponse is the normalized response from both generate and edit.

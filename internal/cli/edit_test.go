@@ -570,6 +570,29 @@ func TestEditDryRunVercelNotSupported(t *testing.T) {
 	}
 }
 
+func TestEditVercelNotSupportedNonDryRun(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
+	setupAuthProviderForProvider(t, "vercel", "vkey", "openai/gpt-image-2")
+	tmpDir := t.TempDir()
+	imgPath := tmpDir + "/test.png"
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	// No --dry-run: should still be rejected before touching the image.
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--provider", "vercel"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for vercel edit (non-dry-run), got nil")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("error should mention 'not supported', got: %v", err)
+	}
+}
+
 // resetEditCmdFlags restores edit subcommand flags to their defaults so that
 // values set by earlier tests (e.g. --dry-run, --extend, --provider) do not
 // leak in when tests run in shuffled order.

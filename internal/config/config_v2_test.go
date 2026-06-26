@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestLoadMultiProviderConfig(t *testing.T) {
@@ -17,11 +16,11 @@ providers:
   openai:
     model: gpt-image-2
     retries: 3
-    timeout: 90s
+    timeout: 90
   fal:
     model: fal-ai/flux/dev
     retries: 2
-    timeout: 120s
+    timeout: 120
 `)
 	if err := os.WriteFile(path, content, 0600); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -48,8 +47,8 @@ providers:
 	if openai.Retries != 3 {
 		t.Errorf("openai retries = %d, want 3", openai.Retries)
 	}
-	if openai.Timeout != 90*time.Second {
-		t.Errorf("openai timeout = %v, want 90s", openai.Timeout)
+	if openai.Timeout != 90 {
+		t.Errorf("openai timeout = %v, want 90", openai.Timeout)
 	}
 
 	fal := cfg.Providers["fal"]
@@ -83,7 +82,7 @@ func TestSaveMultiProviderConfig(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	}
 
@@ -121,7 +120,7 @@ func TestSaveMultiProviderPreservesExisting(t *testing.T) {
 		ActiveProvider: "openai",
 		ActiveModel:    "gpt-image-2",
 		Providers: map[string]ProviderConfig{
-			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120 * time.Second},
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
 		},
 	}
 	SaveMultiProvider(path, cfg1)
@@ -131,7 +130,7 @@ func TestSaveMultiProviderPreservesExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	cfg2.Providers["fal"] = ProviderConfig{Model: "fal-ai/flux/dev", Retries: 2, Timeout: 120 * time.Second}
+	cfg2.Providers["fal"] = ProviderConfig{Model: "fal-ai/flux/dev", Retries: 2, Timeout: 120}
 	cfg2.ActiveProvider = "fal"
 	cfg2.ActiveModel = "fal-ai/flux/dev"
 	SaveMultiProvider(path, cfg2)

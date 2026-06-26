@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
@@ -71,7 +70,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return configError(err)
 		}
-		pc.Timeout = timeout
+		pc.Timeout = int(timeout.Seconds())
 		changed = true
 	}
 
@@ -135,11 +134,11 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// formatTimeout renders a duration for display, returning "default" for a
-// zero value so the output is informative rather than showing "0s".
-func formatTimeout(d time.Duration) string {
-	if d <= 0 {
+// formatTimeout renders the timeout (in seconds) for display, returning
+// "default" for a zero value so the output is informative.
+func formatTimeout(secs int) string {
+	if secs <= 0 {
 		return "default"
 	}
-	return d.String()
+	return fmt.Sprintf("%ds", secs)
 }

@@ -82,6 +82,35 @@ func TestGenCommandDryRunNoAPI(t *testing.T) {
 	}
 }
 
+func TestGenDryRunBodyUsesLowercaseJSONKeys(t *testing.T) {
+	setupAuthProvider(t, "sk-test")
+	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--dry-run"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("gen --dry-run: %v", err)
+	}
+
+	output := buf.String()
+	// Dry-run body should use lowercase JSON keys, not Go field names.
+	for _, key := range []string{`"prompt"`, `"model"`, `"n"`, `"size"`, `"quality"`, `"response_format"`} {
+		if !strings.Contains(output, key) {
+			t.Errorf("dry-run body should contain %s, got: %s", key, output)
+		}
+	}
+	// Should NOT contain Go field names with uppercase letters.
+	for _, bad := range []string{`"Prompt"`, `"Model"`, `"Size"`, `"Quality"`, `"ResponseFormat"`, `"GuidanceScale"`} {
+		if strings.Contains(output, bad) {
+			t.Errorf("dry-run body should not contain Go field name %s, got: %s", bad, output)
+		}
+	}
+}
+
 func TestGenCommandMissingConfigError(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
