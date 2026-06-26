@@ -132,7 +132,9 @@ func (m *searchModel) View() string {
 		if i == m.cursor {
 			label = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render(label)
 		}
-		b.WriteString(cursor + label + "\n")
+		b.WriteString(cursor)
+		b.WriteString(label)
+		b.WriteString("\n")
 	}
 
 	if len(m.filtered) == 0 {
