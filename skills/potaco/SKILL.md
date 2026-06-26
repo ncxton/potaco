@@ -1,12 +1,11 @@
 ---
 name: potaco
-version: 1.0.0
+version: 1.1.0
 description: |
-  How to use the potaco CLI for terminal image generation and editing.
-  Guides agents through install verification, auth setup, generation, editing,
-  and provider/model management. Load reference files for advanced topics
-  like mask editing, outpainting, provider specifics, configuration, and
-  troubleshooting.
+  Use when working with the potaco CLI for terminal image generation,
+  image editing, text-to-image, inpainting, outpainting, provider auth
+  setup (OpenAI, fal, Vercel AI Gateway), model discovery, or debugging
+  potaco command failures.
 ---
 
 # Potaco CLI Usage
@@ -270,6 +269,25 @@ potaco gen --prompt "various cats" --n 4 -o cats.png
 potaco gen --prompt "test image" --dry-run
 potaco edit --prompt "test edit" --image input.png --dry-run
 ```
+
+## Common Mistakes
+
+- **Running gen/edit without a provider**: Returns exit code 2. Always run
+  `potaco auth add <provider> --api-key <key>` first.
+- **Using `--stdout` with `--n > 1`**: Returns an image error. Stdout mode
+  requires a single image. Use `--output` for multiple images.
+- **Editing with the Vercel provider**: Vercel AI Gateway does not support
+  image editing. Switch with `potaco use openai` or `potaco use fal`.
+- **Forgetting `--non-interactive` in scripts/CI**: Without it, commands
+  that need a TTY will hang. Set `POTACO_NON_INTERACTIVE=1` or pass
+  `--non-interactive`.
+- **Wrong model name**: Causes API errors. Run `potaco models` to list
+  available models, or `potaco models --params <model>` to check parameters.
+- **Output path is a directory**: Returns an image error. `--output` expects
+  a filename, not a directory. Omit `-o` to auto-generate a filename.
+- **Multiple mask flags at once**: `--mask`, `--mask-rect`, and `--mask-circle`
+  are not combined. `--mask` takes priority, then `--mask-rect`, then
+  `--mask-circle`. Use only one per command.
 
 ## Advanced References
 
