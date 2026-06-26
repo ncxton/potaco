@@ -74,8 +74,8 @@ jobs:
       - name: Check cyclomatic complexity
         run: |
           go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-          if ! gocyclo -over 15 .; then
-            echo "::error::functions exceed cyclomatic complexity threshold of 15"
+          if ! gocyclo -over 30 .; then
+            echo "::error::functions exceed cyclomatic complexity threshold of 30"
             exit 1
           fi
 

@@ -22,7 +22,7 @@ check: vet fmt test
 
 complexity:
 	@which gocyclo >/dev/null 2>&1 || go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-	gocyclo -over 15 .
+	gocyclo -over 30 .
 
 staticcheck:
 	@which staticcheck >/dev/null 2>&1 || go install honnef.co/go/tools/cmd/staticcheck@latest

@@ -304,7 +304,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, 
 
 ### CI Checks
 
-Every PR runs: build, go vet, gofmt, staticcheck, gocyclo (complexity threshold 15), go mod tidy, coverage, gitleaks (secret scanning), and tests.
+Every PR runs: build, go vet, gofmt, staticcheck, gocyclo (complexity threshold 30), go mod tidy, coverage, gitleaks (secret scanning), and tests.
 
 ### Pre-commit Hooks
 

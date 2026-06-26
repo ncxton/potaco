@@ -31,7 +31,7 @@ CI runs the following static analysis tools. Install locally for faster feedback
 go install honnef.co/go/tools/cmd/staticcheck@latest   # Dead code, complexity
 go install github.com/fzipp/gocyclo/cmd/gocyclo@latest  # Cyclomatic complexity
 make staticcheck   # Run staticcheck
-make complexity    # Run gocyclo (threshold: 15)
+make complexity    # Run gocyclo (threshold: 30)
 make cover         # Generate coverage report
 ```
 
@@ -137,7 +137,7 @@ Subject line is lowercase, no period. Use `feat(scope):` for new features, `fix(
 2. Run `go test ./...` and `go vet ./...`
 3. Ensure `gofmt -l .` outputs nothing
 4. Run `go mod tidy` and commit any changes
-5. Run `staticcheck ./...` and `gocyclo -over 15 .` locally
+5. Run `staticcheck ./...` and `gocyclo -over 30 .` locally
 6. Open a PR with a conventional commit-style title
 7. CI runs automatically: build, vet, gofmt, staticcheck, gocyclo, coverage, go mod tidy, gitleaks
 
@@ -148,7 +148,7 @@ The following checks run on every PR:
 - **Vet**: `go vet ./...`
 - **Format**: `gofmt -l .`
 - **Staticcheck**: Dead code, complexity, unused variable detection
-- **Cyclomatic complexity**: `gocyclo -over 15 .`
+- **Cyclomatic complexity**: `gocyclo -over 30 .`
 - **go mod tidy**: Ensures no unused dependencies
 - **Coverage**: `go test -coverprofile` with artifact upload
 - **Secret scanning**: Gitleaks on all changes
