@@ -87,7 +87,6 @@ Makefile                 Build, test, coverage, staticcheck, complexity targets
     ci.yml               CI: build, vet, gofmt, staticcheck, gocyclo, coverage, go mod tidy
     security.yml         Gitleaks secret scanning, AGENTS.md validation
     release.yml          GoReleaser release automation
-    docs-guard.yml        Block PRs modifying maintainer docs
   CODEOWNERS             Code ownership assignments
   dependabot.yml         Dependency update automation (weekly)
   ISSUE_TEMPLATE/        Structured bug report and feature request forms

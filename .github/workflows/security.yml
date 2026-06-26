@@ -72,9 +72,11 @@ jobs:
             internal/auth \
             internal/credential/store.go internal/credential/encrypt.go internal/credential/types.go \
             internal/config/config.go internal/config/types.go \
+            internal/observability/metrics.go \
             internal/tui/tui.go internal/tui/auth_add.go internal/tui/auth_remove.go \
             internal/tui/model_list.go internal/tui/model_search.go internal/tui/use_picker.go \
-            internal/image/init.go internal/image/io.go internal/image/mask.go internal/image/canvas.go; do
+            internal/image/init.go internal/image/io.go internal/image/mask.go internal/image/canvas.go \
+            scripts/pre-commit.sh scripts/pre-push.sh scripts/install-hooks.sh; do
             if [ ! -e "$f" ]; then
               echo "::error::File referenced in AGENTS.md not found: $f"
               exit 1
