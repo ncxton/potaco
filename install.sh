@@ -78,31 +78,12 @@ print_box() {
         done
         return
     fi
-    # Find the longest line for box width
-    max_len=${#title}
-    for line in "$@"; do
-        len=${#line}
-        if [ "$len" -gt "$max_len" ]; then
-            max_len=$len
-        fi
-    done
-    width=$((max_len + 4))
-    # Top border
-    top=""
-    i=0
-    while [ "$i" -lt "$width" ]; do
-        top="${top}+-"
-        i=$((i + 2))
-    done
-    printf "${CYAN}%s${RESET}\n" "$top"
     # Title
     printf "${CYAN}${BOLD}+ %s${RESET}\n" "$title"
     # Content
     for line in "$@"; do
-        printf "${CYAN}+${RESET} %s\n" "$line"
+        printf "${CYAN}+${RESET} %b\n" "$line"
     done
-    # Bottom border
-    printf "${CYAN}%s${RESET}\n" "$top"
 }
 
 # ============================================================================
