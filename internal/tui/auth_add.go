@@ -126,7 +126,7 @@ func RunAuthAdd(providerName string) error {
 	if err != nil {
 		return fmt.Errorf("init auth: %w", err)
 	}
-	if err := mgr.Add(providerName, apiKey, true); err != nil {
+	if err := mgr.Add(providerName, apiKey); err != nil {
 		return fmt.Errorf("add provider: %w", err)
 	}
 	if modelID != "" {

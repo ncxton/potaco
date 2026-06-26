@@ -6,12 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/tui"
 	"golang.org/x/term"
 )
 
@@ -162,10 +159,6 @@ func renderAnyError(w io.Writer, err error) {
 	}
 }
 
-// silence unused import warnings for tui/config in future expansion
-var _ = tui.IsInteractive
-var _ = config.DefaultConfigPath
-
 // validateOutputPath checks that the output path is writable before
 // making an API call. Returns a UserError if the path is a directory,
 // not writable, or otherwise invalid. Returns nil if the path is OK
@@ -211,29 +204,4 @@ func validateOutputPath(outputPath string) *UserError {
 		)
 	}
 	return nil
-}
-
-// friendlyPath extracts a file path from a Go error string when possible.
-// Returns the path or empty string.
-func friendlyPath(err error) string {
-	if err == nil {
-		return ""
-	}
-	s := err.Error()
-	// os.PathError: "open /path: is a directory" or "open /path: no such file or directory"
-	if idx := strings.Index(s, "open "); idx >= 0 {
-		rest := s[idx+5:]
-		if colon := strings.Index(rest, ": "); colon >= 0 {
-			return rest[:colon]
-		}
-		return rest
-	}
-	if idx := strings.Index(s, "create "); idx >= 0 {
-		rest := s[idx+7:]
-		if colon := strings.Index(rest, ": "); colon >= 0 {
-			return rest[:colon]
-		}
-		return rest
-	}
-	return ""
 }

@@ -20,7 +20,7 @@ func TestRunModelListNotConnectedReturnsError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("init auth: %v", err)
 	}
-	if err := mgr.Add("openai", "", true); err != nil {
+	if err := mgr.Add("openai", ""); err != nil {
 		t.Fatalf("add provider: %v", err)
 	}
 	err = RunModelList("openai", "")

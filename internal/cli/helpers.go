@@ -114,6 +114,14 @@ func processAndOutput(cmd *cobra.Command, octx outputContext) error {
 	outputFormat := flagString(cmd, "output-format")
 	explicitOutput := outputPath != ""
 
+	if stdoutMode && len(octx.resp.Data) > 1 {
+		return imageUserErr(
+			"Cannot write multiple images to stdout.",
+			"Use --output to write to files, or request a single image with --n 1.",
+			fmt.Errorf("stdout mode with %d images", len(octx.resp.Data)),
+		)
+	}
+
 	paths := make([]string, len(octx.resp.Data))
 	widths := make([]int, len(octx.resp.Data))
 	heights := make([]int, len(octx.resp.Data))

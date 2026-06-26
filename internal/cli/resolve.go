@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
@@ -148,10 +149,10 @@ func resolveModel(cmd *cobra.Command, mgr *auth.AuthManager) string {
 
 func resolveBaseURL(cmd *cobra.Command) string {
 	if cmd.Flags().Changed("base-url") {
-		return flagString(cmd, "base-url")
+		return strings.TrimRight(flagString(cmd, "base-url"), "/")
 	}
 	if v := os.Getenv("POTACO_BASE_URL"); v != "" {
-		return v
+		return strings.TrimRight(v, "/")
 	}
 	return ""
 }

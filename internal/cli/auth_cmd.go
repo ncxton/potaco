@@ -115,7 +115,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Store the credential and set the provider as active.
-	if err := mgr.Add(providerName, apiKey, force); err != nil {
+	if err := mgr.Add(providerName, apiKey); err != nil {
 		return configError(fmt.Errorf("add provider: %w", err))
 	}
 

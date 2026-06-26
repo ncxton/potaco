@@ -38,7 +38,7 @@ func newAuthWithPaths(configPath, credPath, saltPath string) *AuthManager {
 func TestAuthAdd(t *testing.T) {
 	auth := newTestAuth(t)
 
-	err := auth.Add("openai", "sk-test-key", true)
+	err := auth.Add("openai", "sk-test-key")
 	if err != nil {
 		t.Fatalf("Add: %v", err)
 	}
@@ -68,8 +68,8 @@ func TestAuthAdd(t *testing.T) {
 func TestAuthAddSetsActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
 
-	auth.Add("openai", "sk-1", true)
-	auth.Add("fal", "fal-1", true)
+	auth.Add("openai", "sk-1")
+	auth.Add("fal", "fal-1")
 
 	cfg, _ := auth.LoadConfig()
 	// Adding a second provider should switch active to the new one
@@ -80,8 +80,8 @@ func TestAuthAddSetsActiveProvider(t *testing.T) {
 
 func TestAuthRemove(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-1", true)
-	auth.Add("fal", "fal-2", true)
+	auth.Add("openai", "sk-1")
+	auth.Add("fal", "fal-2")
 
 	err := auth.Remove("fal")
 	if err != nil {
@@ -108,7 +108,7 @@ func TestAuthRemove(t *testing.T) {
 
 func TestAuthRemoveActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-1", true)
+	auth.Add("openai", "sk-1")
 
 	err := auth.Remove("openai")
 	if err != nil {
@@ -123,8 +123,8 @@ func TestAuthRemoveActiveProvider(t *testing.T) {
 
 func TestAuthList(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-1", true)
-	auth.Add("fal", "sk-2", true)
+	auth.Add("openai", "sk-1")
+	auth.Add("fal", "sk-2")
 
 	providers := auth.List()
 	if len(providers) != 2 {
@@ -147,8 +147,8 @@ func TestAuthList(t *testing.T) {
 
 func TestAuthSetActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-1", true)
-	auth.Add("fal", "sk-2", true)
+	auth.Add("openai", "sk-1")
+	auth.Add("fal", "sk-2")
 
 	err := auth.SetActiveProvider("fal", "fal-ai/flux/schnell")
 	if err != nil {
@@ -169,7 +169,7 @@ func TestAuthSetActiveProvider(t *testing.T) {
 
 func TestAuthGetActiveAPIKey(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-test", true)
+	auth.Add("openai", "sk-test")
 
 	// This should return an API key for the active provider
 	_, err := auth.GetActiveAPIKey()
@@ -192,8 +192,8 @@ func TestAuthGetActiveAPIKeyNoProvider(t *testing.T) {
 
 func TestAuthGetActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
-	auth.Add("openai", "sk-1", true)
-	auth.Add("fal", "sk-2", true)
+	auth.Add("openai", "sk-1")
+	auth.Add("fal", "sk-2")
 
 	provider, model, err := auth.GetActiveProvider()
 	if err != nil {

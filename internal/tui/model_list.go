@@ -29,9 +29,16 @@ func RunModelList(providerName, apiKey string) error {
 			}
 		}
 		if apiKey == "" {
-			k, kErr := mgr.GetActiveAPIKey()
-			if kErr == nil {
-				apiKey = k
+			if providerName != "" {
+				k, kErr := mgr.GetAPIKey(providerName)
+				if kErr == nil {
+					apiKey = k
+				}
+			} else {
+				k, kErr := mgr.GetActiveAPIKey()
+				if kErr == nil {
+					apiKey = k
+				}
 			}
 		}
 	}

@@ -52,9 +52,8 @@ func (m *AuthManager) saveConfig(cfg *config.MultiProviderConfig) error {
 }
 
 // Add stores the API key for a provider, creates a config entry, and
-// sets it as the active provider. The force parameter skips verification
-// (verification itself is handled by the CLI command, not the auth layer).
-func (m *AuthManager) Add(provider, apiKey string, force bool) error {
+// sets it as the active provider.
+func (m *AuthManager) Add(provider, apiKey string) error {
 	if err := m.store.Set(provider, apiKey); err != nil {
 		return fmt.Errorf("store credential: %w", err)
 	}
@@ -182,6 +181,11 @@ func (m *AuthManager) GetActiveAPIKey() (string, error) {
 		return "", fmt.Errorf("no active provider configured. Use 'potaco auth add <provider>' to connect one")
 	}
 	return m.store.Get(cfg.ActiveProvider)
+}
+
+// GetAPIKey returns the API key for the specified provider.
+func (m *AuthManager) GetAPIKey(provider string) (string, error) {
+	return m.store.Get(provider)
 }
 
 // GetActiveProvider returns the active provider name and model from config.

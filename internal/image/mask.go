@@ -64,6 +64,13 @@ func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, erro
 		return nil, fmt.Errorf("read mask file: %w", err)
 	}
 
+	if int64(len(data)) > maxImageFileBytes {
+		return nil, fmt.Errorf("mask file too large: %d bytes exceeds limit %d", len(data), maxImageFileBytes)
+	}
+	if err := validateImageDimensionsFromBytes(data); err != nil {
+		return nil, err
+	}
+
 	rawImg, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("decode mask: %w", err)

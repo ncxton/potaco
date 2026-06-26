@@ -26,6 +26,9 @@ func RunUsePicker() error {
 	if err != nil {
 		return err
 	}
+	if providerName == "" {
+		return nil
+	}
 
 	modelID, err := pickModel(providers, providerName)
 	if err != nil {
