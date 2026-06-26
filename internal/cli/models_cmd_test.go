@@ -100,14 +100,28 @@ func TestModelsListNoActiveProvider(t *testing.T) {
 }
 
 func TestModelsListSpecificProvider(t *testing.T) {
-	// Set up auth with openai but request fal models
-	setupAuthProviderForProvider(t, "openai", "sk-openai", "gpt-image-2")
+	// Set up a single HOME with both openai and fal connected; make fal active
+	// so that requesting openai exercises non-active provider resolution.
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
 
-	// Also add fal with a key
 	var setupBuf bytes.Buffer
 	rootCmd.SetOut(&setupBuf)
 	rootCmd.SetErr(&setupBuf)
-	rootCmd.SetArgs([]string{"auth", "add", "fal", "--api-key", "fal-key", "--force"})
+
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-openai", "--force", "--model", "gpt-image-2"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add openai: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+
+	rootCmd.SetArgs([]string{"auth", "add", "fal", "--api-key", "fal-key", "--force", "--model", "fal-ai/flux/dev"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add fal: %v", err)
 	}
@@ -116,15 +130,15 @@ func TestModelsListSpecificProvider(t *testing.T) {
 	resetModelsCmdFlags(t)
 	t.Cleanup(func() { resetModelsCmdFlags(t) })
 
-	// Mock fal models endpoint
+	// Mock openai models endpoint
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("category") != "image" {
-			t.Errorf("fal models should request category=image, got %q", r.URL.RawQuery)
+		if r.URL.Path != "/v1/models" {
+			t.Errorf("path = %q, want /v1/models", r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
-			"models": []map[string]any{
-				{"id": "fal-ai/flux/dev", "metadata": map[string]any{"display_name": "Flux Dev"}},
+			"data": []map[string]any{
+				{"id": "gpt-image-2", "owned_by": "openai"},
 			},
 		})
 	}))
@@ -132,14 +146,14 @@ func TestModelsListSpecificProvider(t *testing.T) {
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"models", "fal", "--base-url", srv.URL})
+	rootCmd.SetArgs([]string{"models", "openai", "--base-url", srv.URL})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "fal-ai/flux/dev") {
-		t.Errorf("models fal should list fal models, got: %s", output)
+	if !strings.Contains(output, "gpt-image-2") {
+		t.Errorf("models openai should list openai models, got: %s", output)
 	}
 }
 
@@ -158,68 +172,6 @@ func TestModelsListSpecificProviderNotConnected(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not connected") {
 		t.Errorf("error should mention not connected, got: %v", err)
-	}
-}
-
-func TestModelsParamsKnownModel(t *testing.T) {
-	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
-	resetModelsCmdFlags(t)
-	t.Cleanup(func() { resetModelsCmdFlags(t) })
-
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"models", "--params", "gpt-image-2"})
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute: %v", err)
-	}
-
-	output := buf.String()
-	if !strings.Contains(output, "size") {
-		t.Errorf("params should list size param, got: %s", output)
-	}
-	if !strings.Contains(output, "quality") {
-		t.Errorf("params should list quality param, got: %s", output)
-	}
-}
-
-func TestModelsParamsJSON(t *testing.T) {
-	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
-	resetModelsCmdFlags(t)
-	t.Cleanup(func() { resetModelsCmdFlags(t) })
-
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	if err := rootCmd.PersistentFlags().Set("json", "true"); err != nil {
-		t.Fatalf("set json flag: %v", err)
-	}
-	rootCmd.SetArgs([]string{"models", "--params", "gpt-image-2"})
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute: %v", err)
-	}
-
-	output := buf.String()
-	if !strings.Contains(output, "\"name\":") {
-		t.Errorf("JSON params should contain name field, got: %s", output)
-	}
-	if !strings.Contains(output, "\"type\":") {
-		t.Errorf("JSON params should contain type field, got: %s", output)
-	}
-}
-
-func TestModelsParamsUnknownModel(t *testing.T) {
-	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
-	resetModelsCmdFlags(t)
-	t.Cleanup(func() { resetModelsCmdFlags(t) })
-
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetArgs([]string{"models", "--params", "unknown-model"})
-	err := rootCmd.Execute()
-	if err == nil {
-		t.Fatal("expected error for unknown model")
-	}
-	if !strings.Contains(err.Error(), "not found") {
-		t.Errorf("error should mention model not found, got: %v", err)
 	}
 }
 
@@ -254,7 +206,7 @@ func TestModelsListWithApiKeyOverride(t *testing.T) {
 
 func resetModelsCmdFlags(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"params", "base-url", "api-key"} {
+	for _, name := range []string{"base-url", "api-key"} {
 		flag := modelsCmd.Flags().Lookup(name)
 		if flag == nil {
 			return

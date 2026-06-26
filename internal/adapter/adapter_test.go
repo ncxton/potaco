@@ -14,7 +14,9 @@ func TestAdapterInterfaceCompile(t *testing.T) {
 
 type mockAdapter struct{}
 
-func (m *mockAdapter) Name() string { return "mock" }
+func (m *mockAdapter) Name() string           { return "mock" }
+func (m *mockAdapter) SupportsGenerate() bool { return true }
+func (m *mockAdapter) SupportsEdit() bool     { return true }
 func (m *mockAdapter) Generate(ctx context.Context, req GenerateRequest) (*GenerateResponse, error) {
 	return &GenerateResponse{}, nil
 }
@@ -23,10 +25,7 @@ func (m *mockAdapter) Edit(ctx context.Context, req EditRequest) (*GenerateRespo
 }
 func (m *mockAdapter) DiscoverModels(ctx context.Context) ([]Model, error) { return nil, nil }
 func (m *mockAdapter) Verify(ctx context.Context) error                    { return nil }
-func (m *mockAdapter) ModelParams(ctx context.Context, modelID string) ([]Param, error) {
-	return nil, nil
-}
-func (m *mockAdapter) AuthHeader(apiKey string) string { return "Bearer " + apiKey }
+func (m *mockAdapter) AuthHeader(apiKey string) string                     { return "Bearer " + apiKey }
 
 func TestAdapterErrors(t *testing.T) {
 	if !errors.Is(ErrEditNotSupported, ErrEditNotSupported) {
@@ -114,22 +113,5 @@ func TestModelFields(t *testing.T) {
 	}
 	if len(m.Capabilities) != 3 {
 		t.Errorf("Capabilities len = %d, want 3", len(m.Capabilities))
-	}
-}
-
-func TestParamFields(t *testing.T) {
-	p := Param{
-		Name:        "size",
-		Type:        "enum",
-		Description: "Image dimensions",
-		Default:     "1024x1024",
-		EnumValues:  []string{"1024x1024", "1536x1024", "1024x1536"},
-		Required:    false,
-	}
-	if p.Default != "1024x1024" {
-		t.Errorf("Default = %q", p.Default)
-	}
-	if len(p.EnumValues) != 3 {
-		t.Errorf("EnumValues len = %d, want 3", len(p.EnumValues))
 	}
 }

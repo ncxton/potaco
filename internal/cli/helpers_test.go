@@ -34,7 +34,4 @@ func TestVercelPresetExists(t *testing.T) {
 	if preset.BaseURL == "" {
 		t.Error("vercel preset BaseURL should not be empty")
 	}
-	if preset.DefaultModel == "" {
-		t.Error("vercel preset DefaultModel should not be empty")
-	}
 }

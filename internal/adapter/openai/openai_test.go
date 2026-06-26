@@ -3,7 +3,6 @@ package openai
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"image"
 	"image/color"
 	"image/png"
@@ -54,6 +53,20 @@ func TestOpenAIAuthHeader(t *testing.T) {
 	}
 	if a.AuthHeader("sk-test") != "Bearer sk-test" {
 		t.Errorf("AuthHeader = %q, want 'Bearer sk-test'", a.AuthHeader("sk-test"))
+	}
+}
+
+func TestOpenAISupportsGenerate(t *testing.T) {
+	a := New("sk-test", adapter.AdapterOpts{})
+	if !a.SupportsGenerate() {
+		t.Error("SupportsGenerate should be true")
+	}
+}
+
+func TestOpenAISupportsEdit(t *testing.T) {
+	a := New("sk-test", adapter.AdapterOpts{})
+	if !a.SupportsEdit() {
+		t.Error("SupportsEdit should be true")
 	}
 }
 
@@ -339,7 +352,7 @@ func TestOpenAIDiscoverModelsSuccess(t *testing.T) {
 	}
 }
 
-func TestOpenAIDiscoverModelsFallback(t *testing.T) {
+func TestOpenAIDiscoverModelsError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -347,21 +360,9 @@ func TestOpenAIDiscoverModelsFallback(t *testing.T) {
 
 	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
 
-	models, err := a.DiscoverModels(context.Background())
-	if err != nil {
-		t.Fatalf("DiscoverModels should fall back to hardcoded, got error: %v", err)
-	}
-	if len(models) == 0 {
-		t.Fatal("should return fallback models")
-	}
-
-	// Should include hardcoded defaults
-	ids := make(map[string]bool)
-	for _, m := range models {
-		ids[m.ID] = true
-	}
-	if !ids["gpt-image-2"] {
-		t.Error("fallback should include gpt-image-2")
+	_, err := a.DiscoverModels(context.Background())
+	if err == nil {
+		t.Fatal("DiscoverModels should return error on API failure")
 	}
 }
 
@@ -396,53 +397,6 @@ func TestOpenAIVerifyInvalidKey(t *testing.T) {
 	}
 }
 
-func TestOpenAIModelParamsGPTImage2(t *testing.T) {
-	a := New("sk-test", adapter.AdapterOpts{})
-
-	params, err := a.ModelParams(context.Background(), "gpt-image-2")
-	if err != nil {
-		t.Fatalf("ModelParams error: %v", err)
-	}
-
-	names := make(map[string]bool)
-	for _, p := range params {
-		names[p.Name] = true
-	}
-	if !names["size"] {
-		t.Error("should include size param")
-	}
-	if !names["quality"] {
-		t.Error("should include quality param")
-	}
-	if !names["n"] {
-		t.Error("should include n param")
-	}
-	// dall-e-3 only params should not be present
-	if names["style"] {
-		t.Error("gpt-image-2 should not have style param")
-	}
-}
-
-func TestOpenAIModelParamsDalE3(t *testing.T) {
-	a := New("sk-test", adapter.AdapterOpts{})
-
-	params, err := a.ModelParams(context.Background(), "dall-e-3")
-	if err != nil {
-		t.Fatalf("ModelParams error: %v", err)
-	}
-
-	names := make(map[string]bool)
-	for _, p := range params {
-		names[p.Name] = true
-	}
-	if !names["style"] {
-		t.Error("dall-e-3 should have style param")
-	}
-	if !names["quality"] {
-		t.Error("dall-e-3 should have quality param")
-	}
-}
-
 func TestOpenAIDiscoverModelsMalformedJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -452,28 +406,8 @@ func TestOpenAIDiscoverModelsMalformedJSON(t *testing.T) {
 
 	a := New("sk-test", adapter.AdapterOpts{BaseURL: server.URL})
 
-	models, err := a.DiscoverModels(context.Background())
-	if err != nil {
-		t.Fatalf("DiscoverModels should fall back on malformed JSON, got error: %v", err)
-	}
-	if len(models) == 0 {
-		t.Fatal("should return fallback models on malformed JSON")
-	}
-
-	ids := make(map[string]bool)
-	for _, m := range models {
-		ids[m.ID] = true
-	}
-	if !ids["gpt-image-2"] {
-		t.Error("fallback should include gpt-image-2")
-	}
-}
-
-func TestOpenAIModelParamsNotFound(t *testing.T) {
-	a := New("sk-test", adapter.AdapterOpts{})
-
-	_, err := a.ModelParams(context.Background(), "nonexistent-model")
-	if !errors.Is(err, adapter.ErrModelNotFound) {
-		t.Errorf("ModelParams should return ErrModelNotFound for unknown model, got: %v", err)
+	_, err := a.DiscoverModels(context.Background())
+	if err == nil {
+		t.Fatal("DiscoverModels should return error on malformed JSON")
 	}
 }

@@ -22,7 +22,6 @@ var modelsCmd = &cobra.Command{
 }
 
 func init() {
-	modelsCmd.Flags().String("params", "", "show supported parameters for a model")
 	modelsCmd.Flags().String("base-url", "", "override API base URL")
 	modelsCmd.Flags().String("api-key", "", "override API key")
 	rootCmd.AddCommand(modelsCmd)
@@ -83,11 +82,6 @@ func runModels(cmd *cobra.Command, args []string) error {
 		return configError(fmt.Errorf("create adapter: %w", err))
 	}
 
-	modelID := flagString(cmd, "params")
-	if modelID != "" {
-		return showModelParams(cmd, ad, modelID)
-	}
-
 	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 
 	models, err := ad.DiscoverModels(context.Background())
@@ -137,66 +131,6 @@ func printModelsJSON(out io.Writer, models []adapter.Model) error {
 			SupportsGen:  m.SupportsGen,
 			SupportsEdit: m.SupportsEdit,
 			Capabilities: m.Capabilities,
-		})
-	}
-	data, err := json.MarshalIndent(items, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal JSON: %w", err)
-	}
-	fmt.Fprintln(out, string(data))
-	return nil
-}
-
-func showModelParams(cmd *cobra.Command, ad adapter.Adapter, modelID string) error {
-	params, err := ad.ModelParams(context.Background(), modelID)
-	if err != nil {
-		return apiError(fmt.Errorf("get model params: %w", err))
-	}
-
-	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
-	out := cmd.OutOrStdout()
-
-	if jsonMode {
-		return printParamsJSON(out, params)
-	}
-
-	return printParamsText(out, params)
-}
-
-func printParamsText(out io.Writer, params []adapter.Param) error {
-	if len(params) == 0 {
-		fmt.Fprintln(out, "No parameters found.")
-		return nil
-	}
-	fmt.Fprintf(out, "%-25s %-10s %-15s %s\n", "NAME", "TYPE", "DEFAULT", "DESCRIPTION")
-	for _, p := range params {
-		enum := ""
-		if len(p.EnumValues) > 0 {
-			enum = fmt.Sprintf(" (enum: %v)", p.EnumValues)
-		}
-		fmt.Fprintf(out, "%-25s %-10s %-15s %s%s\n", p.Name, p.Type, p.Default, p.Description, enum)
-	}
-	return nil
-}
-
-func printParamsJSON(out io.Writer, params []adapter.Param) error {
-	type paramJSON struct {
-		Name        string   `json:"name"`
-		Type        string   `json:"type"`
-		Description string   `json:"description"`
-		Default     string   `json:"default"`
-		EnumValues  []string `json:"enum_values,omitempty"`
-		Required    bool     `json:"required"`
-	}
-	items := make([]paramJSON, 0, len(params))
-	for _, p := range params {
-		items = append(items, paramJSON{
-			Name:        p.Name,
-			Type:        p.Type,
-			Description: p.Description,
-			Default:     p.Default,
-			EnumValues:  p.EnumValues,
-			Required:    p.Required,
 		})
 	}
 	data, err := json.MarshalIndent(items, "", "  ")

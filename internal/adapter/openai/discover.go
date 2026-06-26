@@ -11,7 +11,8 @@ import (
 )
 
 // DiscoverModels calls GET /v1/models and filters for known image model
-// IDs. On any API failure it falls back to a hardcoded list of models.
+// IDs. On any API failure it returns an error instead of falling back to
+// a hardcoded list.
 func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 	url := a.modelsURL()
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -25,12 +26,12 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var result struct {
@@ -40,7 +41,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("decode models response: %w", err)
 	}
 
 	var models []adapter.Model
@@ -53,11 +54,10 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 			DisplayName:  m.ID,
 			SupportsGen:  true,
 			SupportsEdit: editCapableModels[m.ID],
-			Capabilities: modelCapabilities(m.ID),
 		})
 	}
 	if len(models) == 0 {
-		return fallbackModels, nil
+		return nil, adapter.ErrDiscoveryFailed
 	}
 	return models, nil
 }
@@ -87,31 +87,6 @@ func (a *Adapter) Verify(ctx context.Context) error {
 	}
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("verification failed (HTTP %d)", resp.StatusCode)
-	}
-	return nil
-}
-
-// ModelParams returns the supported parameters for the given model ID.
-// OpenAI does not expose a per-model parameter schema via API, so this
-// returns hardcoded defaults. It returns adapter.ErrModelNotFound when
-// the model ID is not in the hardcoded map.
-func (a *Adapter) ModelParams(ctx context.Context, modelID string) ([]adapter.Param, error) {
-	params, ok := hardcodedModelParams[modelID]
-	if !ok {
-		return nil, adapter.ErrModelNotFound
-	}
-	return params, nil
-}
-
-// modelCapabilities returns the capability strings for a model ID,
-// derived from the hardcoded parameter names.
-func modelCapabilities(modelID string) []string {
-	if params, ok := hardcodedModelParams[modelID]; ok {
-		caps := make([]string, len(params))
-		for i, p := range params {
-			caps[i] = p.Name
-		}
-		return caps
 	}
 	return nil
 }

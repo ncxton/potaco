@@ -64,14 +64,6 @@ func RunModelList(providerName, apiKey string) error {
 		return err
 	}
 
-	params, err := ad.ModelParams(context.Background(), selected)
-	if err == nil && len(params) > 0 {
-		fmt.Println("\nParameters:")
-		for _, p := range params {
-			fmt.Printf("  %s (%s) - %s (default: %s)\n", p.Name, p.Type, p.Description, p.Default)
-		}
-	}
-
 	fmt.Printf("\nSelected: %s\n", selected)
 	return nil
 }
