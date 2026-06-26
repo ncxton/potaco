@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,6 +110,53 @@ func TestSaveMultiProviderConfig(t *testing.T) {
 	}
 	if got := info.Mode().Perm(); got != 0600 {
 		t.Errorf("file mode = %o, want 0600", got)
+	}
+}
+
+func TestSaveMultiProviderBaseURLRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	cfg := &MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]ProviderConfig{
+			"openai": {
+				Model:   "gpt-image-2",
+				BaseURL: "https://api.example.com/v1",
+				Retries: 2,
+				Timeout: 120,
+			},
+		},
+	}
+
+	if err := SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("SaveMultiProvider: %v", err)
+	}
+
+	loaded, err := LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("LoadMultiProvider after save: %v", err)
+	}
+
+	openai, ok := loaded.Providers["openai"]
+	if !ok {
+		t.Fatal("openai provider missing after load")
+	}
+	if openai.BaseURL != "https://api.example.com/v1" {
+		t.Errorf("BaseURL = %q, want %q", openai.BaseURL, "https://api.example.com/v1")
+	}
+	if openai.Model != "gpt-image-2" {
+		t.Errorf("Model = %q, want %q", openai.Model, "gpt-image-2")
+	}
+
+	// Verify base_url is present in the YAML file content
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved config: %v", err)
+	}
+	if !bytes.Contains(data, []byte("base_url:")) {
+		t.Errorf("saved config does not contain base_url field\n%s", string(data))
 	}
 }
 
