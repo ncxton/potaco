@@ -20,6 +20,15 @@ func resetRootCmdFlags(t *testing.T) {
 			t.Fatalf("reset %s flag: %v", name, err)
 		}
 	}
+	// Reset local flags that may leak between tests sharing the global rootCmd.
+	local := rootCmd.Flags()
+	for _, name := range []string{"help", "version"} {
+		if f := local.Lookup(name); f != nil {
+			if err := local.Set(name, "false"); err != nil {
+				t.Fatalf("reset %s flag: %v", name, err)
+			}
+		}
+	}
 	tui.SetNonInteractive(false)
 }
 

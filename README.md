@@ -225,6 +225,7 @@ Print the current binary version and check for updates.
 ```sh
 potaco version
 potaco version --json
+potaco --version
 ```
 
 ### `potaco update` -- Update potaco

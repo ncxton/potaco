@@ -117,6 +117,35 @@ func TestVersionCommandExists(t *testing.T) {
 	}
 }
 
+func TestVersionFlagPrintsVersion(t *testing.T) {
+	resetRootCmdFlags(t)
+	origVer := Version
+	Version = "v1.0.0"
+	rootCmd.Version = "v1.0.0"
+	defer func() {
+		Version = origVer
+		rootCmd.Version = origVer
+	}()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"--version"})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("--version flag error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "v1.0.0") {
+		t.Errorf("output should contain version v1.0.0, got: %q", output)
+	}
+	if !strings.HasPrefix(output, "potaco v1.0.0") {
+		t.Errorf("output should start with 'potaco v1.0.0', got: %q", output)
+	}
+}
+
 func TestVersionCommandPrintsVersion(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetVersionCache()

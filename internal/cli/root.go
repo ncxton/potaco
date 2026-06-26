@@ -14,6 +14,7 @@ var rootCmd = &cobra.Command{
 	Use:           "potaco",
 	Short:         "Terminal image generation and editing CLI",
 	Long:          `Potaco provides advanced image generation and editing inside the terminal.`,
+	Version:       Version,
 	Run:           func(cmd *cobra.Command, args []string) {},
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -34,6 +35,8 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.SetVersionTemplate("{{.DisplayName}} {{.Version}}\n")
+
 	rootCmd.PersistentFlags().Bool("json", false, "output JSON metadata to stdout")
 	rootCmd.PersistentFlags().Bool("verbose", false, "print retry attempts and debug info to stderr")
 	rootCmd.PersistentFlags().Bool("non-interactive", false, "force non-interactive mode (skip TUI)")
