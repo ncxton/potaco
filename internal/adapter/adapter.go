@@ -75,7 +75,6 @@ type Model struct {
 // Sentinel errors for adapter operations.
 var (
 	ErrEditNotSupported   = errors.New("image editing not supported by this provider")
-	ErrModelNotFound      = errors.New("model not found")
 	ErrVerificationFailed = errors.New("provider verification failed")
 	ErrDiscoveryFailed    = errors.New("model discovery failed")
 )

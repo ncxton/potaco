@@ -31,9 +31,6 @@ func TestAdapterErrors(t *testing.T) {
 	if !errors.Is(ErrEditNotSupported, ErrEditNotSupported) {
 		t.Error("ErrEditNotSupported should be a sentinel error")
 	}
-	if !errors.Is(ErrModelNotFound, ErrModelNotFound) {
-		t.Error("ErrModelNotFound should be a sentinel error")
-	}
 	if !errors.Is(ErrVerificationFailed, ErrVerificationFailed) {
 		t.Error("ErrVerificationFailed should be a sentinel error")
 	}
