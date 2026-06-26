@@ -11,11 +11,10 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	_ "github.com/ncxton/potaco/internal/adapter/custom" // register custom adapter
 	_ "github.com/ncxton/potaco/internal/adapter/fal"    // register fal adapter
 	_ "github.com/ncxton/potaco/internal/adapter/openai" // register openai adapter
 	_ "github.com/ncxton/potaco/internal/adapter/vercel" // register vercel adapter
-	// Build guard: enable when custom adapter lands in milestone 2.
-	// _ "github.com/ncxton/potaco/internal/adapter/custom" // register custom adapter
 	img "github.com/ncxton/potaco/internal/image"
 	"github.com/spf13/cobra"
 )

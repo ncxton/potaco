@@ -7,9 +7,9 @@ import (
 	"github.com/ncxton/potaco/internal/adapter"
 )
 
-func TestAllThreeProvidersRegistered(t *testing.T) {
+func TestAllProvidersRegistered(t *testing.T) {
 	names := adapter.List()
-	want := []string{"fal", "openai", "vercel"}
+	want := []string{"custom", "fal", "openai", "vercel"}
 	if len(names) != len(want) {
 		t.Fatalf("registered providers = %v, want %v", names, want)
 	}
