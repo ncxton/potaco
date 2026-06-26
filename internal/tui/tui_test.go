@@ -2,6 +2,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/charmbracelet/huh"
 )
 
 func TestIsInteractiveReturnsFalseInTestEnv(t *testing.T) {
@@ -29,5 +31,23 @@ func TestIsInteractiveReturnsFalseWhenSetNonInteractiveTrue(t *testing.T) {
 func TestIsTTYReturnsFalseInTestEnv(t *testing.T) {
 	if IsTTY() {
 		t.Error("IsTTY() should return false when stdin is not a character device")
+	}
+}
+
+func TestNewFormReturnsFormWithEscQuit(t *testing.T) {
+	form := newForm(huh.NewGroup(
+		huh.NewConfirm().Title("test"),
+	))
+	if form == nil {
+		t.Fatal("newForm should return a non-nil form")
+	}
+}
+
+func TestNewFormNotNil(t *testing.T) {
+	form := newForm(huh.NewGroup(
+		huh.NewInput().Title("test"),
+	))
+	if form == nil {
+		t.Fatal("newForm should return non-nil form")
 	}
 }
