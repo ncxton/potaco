@@ -120,7 +120,7 @@ make build                 # Build via Makefile
 make test                  # Test via Makefile
 make cover                 # Coverage report via Makefile
 make staticcheck           # Run staticcheck (dead code, complexity, unused)
-make complexity            # Run gocyclo (cyclomatic complexity, threshold 15)
+make complexity            # Run gocyclo (cyclomatic complexity, threshold 30)
 make tidy                  # Run go mod tidy
 make check                 # Run vet, fmt, test
 ```
@@ -134,7 +134,7 @@ sh scripts/install-hooks.sh   # Installs pre-commit (gofmt, vet, tidy) and pre-p
 - `go vet ./...` - Standard Go linter
 - `gofmt -l .` - Format check
 - `staticcheck` - Dead code, complexity, unused variable detection
-- `gocyclo -over 15 .` - Cyclomatic complexity threshold enforcement
+- `gocyclo -over 30 .` - Cyclomatic complexity threshold enforcement
 - `go mod tidy` - Unused dependency detection (fails if go.mod/go.sum not tidy)
 - `go test -coverprofile` - Coverage measurement with artifact upload
 - `gitleaks` - Secret scanning on all PRs and scheduled

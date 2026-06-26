@@ -48,38 +48,45 @@ jobs:
 
       - name: Validate AGENTS.md file tree
         run: |
-          # Check that files referenced in AGENTS.md structure exist
-          for f in main.go \
-            internal/cli/root.go internal/cli/gen.go internal/cli/edit.go internal/cli/edit_mask.go \
-            internal/cli/auth_cmd.go internal/cli/config_cmd.go internal/cli/models_cmd.go \
-            internal/cli/status_cmd.go internal/cli/use_cmd.go internal/cli/info.go \
-            internal/cli/update_cmd.go internal/cli/version_cmd.go internal/cli/version.go \
-            internal/cli/uninstall_cmd.go internal/cli/resolve.go internal/cli/helpers.go \
-            internal/cli/output.go internal/cli/usererr.go internal/cli/errors.go internal/cli/spinner.go \
-            internal/adapter/adapter.go internal/adapter/registry.go \
-            internal/adapter/openai/openai.go internal/adapter/openai/generate.go \
-            internal/adapter/openai/edit.go internal/adapter/openai/discover.go \
-            internal/adapter/openai/models.go internal/adapter/openai/response.go \
-            internal/adapter/openai/retry.go \
-            internal/adapter/fal/fal.go internal/adapter/fal/generate.go \
-            internal/adapter/fal/edit.go internal/adapter/fal/discover.go \
-            internal/adapter/fal/models.go internal/adapter/fal/response.go \
-            internal/adapter/fal/retry.go \
-            internal/adapter/vercel/vercel.go internal/adapter/vercel/generate.go \
-            internal/adapter/vercel/edit.go internal/adapter/vercel/discover.go \
-            internal/adapter/vercel/models.go internal/adapter/vercel/response.go \
-            internal/adapter/vercel/retry.go \
-            internal/auth \
-            internal/credential/store.go internal/credential/encrypt.go internal/credential/types.go \
-            internal/config/config.go internal/config/types.go \
-            internal/observability/metrics.go \
-            internal/tui/tui.go internal/tui/auth_add.go internal/tui/auth_remove.go \
-            internal/tui/model_list.go internal/tui/model_search.go internal/tui/use_picker.go \
-            internal/image/init.go internal/image/io.go internal/image/mask.go internal/image/canvas.go \
-            scripts/pre-commit.sh scripts/pre-push.sh scripts/install-hooks.sh; do
-            if [ ! -e "$f" ]; then
-              echo "::error::File referenced in AGENTS.md not found: $f"
-              exit 1
-            fi
-          done
-          echo "AGENTS.md file tree validated successfully"
+          # Extract file paths from the AGENTS.md code fence and verify they exist.
+          # Tracks indentation to reconstruct full paths from the tree hierarchy.
+          python3 << 'PYEOF'
+          import re, os, sys
+          with open('AGENTS.md') as f:
+              content = f.read()
+          m = re.search(r'## Project Structure.*?```(.*?)```', content, re.DOTALL)
+          if not m:
+              print('::error::No file tree code block found in AGENTS.md')
+              sys.exit(1)
+          missing = []
+          stack = []  # (indent, dirpath) pairs
+          for line in m.group(1).splitlines():
+              if not line.strip() or line.strip().startswith('#'):
+                  continue
+              indent = len(line) - len(line.lstrip())
+              stripped = line.strip()
+              while stack and stack[-1][0] >= indent:
+                  stack.pop()
+              name_part = stripped.split('  ')[0].strip()
+              for name in name_part.split(','):
+                  name = name.strip()
+                  if not name:
+                      continue
+                  is_dir = name.endswith('/')
+                  clean = name.rstrip('/')
+                  parent = stack[-1][1] if stack else ''
+                  if is_dir:
+                      full = os.path.join(parent, clean) if parent else clean
+                      stack.append((indent, full))
+                      continue
+                  if '.' not in clean and '/' not in clean:
+                      continue
+                  full = os.path.join(parent, clean) if parent else clean
+                  if not os.path.exists(full):
+                      missing.append(full)
+          if missing:
+              for p in missing:
+                  print(f'::error::File referenced in AGENTS.md not found: {p}')
+              sys.exit(1)
+          print('AGENTS.md file tree validated successfully')
+          PYEOF
