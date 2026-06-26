@@ -4,11 +4,11 @@ go 1.26
 
 require (
 	charm.land/lipgloss/v2 v2.0.4
-	github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7
-	github.com/charmbracelet/bubbletea v1.3.6
+	github.com/charmbracelet/bubbles v1.0.0
+	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/huh v1.0.0
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.9
+	github.com/spf13/pflag v1.0.10
 	golang.org/x/image v0.43.0
 	golang.org/x/term v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
