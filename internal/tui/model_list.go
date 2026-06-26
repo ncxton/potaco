@@ -3,7 +3,9 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
 
 	"github.com/ncxton/potaco/internal/adapter"
@@ -67,28 +69,23 @@ func RunModelList(providerName, apiKey string) error {
 	return nil
 }
 
-// pickModelInteractive renders a huh form listing the discovered models and
-// returns the selected model ID.
+// pickModelInteractive renders a Bubble Tea search program listing the
+// discovered models and returns the selected model ID. The user can
+// type to filter the list in real-time and navigate with arrow keys.
+// Returns huh.ErrUserAborted if the user cancels with Esc or Ctrl-C.
 func pickModelInteractive(providerName string, models []adapter.Model) (string, error) {
-	options := make([]huh.Option[string], 0, len(models))
-	for _, m := range models {
-		label := m.DisplayName
-		if m.SupportsEdit {
-			label += " [edit]"
+	_ = providerName // reserved for future use (e.g. header in search UI)
+	m := newSearchModel(models)
+	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
+	result, err := p.Run()
+	if err != nil {
+		return "", fmt.Errorf("model search: %w", err)
+	}
+	if sm, ok := result.(*searchModel); ok {
+		if sm.quitted {
+			return "", huh.ErrUserAborted
 		}
-		label += " - " + m.ID
-		options = append(options, huh.NewOption(label, m.ID))
+		return sm.selected, nil
 	}
-
-	var selected string
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewSelect[string]().
-			Title(fmt.Sprintf("Models for %s:", providerName)).
-			Options(options...).
-			Value(&selected),
-	))
-	if err := form.Run(); err != nil {
-		return "", fmt.Errorf("model select: %w", err)
-	}
-	return selected, nil
+	return "", fmt.Errorf("unexpected model type")
 }
