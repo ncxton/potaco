@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 
@@ -53,6 +54,26 @@ func RunAuthAdd(providerName string) error {
 		return fmt.Errorf("unknown provider: %s (available: %v)", providerName, adapter.List())
 	}
 
+	var baseURL string
+	if providerName == "custom" {
+		baseURLForm := newForm(huh.NewGroup(
+			huh.NewInput().
+				Title("Enter base URL for the custom provider:").
+				Value(&baseURL),
+		))
+		if err := baseURLForm.Run(); err != nil {
+			if isCancelled(err) {
+				fmt.Println("Cancelled.")
+				return nil
+			}
+			return fmt.Errorf("base URL input: %w", err)
+		}
+		baseURL = strings.TrimRight(baseURL, "/")
+		if baseURL == "" {
+			return fmt.Errorf("base URL is required for the custom provider")
+		}
+	}
+
 	var apiKey string
 	keyForm := newForm(huh.NewGroup(
 		huh.NewInput().
@@ -71,7 +92,7 @@ func RunAuthAdd(providerName string) error {
 		return fmt.Errorf("API key is required")
 	}
 
-	ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{})
+	ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 	if err != nil {
 		return fmt.Errorf("create adapter: %w", err)
 	}
@@ -128,6 +149,11 @@ func RunAuthAdd(providerName string) error {
 	}
 	if err := mgr.Add(providerName, apiKey); err != nil {
 		return fmt.Errorf("add provider: %w", err)
+	}
+	if providerName == "custom" && baseURL != "" {
+		if err := mgr.SetBaseURL(providerName, baseURL); err != nil {
+			return fmt.Errorf("set base URL: %w", err)
+		}
 	}
 	if modelID != "" {
 		if err := mgr.SetActiveProvider(providerName, modelID); err != nil {
