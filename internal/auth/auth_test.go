@@ -65,6 +65,25 @@ func TestAuthAdd(t *testing.T) {
 	}
 }
 
+func TestAuthAddDoesNotSetDefaultModel(t *testing.T) {
+	auth := newTestAuth(t)
+
+	if err := auth.Add("openai", "sk-test-key"); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+
+	cfg, err := auth.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if cfg.Providers["openai"].Model != "" {
+		t.Errorf("model = %q, want empty (no auto-default)", cfg.Providers["openai"].Model)
+	}
+	if cfg.ActiveModel != "" {
+		t.Errorf("active model = %q, want empty", cfg.ActiveModel)
+	}
+}
+
 func TestAuthAddSetsActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
 
@@ -202,7 +221,7 @@ func TestAuthGetActiveProvider(t *testing.T) {
 	if provider != "fal" {
 		t.Errorf("provider = %q, want 'fal'", provider)
 	}
-	if model == "" {
-		t.Error("model should not be empty")
+	if model != "" {
+		t.Errorf("model = %q, want empty (no auto-default)", model)
 	}
 }

@@ -25,7 +25,7 @@ func TestConfigCommandExists(t *testing.T) {
 
 func resetConfigSetFlags(t *testing.T) {
 	t.Helper()
-	for _, name := range []string{"model", "retries", "timeout"} {
+	for _, name := range []string{"model", "base-url", "retries", "timeout"} {
 		flag := configSetCmd.Flags().Lookup(name)
 		if flag == nil {
 			t.Fatalf("config set flag %q should exist", name)
@@ -60,7 +60,7 @@ func writeMultiProviderConfig(t *testing.T, path string, cfg *config.MultiProvid
 }
 
 func TestConfigSetHasNewFlags(t *testing.T) {
-	for _, name := range []string{"model", "retries", "timeout"} {
+	for _, name := range []string{"model", "base-url", "retries", "timeout"} {
 		if configSetCmd.Flags().Lookup(name) == nil {
 			t.Fatalf("config set should have --%s flag", name)
 		}
@@ -68,9 +68,9 @@ func TestConfigSetHasNewFlags(t *testing.T) {
 }
 
 func TestConfigSetDoesNotHaveOldFlags(t *testing.T) {
-	for _, name := range []string{"base-url", "api-key", "provider"} {
+	for _, name := range []string{"api-key", "provider"} {
 		if configSetCmd.Flags().Lookup(name) != nil {
-			t.Fatalf("config set should NOT have --%s flag (removed in Phase 6)", name)
+			t.Fatalf("config set should NOT have --%s flag", name)
 		}
 	}
 }
@@ -398,5 +398,159 @@ func TestConfigShowDoesNotPrintAPIKey(t *testing.T) {
 	}
 	if strings.Contains(output, "sk-") {
 		t.Errorf("config show should not print any API key, got: %q", output)
+	}
+}
+
+func TestConfigSetBaseURL(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--base-url", "https://api.example.com/v1"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set --base-url error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["openai"]
+	if pc.BaseURL != "https://api.example.com/v1" {
+		t.Errorf("openai base_url = %q, want https://api.example.com/v1", pc.BaseURL)
+	}
+	// Other fields preserved.
+	if pc.Model != "gpt-image-2" {
+		t.Errorf("openai model = %q, want preserved gpt-image-2", pc.Model)
+	}
+	if pc.Retries != 2 {
+		t.Errorf("openai retries = %d, want preserved 2", pc.Retries)
+	}
+	if pc.Timeout != 120 {
+		t.Errorf("openai timeout = %v, want preserved 120", pc.Timeout)
+	}
+}
+
+func TestConfigSetBaseURLTrimsTrailingSlash(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--base-url", "https://api.example.com/v1/"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set --base-url error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if got := cfg.Providers["openai"].BaseURL; got != "https://api.example.com/v1" {
+		t.Errorf("base_url = %q, want trailing slash trimmed", got)
+	}
+}
+
+func TestConfigSetOtherFieldsPreservesBaseURL(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", BaseURL: "https://api.example.com/v1", Retries: 2, Timeout: 120},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "--model", "gpt-image-3"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set --model error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["openai"]
+	if pc.Model != "gpt-image-3" {
+		t.Errorf("openai model = %q, want gpt-image-3", pc.Model)
+	}
+	if pc.BaseURL != "https://api.example.com/v1" {
+		t.Errorf("openai base_url = %q, want preserved https://api.example.com/v1", pc.BaseURL)
+	}
+}
+
+func TestConfigSetNoFlagsIncludesBaseURL(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("config set should error when no flags are given")
+	}
+	if !strings.Contains(err.Error(), "--base-url") {
+		t.Errorf("error should mention --base-url, got: %v", err)
+	}
+	_ = path
+}
+
+func TestConfigShowDisplaysBaseURL(t *testing.T) {
+	path, buf := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", BaseURL: "https://api.example.com/v1", Retries: 3, Timeout: 90},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "base_url: https://api.example.com/v1") {
+		t.Errorf("config show should display base_url, got: %q", output)
+	}
+}
+
+func TestConfigShowOldConfigWithoutBaseURL(t *testing.T) {
+	path, buf := newConfigTest(t)
+	// Old-format config without base_url.
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatalf("create config dir: %v", err)
+	}
+	raw := []byte("active_provider: openai\nactive_model: gpt-image-2\nproviders:\n  openai:\n    model: gpt-image-2\n    retries: 2\n    timeout: 120\n")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatalf("write old config: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "openai") {
+		t.Errorf("config show should display provider, got: %q", output)
+	}
+	if !strings.Contains(output, "base_url: default") {
+		t.Errorf("config show should display default base_url for old config, got: %q", output)
 	}
 }

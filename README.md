@@ -206,6 +206,7 @@ Manage per-provider settings stored in `~/.potaco/config.yaml`. API keys are sto
 ```sh
 potaco config set --retries 3 --timeout 120   # set retries and timeout (seconds) for active provider
 potaco config set --model gpt-image-2           # change default model
+potaco config set --base-url https://api.example.com/v1  # change custom base URL for active provider
 potaco config show                               # display current config
 ```
 

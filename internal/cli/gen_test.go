@@ -14,6 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestGenCommandExists(t *testing.T) {
@@ -146,7 +149,7 @@ func TestGenCommandUsesAdapter(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--dry-run"})
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--model", "gpt-image-2", "--dry-run"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -303,7 +306,7 @@ func TestGenWithAuthCredentials(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--dry-run"})
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--model", "gpt-image-2", "--dry-run"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -315,7 +318,7 @@ func TestGenWithAuthCredentials(t *testing.T) {
 		t.Errorf("dry-run should contain endpoint, got: %q", output)
 	}
 	if !strings.Contains(output, "gpt-image-2") {
-		t.Errorf("dry-run should contain default model, got: %q", output)
+		t.Errorf("dry-run should contain model, got: %q", output)
 	}
 }
 
@@ -420,7 +423,7 @@ func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--output", outPath, "--base-url", server.URL})
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--model", "gpt-image-2", "--output", outPath, "--base-url", server.URL})
 
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("gen returned error: %v", err)
@@ -434,5 +437,53 @@ func TestGenCommandAdapterEndToEnd(t *testing.T) {
 	}
 	if _, err := os.Stat(outPath); err != nil {
 		t.Errorf("expected output file %q: %v", outPath, err)
+	}
+}
+
+func TestGenUsesConfigBaseURL(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	// Seed config with openai active and a custom base_url.
+	path := filepath.Join(tmpHome, ".potaco", "config.yaml")
+	cfg := &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", BaseURL: "https://config.example.com/v1", Retries: 2, Timeout: 120},
+		},
+	}
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	// Store credential so the provider can resolve an API key.
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	if err := mgr.Add("openai", "sk-test"); err != nil {
+		t.Fatalf("add provider: %v", err)
+	}
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"gen", "--prompt", "a cat", "--model", "gpt-image-2", "--dry-run"})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("gen --dry-run: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "config.example.com/v1/images/generations") {
+		t.Errorf("dry-run should use config base_url, got: %q", output)
 	}
 }

@@ -2,8 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestStatusShowsActiveProvider(t *testing.T) {
@@ -116,5 +120,89 @@ func TestStatusJSON(t *testing.T) {
 	}
 	if !strings.Contains(output, "\"providers\":") {
 		t.Errorf("JSON status should contain providers array, got: %s", output)
+	}
+}
+
+func TestStatusShowsBaseURL(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	path := filepath.Join(tmpHome, ".potaco", "config.yaml")
+	cfg := &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2", BaseURL: "https://api.example.com/v1", Retries: 2, Timeout: 120},
+		},
+	}
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	// Store a credential so the provider is listed as connected.
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	if err := mgr.Add("openai", "sk-test"); err != nil {
+		t.Fatalf("add provider: %v", err)
+	}
+	// Reset active model to empty to mimic post-refactor auth add.
+	cfg.ActiveModel = ""
+	cfg.Providers["openai"] = config.ProviderConfig{Model: "", BaseURL: "https://api.example.com/v1", Retries: 2, Timeout: 120}
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"status"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "https://api.example.com/v1") {
+		t.Errorf("status should show base URL, got: %s", output)
+	}
+}
+
+func TestStatusJSONIncludesBaseURL(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	path := filepath.Join(tmpHome, ".potaco", "config.yaml")
+	cfg := &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "", BaseURL: "https://api.example.com/v1", Retries: 2, Timeout: 120},
+		},
+	}
+	if err := config.SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("seed config: %v", err)
+	}
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	if err := mgr.Add("openai", "sk-test"); err != nil {
+		t.Fatalf("add provider: %v", err)
+	}
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"status", "--json"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "\"base_url\": \"https://api.example.com/v1\"") {
+		t.Errorf("JSON status should include base_url, got: %s", output)
+	}
+	if !strings.Contains(output, "\"active_model\": \"\"") {
+		t.Errorf("JSON status should include empty active_model, got: %s", output)
 	}
 }

@@ -5,6 +5,7 @@ package config
 // to add unit suffixes like "s" or "m".
 type ProviderConfig struct {
 	Model   string `yaml:"model"`
+	BaseURL string `yaml:"base_url,omitempty"`
 	Retries int    `yaml:"retries"`
 	Timeout int    `yaml:"timeout"` // seconds
 }

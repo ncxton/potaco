@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
@@ -27,6 +28,7 @@ var configShowCmd = &cobra.Command{
 
 func init() {
 	configSetCmd.Flags().String("model", "", "model for the active provider")
+	configSetCmd.Flags().String("base-url", "", "base URL for the active provider")
 	configSetCmd.Flags().Int("retries", 0, "max retry attempts for the active provider")
 	configSetCmd.Flags().String("timeout", "", "request timeout in seconds for the active provider (e.g., 120)")
 
@@ -59,6 +61,11 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		cfg.ActiveModel = model
 		changed = true
 	}
+	if cmd.Flags().Changed("base-url") {
+		baseURL, _ := cmd.Flags().GetString("base-url")
+		pc.BaseURL = strings.TrimRight(baseURL, "/")
+		changed = true
+	}
 	if cmd.Flags().Changed("retries") {
 		retries, _ := cmd.Flags().GetInt("retries")
 		pc.Retries = retries
@@ -75,7 +82,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if !changed {
-		return configError(fmt.Errorf("no flags specified. Use --model, --retries, or --timeout"))
+		return configError(fmt.Errorf("no flags specified. Use --model, --base-url, --retries, or --timeout"))
 	}
 
 	cfg.Providers[cfg.ActiveProvider] = pc
@@ -127,7 +134,8 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 			active = " (active)"
 		}
 		fmt.Fprintf(out, "  %s%s\n", name, active)
-		fmt.Fprintf(out, "    model:   %s\n", pc.Model)
+		fmt.Fprintf(out, "    model: %s\n", pc.Model)
+		fmt.Fprintf(out, "    base_url: %s\n", formatBaseURL(pc.BaseURL))
 		fmt.Fprintf(out, "    retries: %d\n", pc.Retries)
 		fmt.Fprintf(out, "    timeout: %s\n", formatTimeout(pc.Timeout))
 	}
@@ -141,4 +149,13 @@ func formatTimeout(secs int) string {
 		return "default"
 	}
 	return fmt.Sprintf("%ds", secs)
+}
+
+// formatBaseURL renders the base URL for display, returning "default"
+// for a zero value so providers without an override are easy to spot.
+func formatBaseURL(baseURL string) string {
+	if baseURL == "" {
+		return "default"
+	}
+	return baseURL
 }
