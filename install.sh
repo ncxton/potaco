@@ -296,6 +296,54 @@ verify_checksum() {
 }
 
 # ============================================================================
+# Shell config helper
+# ============================================================================
+
+# add_to_shell_config appends a PATH export to the user's shell config file,
+# auto-detected from $SHELL. Supports bash, zsh, and fish.
+# Usage: add_to_shell_config "/path/to/bin"
+add_to_shell_config() {
+    bin_dir="$1"
+    shell_path="${SHELL:-}"
+    config_file=""
+    export_line=""
+
+    case "$shell_path" in
+        */bash)
+            config_file="${HOME}/.bashrc"
+            export_line="export PATH=\"${bin_dir}:\$PATH\""
+            ;;
+        */zsh)
+            config_file="${HOME}/.zshrc"
+            export_line="export PATH=\"${bin_dir}:\$PATH\""
+            ;;
+        */fish)
+            config_file="${HOME}/.config/fish/config.fish"
+            export_line="fish_add_path ${bin_dir}"
+            ;;
+        *)
+            warn "Could not detect shell from \$SHELL ($shell_path)."
+            warn "Add ${bin_dir} to your PATH manually."
+            return 0
+            ;;
+    esac
+
+    # Create the config file if it doesn't exist (e.g. fish config)
+    config_dir=$(dirname "$config_file")
+    mkdir -p "$config_dir" 2>/dev/null || true
+
+    # Check if the export line is already present
+    if grep -qF "$bin_dir" "$config_file" 2>/dev/null; then
+        info "$bin_dir already in $config_file."
+        return 0
+    fi
+
+    printf '\n# Added by potaco installer\n%s\n' "$export_line" >> "$config_file"
+    success "Added $bin_dir to $config_file"
+    info "Restart your shell or run: source $config_file"
+}
+
+# ============================================================================
 # Main installation flow
 # ============================================================================
 
@@ -418,41 +466,10 @@ main() {
         exit 1
     fi
 
-    # Determine install location
-    install_dir=""
-    install_path=""
-
-    if [ -w "/usr/local/bin" ]; then
-        install_dir="/usr/local/bin"
-        install_path="${install_dir}/potaco"
-    elif [ "$NON_INTERACTIVE" = "1" ]; then
-        # Non-interactive: use ~/.local/bin without asking
-        install_dir="${HOME}/.local/bin"
-        mkdir -p "$install_dir" 2>/dev/null || true
-        install_path="${install_dir}/potaco"
-    elif command -v sudo >/dev/null 2>&1; then
-        # Interactive: ask about sudo
-        printf "Potaco can install to /usr/local/bin (requires sudo) or %s/.local/bin.\n" "$HOME"
-        printf "Install to /usr/local/bin with sudo? [Y/n] "
-        answer=""
-        read answer || true
-        case "$answer" in
-            [Yy]*|'')
-                install_dir="/usr/local/bin"
-                install_path="${install_dir}/potaco"
-                ;;
-            *)
-                install_dir="${HOME}/.local/bin"
-                mkdir -p "$install_dir" 2>/dev/null || true
-                install_path="${install_dir}/potaco"
-                ;;
-        esac
-    else
-        # No sudo, fall back to ~/.local/bin
-        install_dir="${HOME}/.local/bin"
-        mkdir -p "$install_dir" 2>/dev/null || true
-        install_path="${install_dir}/potaco"
-    fi
+    # Install to ~/.local/bin (always, no sudo needed)
+    install_dir="${HOME}/.local/bin"
+    mkdir -p "$install_dir" 2>/dev/null || true
+    install_path="${install_dir}/potaco"
 
     # Install the binary
     if [ "$NON_INTERACTIVE" = "1" ]; then
@@ -464,28 +481,39 @@ main() {
     if [ -w "$install_dir" ]; then
         mv "$binary_path" "$install_path"
         chmod +x "$install_path"
-    elif [ "$install_dir" = "/usr/local/bin" ] && command -v sudo >/dev/null 2>&1; then
-        sudo mv "$binary_path" "$install_path"
-        sudo chmod +x "$install_path"
     else
-        # Fallback: try mv directly, might fail
-        mv "$binary_path" "$install_path" 2>/dev/null || {
-            spinner_stop
-            error "Cannot write to $install_dir."
-            error "Try running with sudo or set POTACO_NON_INTERACTIVE=1."
-            exit 1
-        }
-        chmod +x "$install_path" 2>/dev/null || true
+        spinner_stop
+        error "Cannot write to $install_dir."
+        error "Ensure ~/.local/bin exists and is writable."
+        exit 1
     fi
 
     spinner_stop
 
     # Check if install_dir is in PATH
     case ":${PATH}:" in
-        *":${install_dir}:"*) ;;
+        *":${install_dir}:"*)
+            # Already in PATH, nothing to do
+            ;;
         *)
-            warn "Note: $install_dir is not in your PATH."
-            warn "Add it with: export PATH=\"${install_dir}:\$PATH\""
+            if [ "$NON_INTERACTIVE" = "1" ]; then
+                warn "Note: $install_dir is not in your PATH."
+                warn "Add it with: export PATH=\"${install_dir}:\$PATH\""
+            else
+                printf "\n"
+                printf "%s is not in your PATH.\n" "$install_dir"
+                printf "Add it automatically? [Y/n] "
+                answer=""
+                read answer || true
+                case "$answer" in
+                    [Yy]*|'')
+                        add_to_shell_config "$install_dir"
+                        ;;
+                    *)
+                        warn "Add it manually: export PATH=\"${install_dir}:\$PATH\""
+                        ;;
+                esac
+            fi
             ;;
     esac
 
@@ -500,7 +528,7 @@ main() {
             "Installed to: $install_path" \
             "" \
             "Next steps:" \
-            "  potaco config set --base-url <url> --api-key <key>" \
+            "  potaco auth add openai --api-key sk-..." \
             "  potaco gen --prompt \"hello\"" \
             "" \
             "Docs: https://github.com/ncxton/potaco#readme"
