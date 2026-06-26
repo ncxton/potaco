@@ -51,7 +51,6 @@ func runGen(cmd *cobra.Command, args []string) error {
 		return configUserErr("A prompt is required.", "Use 'potaco gen --prompt \"your description\"'.", fmt.Errorf("prompt cannot be empty"))
 	}
 
-	// Pre-flight: validate output path before calling the API.
 	if !flagBool(cmd, "stdout") {
 		outputPath := flagString(cmd, "output")
 		if ue := validateOutputPath(outputPath); ue != nil {

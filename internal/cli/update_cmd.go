@@ -32,7 +32,6 @@ func installScriptURL(tag string) string {
 func runUpdate(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 
-	// Check latest version (reuses cache from version command).
 	latest, err := checkLatestVersion()
 	if err != nil {
 		return configUserErr(
@@ -42,7 +41,6 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Compare versions unless --force or unknown local build.
 	if !force && Version != "unknown" && Version == latest {
 		fmt.Fprintf(cmd.OutOrStdout(), "Already up to date (%s).\n", Version)
 		return nil
@@ -52,7 +50,6 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Forcing update (already at %s)...\n", Version)
 	}
 
-	// Download install.sh from the release.
 	installURL := installScriptURL(latest)
 	tmpFile, err := os.CreateTemp("", "potaco-install-*.sh")
 	if err != nil {
@@ -99,7 +96,6 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Execute the installer, inheriting stdin/stdout/stderr.
 	fmt.Fprintf(cmd.OutOrStdout(), "Running installer...\n")
 
 	sc := exec.Command("sh", tmpFile.Name())
@@ -107,7 +103,6 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	sc.Stdout = os.Stdout
 	sc.Stderr = os.Stderr
 
-	// Pass non-interactive flag to the installer if set.
 	if !tui.IsInteractive() {
 		sc.Env = append(os.Environ(), "POTACO_NON_INTERACTIVE=1")
 	} else {

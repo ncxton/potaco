@@ -66,7 +66,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return tui.RunAuthAdd("")
 	}
 
-	// Check provider is a known adapter.
 	available := adapter.List()
 	known := false
 	for _, name := range available {
@@ -87,7 +86,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return tui.RunAuthAdd(providerName)
 	}
 
-	// Non-interactive mode: require API key from flag or env.
 	apiKey := apiKeyFlag
 	if apiKey == "" {
 		apiKey = envKey
@@ -96,7 +94,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
 	}
 
-	// Create auth manager backed by default credential/config paths.
 	mgr, err := auth.New()
 	if err != nil {
 		return configError(fmt.Errorf("init auth: %w", err))
@@ -155,7 +152,6 @@ func runAuthRemove(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Interactive mode: launch TUI flow (picker if no arg, then confirm)
 	return tui.RunAuthRemove(providerName)
 }
 

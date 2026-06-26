@@ -112,11 +112,9 @@ func (m *searchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *searchModel) View() string {
 	var b strings.Builder
 
-	// Title + search input
 	b.WriteString(m.query.View())
 	b.WriteString("\n\n")
 
-	// Model list
 	for i, model := range m.filtered {
 		cursor := "  "
 		if i == m.cursor {
@@ -141,7 +139,6 @@ func (m *searchModel) View() string {
 		b.WriteString("  No matching models.\n")
 	}
 
-	// Help line
 	b.WriteString("\n  \u2191\u2193 navigate  enter select  esc cancel\n")
 
 	return b.String()

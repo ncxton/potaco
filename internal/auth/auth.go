@@ -67,7 +67,6 @@ func (m *AuthManager) Add(provider, apiKey string) error {
 		cfg.Providers = make(map[string]config.ProviderConfig)
 	}
 
-	// Set default model for the provider if not already configured
 	if _, exists := cfg.Providers[provider]; !exists {
 		cfg.Providers[provider] = config.ProviderConfig{
 			Model:   defaultModelForProvider(provider),
@@ -76,7 +75,6 @@ func (m *AuthManager) Add(provider, apiKey string) error {
 		}
 	}
 
-	// Set as active provider
 	cfg.ActiveProvider = provider
 	cfg.ActiveModel = cfg.Providers[provider].Model
 

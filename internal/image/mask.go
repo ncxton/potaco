@@ -76,7 +76,6 @@ func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, erro
 		return nil, fmt.Errorf("decode mask: %w", err)
 	}
 
-	// Convert to grayscale: non-black -> white, black -> black
 	bounds := rawImg.Bounds()
 	grayMask := image.NewGray(bounds)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
@@ -90,7 +89,6 @@ func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, erro
 		}
 	}
 
-	// Scale to source dimensions if different
 	srcBounds := image.Rect(0, 0, sourceWidth, sourceHeight)
 	if bounds.Dx() != sourceWidth || bounds.Dy() != sourceHeight {
 		scaled := image.NewGray(srcBounds)

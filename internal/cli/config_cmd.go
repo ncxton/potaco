@@ -114,7 +114,6 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Print providers in alphabetical order with an (active) marker.
 	names := make([]string, 0, len(cfg.Providers))
 	for name := range cfg.Providers {
 		names = append(names, name)

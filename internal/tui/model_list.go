@@ -81,7 +81,7 @@ func RunModelList(providerName, apiKey string) error {
 // type to filter the list in real-time and navigate with arrow keys.
 // Returns huh.ErrUserAborted if the user cancels with Esc or Ctrl-C.
 func pickModelInteractive(providerName string, models []adapter.Model) (string, error) {
-	_ = providerName // reserved for future use (e.g. header in search UI)
+	_ = providerName
 	m := newSearchModel(models)
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	result, err := p.Run()

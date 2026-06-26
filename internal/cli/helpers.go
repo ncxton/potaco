@@ -18,10 +18,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// providerPreset holds known defaults for a provider preset. This is a
-// temporary Phase 1 shim so the CLI layer no longer needs a separate
-// provider package. It will be replaced in Phase 2 when adapters expose
-// their own preset metadata.
+// providerPreset holds known defaults (base URL, default model) for a provider.
 type providerPreset struct {
 	BaseURL      string
 	DefaultModel string

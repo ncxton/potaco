@@ -72,7 +72,6 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Pre-flight: validate output path before calling the API.
 	if !flagBool(cmd, "stdout") {
 		outputPath := flagString(cmd, "output")
 		if ue := validateOutputPath(outputPath); ue != nil {

@@ -58,7 +58,6 @@ func checkLatestVersion() (string, error) {
 		return "", fmt.Errorf("github API returned empty tag_name")
 	}
 
-	// Cache the successful result.
 	latestCache = release.TagName
 	latestCacheTime = time.Now()
 
@@ -79,7 +78,6 @@ func runVersion(cmd *cobra.Command, args []string) error {
 	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	out := cmd.OutOrStdout()
 
-	// Try to fetch latest version; graceful degradation on failure.
 	latest, latestErr := checkLatestVersion()
 
 	updateAvailable := false
@@ -106,7 +104,6 @@ func runVersion(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Text mode: print current version.
 	fmt.Fprintf(out, "potaco %s", Version)
 
 	if latestErr == nil && latest != "" {

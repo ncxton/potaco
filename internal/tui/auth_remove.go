@@ -18,7 +18,6 @@ func RunAuthRemove(providerName string) error {
 		return fmt.Errorf("init auth: %w", err)
 	}
 
-	// If no provider name given, show picker
 	if providerName == "" {
 		providers := mgr.List()
 		if len(providers) == 0 {
@@ -51,7 +50,6 @@ func RunAuthRemove(providerName string) error {
 		}
 	}
 
-	// Confirmation prompt
 	confirmed, err := ConfirmAction(fmt.Sprintf("Remove provider '%s' and its credentials?", providerName))
 	if err != nil {
 		if isCancelled(err) {
@@ -65,7 +63,6 @@ func RunAuthRemove(providerName string) error {
 		return nil
 	}
 
-	// Execute removal
 	if err := mgr.Remove(providerName); err != nil {
 		return fmt.Errorf("remove provider: %w", err)
 	}

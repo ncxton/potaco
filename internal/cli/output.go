@@ -36,7 +36,6 @@ func FormatResult(result OutputResult, opts OutputOptions) (string, error) {
 		return formatJSON(result)
 	}
 
-	// Default: human-friendly text
 	var lines []string
 	for _, path := range result.Paths {
 		lines = append(lines, fmt.Sprintf("Saved to: %s", path))
@@ -44,8 +43,7 @@ func FormatResult(result OutputResult, opts OutputOptions) (string, error) {
 	return strings.Join(lines, "\n"), nil
 }
 
-// formatJSON produces JSON output. For a single image, an object; for
-// multiple images, an array of objects.
+// formatJSON produces JSON output: a single object for one image, an array for multiple.
 func formatJSON(result OutputResult) (string, error) {
 	if len(result.Paths) == 1 {
 		obj := map[string]any{
@@ -64,7 +62,6 @@ func formatJSON(result OutputResult) (string, error) {
 		return string(b), nil
 	}
 
-	// Multiple images: array
 	arr := make([]map[string]any, len(result.Paths))
 	for i, path := range result.Paths {
 		arr[i] = map[string]any{
