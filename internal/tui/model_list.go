@@ -10,6 +10,7 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 // modelPicker selects a model from the discovered list. It is abstracted so
@@ -46,16 +47,22 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 		}
 	}
 
-	if baseURL == "" {
-		cfg, cfgErr := mgr.LoadConfig()
-		if cfgErr == nil && cfg != nil {
-			if pc, ok := cfg.Providers[providerName]; ok && pc.BaseURL != "" {
-				baseURL = pc.BaseURL
+	cfg, _ := mgr.LoadConfig()
+	pc := config.ProviderConfig{}
+	if cfg != nil {
+		if configured, ok := cfg.Providers[providerName]; ok {
+			pc = configured
+			if baseURL == "" && configured.BaseURL != "" {
+				baseURL = configured.BaseURL
 			}
 		}
 	}
+	providerType := config.ResolveProviderType(providerName, pc)
+	if providerType == "openai-compatible" && baseURL == "" {
+		return fmt.Errorf("base URL required for provider %s", providerName)
+	}
 
-	ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
+	ad, err := adapter.Get(config.AdapterType(providerType), apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 	if err != nil {
 		return fmt.Errorf("create adapter: %w", err)
 	}
