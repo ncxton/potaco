@@ -33,16 +33,16 @@ func TestRectMask(t *testing.T) {
 		t.Errorf("mask dimensions = %dx%d, want 100x100", bounds.Dx(), bounds.Dy())
 	}
 
-	// Pixel inside the rect should be white
-	r, g, b, _ := mask.At(15, 25).RGBA()
-	if r == 0 || g == 0 || b == 0 {
-		t.Error("pixel inside rect should be white")
+	// Pixel inside the rect should be transparent (alpha=0, edit)
+	_, _, _, a := mask.At(15, 25).RGBA()
+	if a != 0 {
+		t.Error("pixel inside rect should be transparent (alpha=0)")
 	}
 
-	// Pixel outside the rect should be black
-	r2, g2, b2, _ := mask.At(0, 0).RGBA()
-	if r2 != 0 || g2 != 0 || b2 != 0 {
-		t.Error("pixel outside rect should be black")
+	// Pixel outside the rect should be opaque (alpha=255, keep)
+	_, _, _, a2 := mask.At(0, 0).RGBA()
+	if a2 != 0xffff {
+		t.Error("pixel outside rect should be opaque (alpha=255)")
 	}
 }
 
@@ -63,16 +63,16 @@ func TestCircleMask(t *testing.T) {
 		t.Errorf("mask dimensions = %dx%d, want 100x100", bounds.Dx(), bounds.Dy())
 	}
 
-	// Pixel at center should be white
-	r, g, b, _ := mask.At(50, 50).RGBA()
-	if r == 0 || g == 0 || b == 0 {
-		t.Error("center pixel should be white")
+	// Pixel at center should be transparent (alpha=0, edit)
+	_, _, _, a := mask.At(50, 50).RGBA()
+	if a != 0 {
+		t.Error("center pixel should be transparent (alpha=0)")
 	}
 
-	// Pixel far from center should be black
-	r2, g2, b2, _ := mask.At(90, 90).RGBA()
-	if r2 != 0 || g2 != 0 || b2 != 0 {
-		t.Error("far pixel should be black")
+	// Pixel far from center should be opaque (alpha=255, keep)
+	_, _, _, a2 := mask.At(90, 90).RGBA()
+	if a2 != 0xffff {
+		t.Error("far pixel should be opaque (alpha=255)")
 	}
 }
 
@@ -86,7 +86,8 @@ func TestCircleMaskNegativeRadius(t *testing.T) {
 func TestLoadMaskFile(t *testing.T) {
 	dir := t.TempDir()
 	maskPath := filepath.Join(dir, "mask.png")
-	// Create a mask where center is white, rest is black
+	// Create a mask where center is white (edit), rest is black (keep).
+	// The loader maps white -> transparent, black -> opaque.
 	maskImg := image.NewGray(image.Rect(0, 0, 20, 20))
 	for y := 0; y < 20; y++ {
 		for x := 0; x < 20; x++ {
@@ -108,6 +109,18 @@ func TestLoadMaskFile(t *testing.T) {
 	bounds := mask.Bounds()
 	if bounds.Dx() != 20 || bounds.Dy() != 20 {
 		t.Errorf("dimensions = %dx%d, want 20x20", bounds.Dx(), bounds.Dy())
+	}
+
+	// White input pixel -> transparent (edit)
+	_, _, _, a := mask.At(10, 10).RGBA()
+	if a != 0 {
+		t.Error("white input pixel should map to transparent (alpha=0)")
+	}
+
+	// Black input pixel -> opaque (keep)
+	_, _, _, a2 := mask.At(0, 0).RGBA()
+	if a2 != 0xffff {
+		t.Error("black input pixel should map to opaque (alpha=255)")
 	}
 }
 

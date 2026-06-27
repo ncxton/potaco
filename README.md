@@ -128,7 +128,7 @@ Edit an existing image with inpainting (mask-based editing) or outpainting (canv
 |------|------|----------|---------|-------------|
 | `--prompt`, `-p` | string | yes | | Text description of the edit |
 | `--image` | string | yes | | Path to source image file |
-| `--mask` | string | no | | Path to mask image file (white=edit, black=keep) |
+| `--mask` | string | no | | Path to mask image file (transparent=edit, opaque=keep) |
 | `--mask-rect` | string | no | | Rectangular mask: `x,y,w,h` in pixels |
 | `--mask-circle` | string | no | | Circular mask: `x,y,r` in pixels |
 | `--extend` | string | no | | Outpaint: `top=N,bottom=N,left=N,right=N` or `all=N` |
