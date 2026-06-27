@@ -105,7 +105,7 @@ func TestUninstallNonInteractiveWithRemoveConfig(t *testing.T) {
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		t.Fatalf("mkdir config: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte("test"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(legacyCustomProviderConfigYAML), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
 

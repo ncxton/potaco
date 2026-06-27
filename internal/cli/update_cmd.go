@@ -25,7 +25,7 @@ func init() {
 }
 
 // installScriptURL returns the raw install.sh URL for a given release tag.
-func installScriptURL(tag string) string {
+var installScriptURL = func(tag string) string {
 	return fmt.Sprintf("https://github.com/ncxton/potaco/releases/download/%s/install.sh", tag)
 }
 
@@ -123,6 +123,10 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 			"Check the output above for details, or try running the installer manually.",
 			fmt.Errorf("install.sh execution: %w", err),
 		)
+	}
+
+	if err := runConfigMigrations(); err != nil {
+		return err
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "Update complete.\n")
