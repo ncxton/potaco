@@ -104,17 +104,33 @@ func TestUpdateForceBypassesVersionCheck(t *testing.T) {
 	githubReleaseURL = srv.URL
 	defer func() { githubReleaseURL = origURL }()
 
+	installerCalled := false
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		installerCalled = true
+		w.Header().Set("Content-Type", "application/x-sh")
+		_, _ = w.Write([]byte("#!/bin/sh\nexit 42\n"))
+	}))
+	defer installerSrv.Close()
+	origInstallScriptURL := installScriptURL
+	installScriptURL = func(tag string) string {
+		if tag != "v1.0.0" {
+			t.Fatalf("tag = %q, want v1.0.0", tag)
+		}
+		return installerSrv.URL
+	}
+	defer func() { installScriptURL = origInstallScriptURL }()
+
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	// --force will try to download install.sh, which will fail against
-	// the mock server. We expect an error mentioning download failure,
-	// NOT "up to date".
 	rootCmd.SetArgs([]string{"update", "--force", "--non-interactive"})
 
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Fatal("expected error when --force tries to download install.sh from mock")
+		t.Fatal("expected error when local installer exits non-zero")
+	}
+	if !installerCalled {
+		t.Fatal("expected --force to proceed to installer")
 	}
 	if strings.Contains(buf.String(), "up to date") {
 		t.Errorf("should not say 'up to date' with --force, got: %q", buf.String())
