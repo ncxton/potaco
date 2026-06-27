@@ -49,6 +49,7 @@ Provider credentials are managed via `auth add`:
 ```sh
 ./potaco auth add openai --api-key sk-...   # Connect a provider
 ./potaco auth add custom --api-key sk-... --base-url https://api.example.com/v1  # Connect custom endpoint
+./potaco auth add openrouter --type openai-compatible --api-key sk-... --base-url https://openrouter.ai/api/v1  # Connect named custom endpoint
 ./potaco auth list                          # List connected providers
 ./potaco use openai                         # Switch active provider
 ./potaco models                             # Pick a model interactively

@@ -165,6 +165,8 @@ potaco auth add openai --api-key sk-xxx       # non-interactive
 potaco auth add fal --api-key <key>           # connect fal
 potaco auth add vercel --api-key <key>        # connect Vercel AI Gateway
 potaco auth add custom --api-key <key> --base-url <url>  # connect any OpenAI-compatible endpoint
+potaco auth add openrouter --type openai-compatible --api-key <key> --base-url <url>  # named custom endpoint
+potaco auth add staging-openai --type openai --api-key <key> --base-url <url>  # named provider using a built-in adapter type
 potaco auth remove openai                     # disconnect a provider
 potaco auth list                               # list connected providers
 potaco auth list --json                        # JSON output
