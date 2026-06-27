@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	img "github.com/ncxton/potaco/internal/image"
 	"github.com/ncxton/potaco/internal/observability"
 	"github.com/spf13/cobra"
 )
@@ -110,11 +111,30 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 	defer cleanup()
 
+	// When outpainting, the expanded canvas has different dimensions than
+	// the source image. Use the actual canvas size so the API produces an
+	// output matching the extended area, rather than the --size default
+	// which would crop or resize away the new pixels.
+	size := flagString(cmd, "size")
+	extendFlag, _ := cmd.Flags().GetString("extend")
+	if extendFlag != "" {
+		canvas, _, err := img.ReadImage(editImagePath)
+		if err != nil {
+			return imageUserErr(
+				"Could not read the expanded canvas.",
+				"Check that the source image is a valid PNG or JPEG file.",
+				fmt.Errorf("read expanded canvas: %w", err),
+			)
+		}
+		bounds := canvas.Bounds()
+		size = fmt.Sprintf("%dx%d", bounds.Dx(), bounds.Dy())
+	}
+
 	req := adapter.EditRequest{
 		Prompt:         prompt,
 		Model:          model,
 		N:              flagInt(cmd, "n"),
-		Size:           flagString(cmd, "size"),
+		Size:           size,
 		ResponseFormat: flagString(cmd, "response-format"),
 		ImagePath:      editImagePath,
 		MaskPath:       maskPath,

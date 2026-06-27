@@ -3,10 +3,12 @@ package cli
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -299,6 +301,77 @@ func TestPrepareEditImageCleanupRemovesOutpaintDir(t *testing.T) {
 	cleanup()
 	if _, err := os.Stat(tempDir); !os.IsNotExist(err) {
 		t.Fatalf("outpaint temp dir should be removed after cleanup, stat err: %v", err)
+	}
+}
+
+func TestEditOutpaintUsesExpandedCanvasSize(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "sk-test",
+		"--base-url", "https://unused.example.com/v1", "--model", "gpt-image-2", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add custom: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 100, 50)
+	outputPath := filepath.Join(dir, "output.png")
+
+	responseBytes, err := os.ReadFile(imgPath)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	responseB64 := base64.StdEncoding.EncodeToString(responseBytes)
+
+	var receivedBody map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := json.Unmarshal(body, &receivedBody); err != nil {
+			t.Errorf("unmarshal body: %v", err)
+			return
+		}
+		fmt.Fprintf(w, `{"created":1,"data":[{"b64_json":%q}]}`, responseB64)
+	}))
+	defer server.Close()
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{
+		"edit",
+		"--prompt", "extend",
+		"--image", imgPath,
+		"--extend", "top=50,right=50",
+		"--output", outputPath,
+		"--base-url", server.URL,
+	})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("edit returned error: %v", err)
+	}
+
+	// Source is 100x50, extend top=50 right=50 -> expanded canvas is 150x100
+	size, ok := receivedBody["size"].(string)
+	if !ok {
+		t.Fatalf("size not found in request body, got: %v", receivedBody["size"])
+	}
+	if size != "150x100" {
+		t.Errorf("size = %q, want 150x100 (expanded canvas dimensions)", size)
 	}
 }
 
