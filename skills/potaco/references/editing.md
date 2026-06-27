@@ -11,8 +11,8 @@ No `--mask`, `--mask-rect`, `--mask-circle`, or `--extend` flags.
 potaco edit --prompt "make it look like a painting" --image photo.jpg
 ```
 
-The provider applies the prompt to the entire image. Supported by both
-OpenAI and fal adapters.
+The provider applies the prompt to the entire image. Supported by OpenAI,
+fal, and custom (OpenAI-compatible) adapters.
 
 **Dry run output**: mode is `"basic"` in the JSON body.
 
@@ -122,11 +122,13 @@ Hint: Use 'potaco use openai' or 'potaco use fal' to switch to a provider
 that supports editing.
 ```
 
-Switch to OpenAI or fal before running edit:
+Switch to a provider that supports editing:
 ```sh
 potaco use openai
 # or
 potaco use fal
+# or
+potaco use custom
 ```
 
 ## Edit flags vs gen flags

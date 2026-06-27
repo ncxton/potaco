@@ -311,8 +311,6 @@ func TestOpenAIDiscoverModelsSuccess(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
 				{"id": "gpt-image-2", "object": "model", "owned_by": "openai"},
-				{"id": "gpt-image-1", "object": "model", "owned_by": "openai"},
-				{"id": "dall-e-3", "object": "model", "owned_by": "openai"},
 				{"id": "text-davinci-003", "object": "model", "owned_by": "openai"},
 			},
 		})
@@ -334,20 +332,14 @@ func TestOpenAIDiscoverModelsSuccess(t *testing.T) {
 	if !ids["gpt-image-2"] {
 		t.Error("should include gpt-image-2")
 	}
-	if !ids["dall-e-3"] {
-		t.Error("should include dall-e-3")
-	}
 	if ids["text-davinci-003"] {
 		t.Error("should not include text model")
 	}
 
-	// Check SupportsEdit is set for gpt-image-2 and dall-e-3
+	// Check SupportsEdit is set for gpt-image-2
 	for _, m := range models {
 		if m.ID == "gpt-image-2" && !m.SupportsEdit {
 			t.Error("gpt-image-2 should have SupportsEdit=true")
-		}
-		if m.ID == "dall-e-3" && m.SupportsEdit {
-			t.Error("dall-e-3 should have SupportsEdit=false")
 		}
 	}
 }

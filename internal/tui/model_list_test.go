@@ -56,7 +56,6 @@ func TestRunModelListPersistsSelection(t *testing.T) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"data": []map[string]any{
 				{"id": "gpt-image-2", "owned_by": "openai"},
-				{"id": "dall-e-3", "owned_by": "openai"},
 			},
 		})
 	}))
@@ -66,10 +65,10 @@ func TestRunModelListPersistsSelection(t *testing.T) {
 		if providerName != "openai" {
 			t.Errorf("providerName = %q, want openai", providerName)
 		}
-		if len(models) != 2 {
-			t.Errorf("models = %d, want 2", len(models))
+		if len(models) != 1 {
+			t.Errorf("models = %d, want 1", len(models))
 		}
-		return "dall-e-3", nil
+		return "gpt-image-2", nil
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)
@@ -84,16 +83,16 @@ func TestRunModelListPersistsSelection(t *testing.T) {
 	if provider != "openai" {
 		t.Errorf("active provider = %q, want openai", provider)
 	}
-	if model != "dall-e-3" {
-		t.Errorf("active model = %q, want dall-e-3", model)
+	if model != "gpt-image-2" {
+		t.Errorf("active model = %q, want gpt-image-2", model)
 	}
 
 	cfg, err := mgr.LoadConfig()
 	if err != nil {
 		t.Fatalf("load config: %v", err)
 	}
-	if cfg.Providers["openai"].Model != "dall-e-3" {
-		t.Errorf("provider model = %q, want dall-e-3", cfg.Providers["openai"].Model)
+	if cfg.Providers["openai"].Model != "gpt-image-2" {
+		t.Errorf("provider model = %q, want gpt-image-2", cfg.Providers["openai"].Model)
 	}
 }
 

@@ -72,14 +72,14 @@ func TestUseWithModel(t *testing.T) {
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 
-	rootCmd.SetArgs([]string{"use", "openai", "--model", "dall-e-3"})
+	rootCmd.SetArgs([]string{"use", "openai", "--model", "gpt-image-2"})
 	err := rootCmd.Execute()
 	if err != nil {
 		t.Fatalf("use with model: %v", err)
 	}
 
 	output := buf.String()
-	if !strings.Contains(output, "dall-e-3") {
+	if !strings.Contains(output, "gpt-image-2") {
 		t.Errorf("output should mention model, got: %q", output)
 	}
 }
