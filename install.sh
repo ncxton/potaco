@@ -66,6 +66,45 @@ success() {
     fi
 }
 
+confirm() {
+    prompt="$1"
+    default="${2:-y}"
+
+    if [ "$NON_INTERACTIVE" = "1" ]; then
+        return 0
+    fi
+
+    if [ "$default" = "y" ]; then
+        suffix="[Y/n]"
+    else
+        suffix="[y/N]"
+    fi
+
+    if [ -r /dev/tty ]; then
+        printf "%s %s " "$prompt" "$suffix" > /dev/tty
+        answer=""
+        read answer < /dev/tty || answer=""
+    else
+        warn "No TTY available for confirmation."
+        return 1
+    fi
+
+    case "$answer" in
+        [Yy]*)
+            return 0
+            ;;
+        [Nn]*)
+            return 1
+            ;;
+        "")
+            [ "$default" = "y" ]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Print a bordered box with a title and content lines
 # Usage: print_box "Title" "line1" "line2" ...
 print_box() {
@@ -370,12 +409,20 @@ main() {
     checksums_name="potaco_${asset_version}_checksums.txt"
     checksums_url="${GITHUB_BASE}/releases/download/${version}/${checksums_name}"
     version_display="$version"
+    install_dir="${HOME}/.local/bin"
+    install_path="${install_dir}/potaco"
+    add_path_after_install="0"
 
     # Show version info
     if [ "$NON_INTERACTIVE" = "1" ]; then
         printf 'Installing potaco %s...\n' "$version_display"
     else
         info "Installing potaco $version_display..."
+        printf "\n"
+        if ! confirm "Download and install potaco ${version_display} from ${GITHUB_BASE}?" "y"; then
+            warn "Installation cancelled."
+            exit 0
+        fi
         printf "\n"
     fi
 
@@ -430,6 +477,24 @@ main() {
     fi
     spinner_stop
 
+    # After the download is complete and verified, decide whether to update PATH.
+    case ":${PATH}:" in
+        *":${install_dir}:"*)
+            ;;
+        *)
+            if [ "$NON_INTERACTIVE" = "1" ]; then
+                add_path_after_install="1"
+            else
+                printf "\n"
+                if confirm "$install_dir is not in your PATH. Add it automatically after install?" "y"; then
+                    add_path_after_install="1"
+                else
+                    add_path_after_install="0"
+                fi
+            fi
+            ;;
+    esac
+
     # Extract
     if [ "$NON_INTERACTIVE" = "1" ]; then
         printf 'Extracting...\n'
@@ -448,9 +513,7 @@ main() {
     fi
 
     # Install to ~/.local/bin (always, no sudo needed)
-    install_dir="${HOME}/.local/bin"
     mkdir -p "$install_dir" 2>/dev/null || true
-    install_path="${install_dir}/potaco"
 
     # Install the binary
     if [ "$NON_INTERACTIVE" = "1" ]; then
@@ -471,32 +534,14 @@ main() {
 
     spinner_stop
 
-    # Check if install_dir is in PATH
-    case ":${PATH}:" in
-        *":${install_dir}:"*)
-            # Already in PATH, nothing to do
-            ;;
-        *)
-            if [ "$NON_INTERACTIVE" = "1" ]; then
-                warn "Note: $install_dir is not in your PATH."
-                warn "Add it with: export PATH=\"${install_dir}:\$PATH\""
-            else
-                printf "\n"
-                printf "%s is not in your PATH.\n" "$install_dir"
-                printf "Add it automatically? [Y/n] "
-                answer=""
-                read answer || true
-                case "$answer" in
-                    [Yy]*|'')
-                        add_to_shell_config "$install_dir"
-                        ;;
-                    *)
-                        warn "Add it manually: export PATH=\"${install_dir}:\$PATH\""
-                        ;;
-                esac
-            fi
-            ;;
-    esac
+    if [ "$add_path_after_install" = "1" ]; then
+        add_to_shell_config "$install_dir"
+    elif [ "$add_path_after_install" = "0" ]; then
+        case ":${PATH}:" in
+            *":${install_dir}:"*) ;;
+            *) warn "Add it manually: export PATH=\"${install_dir}:\$PATH\"" ;;
+        esac
+    fi
 
     # Print success
     printf "\n"
@@ -509,7 +554,7 @@ main() {
             "Installed to: $install_path" \
             "" \
             "Next steps:" \
-            "  potaco auth add openai --api-key sk-..." \
+            "  potaco auth add openai" \
             "  potaco gen --prompt \"hello\"" \
             "" \
             "Docs: https://github.com/ncxton/potaco#readme"

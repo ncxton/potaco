@@ -1,10 +1,14 @@
 # Configuration
 
-Potaco resolves provider, API key, model, base URL, retries, and timeout through a multi-layer precedence chain. Understanding this chain is important when debugging unexpected behavior.
+First non-empty value wins.
 
-## Precedence Chain
+Security:
 
-For each setting, the first non-empty value wins:
+- Never add credentials yourself unless the user explicitly asks you to start interactive auth or perform non-interactive credential setup.
+- If the user only asks how to add creds, instruct them to run `potaco auth add <provider>` interactively.
+- Prefer encrypted stored credentials over `--api-key` or `POTACO_API_KEY`.
+- Avoid `--api-key` and `POTACO_API_KEY` unless the user explicitly approves non-interactive setup.
+- Never print or copy `~/.potaco/credentials.enc`, `~/.potaco/.salt`, shell history, or secret env vars.
 
 ### Provider
 
@@ -26,7 +30,7 @@ For each setting, the first non-empty value wins:
 2. `POTACO_MODEL` env var
 3. `active_model` from config file
 
-There is no provider preset default model. Models are selected by the user via `potaco models` (interactive picker) or `potaco config set --model`.
+There is no provider preset model. Use `potaco models` or `potaco config set --model`.
 
 ### Base URL
 
@@ -36,11 +40,10 @@ There is no provider preset default model. Models are selected by the user via `
 4. Provider preset default (openai: `https://api.openai.com/v1`, fal: `https://fal.run`, vercel: `https://ai-gateway.vercel.sh/v1`)
 5. Empty (custom provider has no preset; error if not configured)
 
-For the `custom` provider, `--base-url` is required during `auth add`. After that, the base URL is persisted to config and resolved from there for subsequent commands.
+For `custom`, the base URL is required during setup, then persisted. Confirm remote custom endpoints are trusted before saving.
 
 ### Retries
 
-Default: 2
 1. `--retries` CLI flag
 2. `POTACO_RETRIES` env var
 3. `retries` from provider config in config file
@@ -48,7 +51,6 @@ Default: 2
 
 ### Timeout
 
-Default: 120 seconds
 1. `--timeout` CLI flag (seconds as integer string, e.g. `120`)
 2. `POTACO_TIMEOUT` env var (seconds as integer string)
 3. `timeout` from provider config in config file (integer, in seconds)
@@ -58,7 +60,7 @@ Default: 120 seconds
 
 | Variable | Purpose |
 |----------|---------|
-| `POTACO_API_KEY` | Override stored API key |
+| `POTACO_API_KEY` | Override stored API key; avoid unless explicitly approved |
 | `POTACO_PROVIDER` | Override active provider |
 | `POTACO_MODEL` | Override active model |
 | `POTACO_BASE_URL` | Override API base URL (required for custom provider) |
@@ -66,7 +68,7 @@ Default: 120 seconds
 | `POTACO_TIMEOUT` | Override timeout in seconds |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to force non-interactive mode |
 
-`POTACO_NON_INTERACTIVE=1` is equivalent to passing `--non-interactive` and causes all commands to skip TUI flows and use direct non-interactive paths. This is the expected mode for agents running in non-TTY environments.
+`POTACO_NON_INTERACTIVE=1` equals `--non-interactive` and skips TUI flows.
 
 ## Config File
 
@@ -94,7 +96,7 @@ providers:
     timeout: 120
 ```
 
-The `base_url` field is optional for built-in providers (falls back to the preset default) but required for the `custom` provider. The `timeout` field is stored as an integer in seconds (no unit suffix needed).
+`base_url` is optional for built-ins and required for `custom`. `timeout` is integer seconds.
 
 ### Config commands
 
@@ -102,7 +104,7 @@ The `base_url` field is optional for built-in providers (falls back to the prese
 potaco config show
 ```
 
-Prints the config file path, active provider/model, and per-provider settings including model, base_url, retries, and timeout.
+Shows config path, active provider/model, and per-provider model/base URL/retries/timeout.
 
 ```sh
 potaco config set --model gpt-image-2
@@ -111,20 +113,14 @@ potaco config set --retries 5
 potaco config set --timeout 60
 ```
 
-Sets values for the active provider and saves to the config file. Multiple flags can be combined in one command. At least one flag must be specified; running with no flags returns a config error.
-
-The `--base-url` flag is useful for changing the base URL of the `custom` provider after initial setup, or for overriding a built-in provider's preset.
-
-The `--timeout` flag accepts seconds as an integer string (e.g., `60`), which is stored as a plain integer in the config file.
+Sets values for the active provider. Multiple flags can be combined. Confirm custom base URLs are trusted before saving because prompts/images may be sent there.
 
 ## Credential Storage
 
-- Credentials are encrypted with AES-256-GCM.
-- Encryption key is derived from hostname + username + salt.
-- Key derivation uses scrypt.
-- Salt file: `~/.potaco/.salt`
-- Credentials file: `~/.potaco/credentials.enc`
-- Credentials are never printed in output, logs, or dry-run (shown as `[REDACTED]` in dry-run auth headers).
+- AES-256-GCM, key derived from hostname + username + salt using scrypt.
+- Salt: `~/.potaco/.salt`; encrypted keys: `~/.potaco/credentials.enc`.
+- Output/logs/dry-run redact credentials as `[REDACTED]`.
+- Safest setup: user runs `potaco auth add <provider>` interactively, without `--api-key`.
 
 ## File Paths
 
@@ -137,19 +133,17 @@ The `--timeout` flag accepts seconds as an integer string (e.g., `60`), which is
 
 ## Debug Log
 
-When a `UserError` occurs, the raw error (not the friendly message) is appended to `~/.potaco/debug.log` with a timestamp and category:
+`UserError` raw errors append to `~/.potaco/debug.log`:
 
 ```
 2025-01-15T10:30:00Z [api] generate: http 401: invalid api key
 ```
 
-Categories: `config`, `api`, `image`, `generic`.
-
-Use `--verbose` to see retry attempts and debug info on stderr during generation and editing operations.
+Categories: `config`, `api`, `image`, `generic`. Use `--verbose` for retry/debug stderr.
 
 ## Provider Presets
 
-Defined in `internal/cli/helpers.go`. Presets store only a base URL:
+Presets store only a base URL:
 
 | Provider | Base URL |
 |----------|----------|
@@ -158,4 +152,4 @@ Defined in `internal/cli/helpers.go`. Presets store only a base URL:
 | vercel | `https://ai-gateway.vercel.sh/v1` |
 | custom | (no preset; user-supplied) |
 
-There is no `DefaultModel` in the preset. Models are chosen by the user via `potaco models` or `potaco config set --model`.
+No preset default model exists.
