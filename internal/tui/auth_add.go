@@ -63,7 +63,7 @@ func RunAuthAdd(providerName string) error {
 	modelID := ""
 	models, discoverErr := ad.DiscoverModels(context.Background())
 	if discoverErr == nil {
-		modelID, err = promptModel(models)
+		modelID, err = promptModel(providerName, models)
 		if err != nil {
 			return normalizeCancel(err)
 		}
@@ -217,29 +217,11 @@ func confirmVerification(verifyErr error) (bool, error) {
 }
 
 // promptModel shows a model picker when discovery succeeds.
-func promptModel(models []adapter.Model) (string, error) {
+func promptModel(providerName string, models []adapter.Model) (string, error) {
 	if len(models) == 0 {
 		return "", nil
 	}
-	options := make([]huh.Option[string], 0, len(models))
-	for _, m := range models {
-		label := m.DisplayName
-		if m.SupportsEdit {
-			label += " (supports edit)"
-		}
-		options = append(options, huh.NewOption(label, m.ID))
-	}
-	var modelID string
-	form := newForm(huh.NewGroup(
-		huh.NewSelect[string]().
-			Title("Select a model:").
-			Options(options...).
-			Value(&modelID),
-	))
-	if err := runForm(form, "model select"); err != nil {
-		return "", err
-	}
-	return modelID, nil
+	return PickModel(providerName, models)
 }
 
 // addProvider stores the credential and config for the connected provider.

@@ -3,6 +3,7 @@ package tui
 import (
 	"testing"
 
+	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
 )
 
@@ -24,6 +25,16 @@ func TestRunAuthAddCustomRequiresBaseURL(t *testing.T) {
 	err := RunAuthAdd("custom")
 	if err == nil {
 		t.Fatal("RunAuthAdd with custom provider should require a base URL")
+	}
+}
+
+func TestPromptModelReturnsEmptyWhenNoModels(t *testing.T) {
+	modelID, err := promptModel("openai", []adapter.Model{})
+	if err != nil {
+		t.Fatalf("promptModel: %v", err)
+	}
+	if modelID != "" {
+		t.Fatalf("model ID = %q, want empty", modelID)
 	}
 }
 
