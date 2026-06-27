@@ -8,7 +8,6 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	img "github.com/ncxton/potaco/internal/image"
-	"github.com/ncxton/potaco/internal/observability"
 	"github.com/spf13/cobra"
 )
 
@@ -142,7 +141,7 @@ func runEdit(cmd *cobra.Command, args []string) error {
 
 	sp := startSpinner(cmd, "Editing image...")
 	start := time.Now()
-	ctx := observability.WithRequestID(context.Background(), observability.NewRequestID())
+	ctx := context.Background()
 	resp, err := resolved.Adapter.Edit(ctx, req)
 	sp.stop()
 	elapsed := time.Since(start)

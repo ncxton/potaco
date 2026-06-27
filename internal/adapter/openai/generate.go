@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/observability"
 )
 
 // Generate calls POST /v1/images/generations and returns the response.
@@ -26,9 +25,6 @@ func (a *Adapter) Generate(ctx context.Context, req adapter.GenerateRequest) (*a
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.doWithRetry(ctx, httpReq)
 	if err != nil {

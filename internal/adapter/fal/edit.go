@@ -9,7 +9,6 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	img "github.com/ncxton/potaco/internal/image"
-	"github.com/ncxton/potaco/internal/observability"
 )
 
 func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (result *adapter.GenerateResponse, err error) {
@@ -55,9 +54,6 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (result *ad
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", a.AuthHeader(a.apiKey))
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.doWithRetry(ctx, httpReq)
 	if err != nil {

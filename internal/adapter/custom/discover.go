@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/observability"
 )
 
 // DiscoverModels calls GET /v1/models and returns every model from the
@@ -22,9 +21,6 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
@@ -71,9 +67,6 @@ func (a *Adapter) Verify(ctx context.Context) error {
 		return fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
