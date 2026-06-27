@@ -166,12 +166,16 @@ func resolveBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiPr
 	if v := os.Getenv("POTACO_BASE_URL"); v != "" {
 		return strings.TrimRight(v, "/")
 	}
+	providerType := providerName
 	if cfg != nil {
-		if pc, ok := cfg.Providers[providerName]; ok && pc.BaseURL != "" {
-			return strings.TrimRight(pc.BaseURL, "/")
+		if pc, ok := cfg.Providers[providerName]; ok {
+			if pc.BaseURL != "" {
+				return strings.TrimRight(pc.BaseURL, "/")
+			}
+			providerType = config.ResolveProviderType(providerName, pc)
 		}
 	}
-	if preset, ok := getProviderPreset(providerName); ok {
+	if preset, ok := getProviderPreset(config.AdapterType(providerType)); ok {
 		return preset.BaseURL
 	}
 	return ""

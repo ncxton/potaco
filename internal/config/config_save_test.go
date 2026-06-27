@@ -43,6 +43,39 @@ func TestSaveMultiProviderConfig(t *testing.T) {
 	}
 }
 
+func TestSaveMultiProviderConfigAddsCurrentSchemaVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	cfg := &MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]ProviderConfig{
+			"openai": {Type: "openai", Model: "gpt-image-2", Retries: 2, Timeout: 120},
+		},
+	}
+
+	if err := SaveMultiProvider(path, cfg); err != nil {
+		t.Fatalf("SaveMultiProvider: %v", err)
+	}
+
+	loaded, err := LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("LoadMultiProvider after save: %v", err)
+	}
+	if loaded.SchemaVersion != CurrentSchemaVersion {
+		t.Fatalf("SchemaVersion = %d, want %d", loaded.SchemaVersion, CurrentSchemaVersion)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read saved config: %v", err)
+	}
+	if !bytes.Contains(data, []byte("schema_version:")) {
+		t.Fatalf("saved config does not contain schema_version field\n%s", string(data))
+	}
+}
+
 func TestSaveMultiProviderBaseURLRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
