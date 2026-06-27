@@ -2,11 +2,24 @@ package cli
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/tui"
 )
+
+const legacyCustomProviderConfigYAML = `
+active_provider: custom
+providers:
+  custom:
+    base_url: https://api.example.com/v1
+    model: gpt-image-1
+    retries: 2
+    timeout: 120
+`
 
 // resetRootCmdFlags restores persistent flags on the shared global rootCmd to
 // their default values. Tests that dispatch rootCmd.SetArgs must call this
@@ -81,6 +94,7 @@ func TestRootCommandHasNonInteractiveFlag(t *testing.T) {
 
 func TestNonInteractiveFlagWiresToTUI(t *testing.T) {
 	resetRootCmdFlags(t)
+	t.Setenv("HOME", t.TempDir())
 	t.Cleanup(func() { tui.SetNonInteractive(false) })
 
 	var buf bytes.Buffer
@@ -97,6 +111,7 @@ func TestNonInteractiveFlagWiresToTUI(t *testing.T) {
 
 func TestNonInteractiveFlagDefaultsToInteractive(t *testing.T) {
 	resetRootCmdFlags(t)
+	t.Setenv("HOME", t.TempDir())
 	t.Cleanup(func() { tui.SetNonInteractive(false) })
 
 	var buf bytes.Buffer
@@ -110,6 +125,40 @@ func TestNonInteractiveFlagDefaultsToInteractive(t *testing.T) {
 	// In a test environment (no TTY), IsInteractive should return false
 	if tui.IsInteractive() {
 		t.Error("IsInteractive() should return false in test environment (no TTY)")
+	}
+}
+
+func TestRootCommandMigratesConfigOnStartup(t *testing.T) {
+	resetRootCmdFlags(t)
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Cleanup(func() { tui.SetNonInteractive(false) })
+
+	configPath := filepath.Join(tmpHome, ".potaco", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
+		t.Fatalf("mkdir config dir: %v", err)
+	}
+	if err := os.WriteFile(configPath, []byte(legacyCustomProviderConfigYAML), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	loaded, err := config.LoadMultiProvider(configPath)
+	if err != nil {
+		t.Fatalf("LoadMultiProvider: %v", err)
+	}
+	if loaded.SchemaVersion != config.CurrentSchemaVersion {
+		t.Fatalf("SchemaVersion = %d, want %d", loaded.SchemaVersion, config.CurrentSchemaVersion)
+	}
+	if got := loaded.Providers["custom"].Type; got != "openai-compatible" {
+		t.Fatalf("custom Type = %q, want openai-compatible", got)
 	}
 }
 

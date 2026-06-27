@@ -28,12 +28,10 @@ Update or uninstall only after explicit approval:
 potaco update
 potaco update --force
 potaco uninstall
-potaco uninstall --remove-config
 potaco uninstall -y
-potaco uninstall -y --remove-config
 ```
 
-`--remove-config` deletes local config and encrypted credentials.
+Interactive uninstall asks whether to remove local config and encrypted credentials.
 
 ## Auth and status
 
@@ -42,6 +40,8 @@ Do not enter credentials yourself unless the user explicitly asks you to start a
 ```sh
 potaco auth add openai
 potaco auth add custom
+potaco auth add openrouter --type openai-compatible --base-url https://openrouter.ai/api/v1
+potaco auth add staging-openai --type openai --base-url https://proxy.example/v1
 potaco auth list
 potaco auth list --json
 potaco auth remove openai

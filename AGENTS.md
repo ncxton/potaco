@@ -12,11 +12,11 @@ requires a user-supplied base URL.
 Layered monolith dependency graph:
 
 ```
-cli --> adapter, auth, config, credential, tui, image, observability
+cli --> adapter, auth, config, credential, tui, image
 tui  --> adapter, auth
 auth --> config, credential
-adapter/openai|fal|vercel|custom --> adapter (parent), config, observability
-config, credential, image, observability --> (no internal deps)
+adapter/openai|fal|vercel|custom --> adapter (parent), config
+config, credential, image --> (no internal deps)
 ```
 
 All packages live under `internal/` (not importable externally). Adapter sub-packages, including `custom`, register themselves via `init()` and are imported for side effects in `cli/helpers.go`.

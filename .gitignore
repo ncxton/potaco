@@ -29,5 +29,8 @@ Thumbs.db
 # Distribution/build
 /dist/
 
+# Local git worktrees
+.worktrees/
+
 # Superpowers specs and plans (local design docs, not shipped)
 docs/superpowers/

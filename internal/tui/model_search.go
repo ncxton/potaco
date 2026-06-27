@@ -10,30 +10,40 @@ import (
 	"github.com/ncxton/potaco/internal/adapter"
 )
 
+var (
+	modelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
+	modelFocusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	modelBadgeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+	modelMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	modelEmptyStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
+)
+
 // searchModel is a custom Bubble Tea model for searching and selecting
 // from a list of models by typing. The filter updates in real-time as
 // the user types characters.
 type searchModel struct {
-	models   []adapter.Model
-	filtered []adapter.Model
-	cursor   int
-	query    textinput.Model
-	selected string
-	quitted  bool
+	providerName string
+	models       []adapter.Model
+	filtered     []adapter.Model
+	cursor       int
+	query        textinput.Model
+	selected     string
+	quitted      bool
 }
 
 // newSearchModel creates a new searchModel initialized with the given
 // models. All models are shown initially (no filter applied).
-func newSearchModel(models []adapter.Model) *searchModel {
+func newSearchModel(providerName string, models []adapter.Model) *searchModel {
 	ti := textinput.New()
 	ti.Prompt = "> "
 	ti.Placeholder = "Type to search..."
 	ti.Focus()
 
 	return &searchModel{
-		models:   models,
-		filtered: models,
-		query:    ti,
+		providerName: providerName,
+		models:       models,
+		filtered:     models,
+		query:        ti,
 	}
 }
 
@@ -112,6 +122,9 @@ func (m *searchModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *searchModel) View() string {
 	var b strings.Builder
 
+	b.WriteString(modelTitleStyle.Render("Select a model for " + m.providerName))
+	b.WriteString("\n\n")
+
 	b.WriteString(m.query.View())
 	b.WriteString("\n\n")
 
@@ -125,10 +138,10 @@ func (m *searchModel) View() string {
 			label += "  " + model.DisplayName
 		}
 		if model.SupportsEdit {
-			label += " [edit]"
+			label += " " + modelBadgeStyle.Render("[edit]")
 		}
 		if i == m.cursor {
-			label = lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render(label)
+			label = modelFocusStyle.Render(label)
 		}
 		b.WriteString(cursor)
 		b.WriteString(label)
@@ -136,10 +149,13 @@ func (m *searchModel) View() string {
 	}
 
 	if len(m.filtered) == 0 {
-		b.WriteString("  No matching models.\n")
+		b.WriteString(modelEmptyStyle.Render("  No matching models."))
+		b.WriteString("\n")
 	}
 
-	b.WriteString("\n  \u2191\u2193 navigate  enter select  esc cancel\n")
+	b.WriteString("\n")
+	b.WriteString(modelMutedStyle.Render("  \u2191\u2193 navigate  enter select  esc cancel"))
+	b.WriteString("\n")
 
 	return b.String()
 }

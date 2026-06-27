@@ -49,6 +49,7 @@ func SaveMultiProvider(path string, cfg *MultiProviderConfig) error {
 	if cfg.Providers == nil {
 		cfg.Providers = make(map[string]ProviderConfig)
 	}
+	migrateConfig(cfg)
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

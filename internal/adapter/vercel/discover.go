@@ -7,7 +7,6 @@ import (
 	"net/http"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/observability"
 )
 
 func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, err error) {
@@ -16,9 +15,6 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Authorization", a.AuthHeader(a.apiKey))
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
@@ -77,9 +73,6 @@ func (a *Adapter) verifyReachable(ctx context.Context) (err error) {
 		return fmt.Errorf("create request: %w", err)
 	}
 	httpReq.Header.Set("Authorization", a.AuthHeader(a.apiKey))
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
@@ -103,9 +96,6 @@ func (a *Adapter) verifyKey(ctx context.Context) (err error) {
 		return fmt.Errorf("create key validation request: %w", err)
 	}
 	httpReq.Header.Set("Authorization", a.AuthHeader(a.apiKey))
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {

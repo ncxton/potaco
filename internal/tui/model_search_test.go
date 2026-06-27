@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -8,13 +9,28 @@ import (
 	"github.com/ncxton/potaco/internal/adapter"
 )
 
+func TestSearchModelViewIncludesStyledTitleAndBadgeText(t *testing.T) {
+	models := []adapter.Model{
+		{ID: "gpt-image-1", DisplayName: "GPT Image", SupportsEdit: true},
+	}
+	m := newSearchModel("openai", models)
+
+	view := m.View()
+	if !strings.Contains(view, "Select a model for openai") {
+		t.Fatalf("view missing title:\n%s", view)
+	}
+	if !strings.Contains(view, "[edit]") {
+		t.Fatalf("view missing edit badge:\n%s", view)
+	}
+}
+
 func TestNewSearchModel(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2", SupportsEdit: true},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 
 	if len(m.models) != 3 {
 		t.Errorf("expected 3 models, got %d", len(m.models))
@@ -33,7 +49,7 @@ func TestSearchFilterByID(t *testing.T) {
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.query.SetValue("gpt")
 
 	m.applyFilter()
@@ -52,7 +68,7 @@ func TestSearchFilterByDisplayName(t *testing.T) {
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.query.SetValue("flux")
 
 	m.applyFilter()
@@ -70,7 +86,7 @@ func TestSearchFilterCaseInsensitive(t *testing.T) {
 		{ID: "GPT-Image-2", DisplayName: "GPT Image 2"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.query.SetValue("gpt")
 
 	m.applyFilter()
@@ -85,7 +101,7 @@ func TestSearchFilterEmptyShowsAll(t *testing.T) {
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.query.SetValue("")
 
 	m.applyFilter()
@@ -99,7 +115,7 @@ func TestSearchFilterNoMatch(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.query.SetValue("xyz123")
 
 	m.applyFilter()
@@ -115,7 +131,7 @@ func TestSearchCursorClampsToFiltered(t *testing.T) {
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.cursor = 2 // at last item
 
 	// Filter to only 1 item
@@ -132,7 +148,7 @@ func TestSearchEscQuits(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
@@ -149,7 +165,7 @@ func TestSearchEnterSelects(t *testing.T) {
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 
 	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -170,7 +186,7 @@ func TestSearchArrowDownMovesCursor(t *testing.T) {
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
 		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
-	m := newSearchModel(models)
+	m := newSearchModel("openai", models)
 	m.Update(tea.KeyMsg{Type: tea.KeyDown})
 	if m.cursor != 1 {
 		t.Errorf("expected cursor at 1, got %d", m.cursor)

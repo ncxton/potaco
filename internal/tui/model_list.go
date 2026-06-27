@@ -10,6 +10,7 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 // modelPicker selects a model from the discovered list. It is abstracted so
@@ -23,7 +24,7 @@ type modelPicker func(providerName string, models []adapter.Model) (string, erro
 // If baseURL is empty, it resolves it from the provider config.
 // The selected model is persisted via SetActiveProvider.
 func RunModelList(providerName, apiKey, baseURL string) error {
-	return runModelListWithPicker(providerName, apiKey, baseURL, pickModelInteractive)
+	return runModelListWithPicker(providerName, apiKey, baseURL, PickModel)
 }
 
 func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPicker) error {
@@ -46,16 +47,22 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 		}
 	}
 
-	if baseURL == "" {
-		cfg, cfgErr := mgr.LoadConfig()
-		if cfgErr == nil && cfg != nil {
-			if pc, ok := cfg.Providers[providerName]; ok && pc.BaseURL != "" {
-				baseURL = pc.BaseURL
+	cfg, _ := mgr.LoadConfig()
+	pc := config.ProviderConfig{}
+	if cfg != nil {
+		if configured, ok := cfg.Providers[providerName]; ok {
+			pc = configured
+			if baseURL == "" && configured.BaseURL != "" {
+				baseURL = configured.BaseURL
 			}
 		}
 	}
+	providerType := config.ResolveProviderType(providerName, pc)
+	if providerType == "openai-compatible" && baseURL == "" {
+		return fmt.Errorf("base URL required for provider %s", providerName)
+	}
 
-	ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
+	ad, err := adapter.Get(config.AdapterType(providerType), apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 	if err != nil {
 		return fmt.Errorf("create adapter: %w", err)
 	}
@@ -87,15 +94,14 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 	return nil
 }
 
-// pickModelInteractive renders a Bubble Tea search program listing the
+// PickModel renders a Bubble Tea search program listing the
 // discovered models and returns the selected model ID. The user can
 // type to filter the list in real-time and navigate with arrow keys.
 // Returns huh.ErrUserAborted if the user cancels with Esc or Ctrl-C.
 // Returns an empty string when the filter matches no models and the user
 // presses Enter.
-func pickModelInteractive(providerName string, models []adapter.Model) (string, error) {
-	_ = providerName
-	m := newSearchModel(models)
+func PickModel(providerName string, models []adapter.Model) (string, error) {
+	m := newSearchModel(providerName, models)
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	result, err := p.Run()
 	if err != nil {

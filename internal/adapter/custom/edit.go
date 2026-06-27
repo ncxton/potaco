@@ -9,7 +9,6 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	img "github.com/ncxton/potaco/internal/image"
-	"github.com/ncxton/potaco/internal/observability"
 )
 
 // Edit calls POST /v1/images/edits with a JSON body. The image is sent
@@ -70,9 +69,6 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (*adapter.G
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+a.apiKey)
-	if rid := observability.RequestIDFromContext(ctx); rid != "" {
-		httpReq.Header.Set("X-Request-ID", rid)
-	}
 
 	resp, err := a.doWithRetry(ctx, httpReq)
 	if err != nil {

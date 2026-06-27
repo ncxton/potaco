@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/tui"
 )
 
@@ -34,6 +36,18 @@ func Execute() {
 	}
 }
 
+func runConfigMigrations() error {
+	_, _, err := config.MigrateConfigFile(config.DefaultConfigPath(), time.Now)
+	if err != nil {
+		return configUserErr(
+			"Could not migrate your config file.",
+			"A backup is created before migrations. Check ~/.potaco/config.yaml and retry.",
+			fmt.Errorf("migrate config: %w", err),
+		)
+	}
+	return nil
+}
+
 func init() {
 	rootCmd.SetVersionTemplate("{{.DisplayName}} {{.Version}}\n")
 
@@ -47,6 +61,6 @@ func init() {
 			return fmt.Errorf("read non-interactive flag: %w", err)
 		}
 		tui.SetNonInteractive(ni)
-		return nil
+		return runConfigMigrations()
 	}
 }

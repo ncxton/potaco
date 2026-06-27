@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -45,6 +46,7 @@ func init() {
 	authAddCmd.Flags().Bool("force", false, "skip provider verification")
 	authAddCmd.Flags().String("model", "", "override the default model for this provider")
 	authAddCmd.Flags().String("base-url", "", "override API base URL for verification")
+	authAddCmd.Flags().String("type", "", "provider adapter type (openai, fal, vercel, openai-compatible)")
 
 	authCmd.AddCommand(authAddCmd)
 	authCmd.AddCommand(authRemoveCmd)
@@ -58,25 +60,11 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		providerName = args[0]
 	}
 
-	// Interactive mode with no provider arg: launch TUI flow which
-	// includes a provider picker.
 	if providerName == "" {
 		if !tui.IsInteractive() {
 			return configError(fmt.Errorf("specify a provider: potaco auth add <provider>"))
 		}
 		return tui.RunAuthAdd("")
-	}
-
-	available := adapter.List()
-	known := false
-	for _, name := range available {
-		if name == providerName {
-			known = true
-			break
-		}
-	}
-	if !known {
-		return configError(fmt.Errorf("unknown provider: %s (available: %v)", providerName, available))
 	}
 
 	mgr, err := auth.New()
@@ -86,8 +74,8 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 
 	cfg, _ := mgr.LoadConfig()
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
+	providerTypeFlag, _ := cmd.Flags().GetString("type")
 
-	// Resolve the API key from flag or env.
 	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
 	envKey := os.Getenv("POTACO_API_KEY")
 	apiKey := apiKeyFlag
@@ -95,17 +83,31 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		apiKey = envKey
 	}
 
-	// If either credential is missing in interactive mode, hand off to the
-	// TUI flow which can prompt for both. For the custom provider the base URL
-	// is also required for verification.
-	needsKey := apiKey == ""
-	needsBaseURL := providerName == "custom" && baseURL == ""
-	if (needsKey || needsBaseURL) && tui.IsInteractive() {
+	if shouldRunInteractiveAuthAdd(authAddInteractiveInput{
+		providerName:     providerName,
+		providerTypeFlag: providerTypeFlag,
+		apiKey:           apiKey,
+		baseURL:          baseURL,
+		interactive:      tui.IsInteractive(),
+	}) {
 		return tui.RunAuthAdd(providerName)
 	}
 
+	providerType, err := resolveAuthProviderType(providerName, providerTypeFlag)
+	if err != nil {
+		return configError(err)
+	}
+	adapterType := config.AdapterType(providerType)
+
 	if apiKey == "" {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
+	}
+	if providerType == "openai-compatible" && baseURL == "" {
+		return configUserErr(
+			"A base URL is required for OpenAI-compatible providers.",
+			"Use --base-url or set POTACO_BASE_URL.",
+			fmt.Errorf("base URL required for provider %s", providerName),
+		)
 	}
 	if providerName == "custom" && baseURL == "" {
 		return configUserErr(
@@ -115,10 +117,9 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Verify provider connectivity unless --force.
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
-		ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
+		ad, err := adapter.Get(adapterType, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 		if err != nil {
 			return configError(fmt.Errorf("create adapter: %w", err))
 		}
@@ -127,20 +128,16 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Store the credential and set the provider as active.
-	if err := mgr.Add(providerName, apiKey); err != nil {
+	if err := mgr.AddProvider(providerName, providerType, apiKey); err != nil {
 		return configError(fmt.Errorf("add provider: %w", err))
 	}
 
-	// Persist the base URL for custom so subsequent commands can resolve it
-	// from config without passing --base-url every time.
-	if providerName == "custom" && baseURL != "" {
+	if shouldPersistAuthBaseURL(cmd, providerType, baseURL) {
 		if err := mgr.SetBaseURL(providerName, baseURL); err != nil {
 			return configError(fmt.Errorf("set base URL: %w", err))
 		}
 	}
 
-	// Override the default model if --model was specified.
 	model, _ := cmd.Flags().GetString("model")
 	if model != "" {
 		if err := mgr.SetActiveProvider(providerName, model); err != nil {
@@ -159,7 +156,6 @@ func runAuthRemove(cmd *cobra.Command, args []string) error {
 		providerName = args[0]
 	}
 
-	// Non-interactive mode: require provider arg and remove directly.
 	if !tui.IsInteractive() {
 		if providerName == "" {
 			return configError(fmt.Errorf("specify a provider: potaco auth remove <provider>"))

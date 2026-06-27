@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
-	"github.com/ncxton/potaco/internal/observability"
 	"github.com/spf13/cobra"
 )
 
@@ -97,7 +96,7 @@ func runGen(cmd *cobra.Command, args []string) error {
 
 	sp := startSpinner(cmd, "Generating image...")
 	start := time.Now()
-	ctx := observability.WithRequestID(context.Background(), observability.NewRequestID())
+	ctx := context.Background()
 	resp, err := resolved.Adapter.Generate(ctx, req)
 	sp.stop()
 	elapsed := time.Since(start)

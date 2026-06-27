@@ -10,7 +10,6 @@ import (
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
 	"github.com/ncxton/potaco/internal/config"
-	"github.com/ncxton/potaco/internal/credential"
 	"github.com/ncxton/potaco/internal/tui"
 	"github.com/spf13/cobra"
 )
@@ -36,45 +35,54 @@ func init() {
 	rootCmd.AddCommand(modelsCmd)
 }
 
+type resolvedModelsProvider struct {
+	ProviderName string
+	AdapterType  string
+	APIKey       string
+	BaseURL      string
+}
+
 func runModels(cmd *cobra.Command, args []string) error {
-	providerName, apiKey, baseURL, err := resolveModelsProvider(cmd, args)
+	resolved, err := resolveModelsProvider(cmd, args)
 	if err != nil {
 		return err
 	}
 
 	if tui.IsInteractive() {
-		return tui.RunModelList(providerName, apiKey, baseURL)
+		return tui.RunModelList(resolved.ProviderName, resolved.APIKey, resolved.BaseURL)
 	}
 
-	return printModels(cmd, providerName, apiKey, baseURL)
+	return printModels(cmd, resolved)
 }
 
 func runModelsList(cmd *cobra.Command, args []string) error {
-	providerName, apiKey, baseURL, err := resolveModelsProvider(cmd, args)
+	resolved, err := resolveModelsProvider(cmd, args)
 	if err != nil {
 		return err
 	}
-	return printModels(cmd, providerName, apiKey, baseURL)
+	return printModels(cmd, resolved)
 }
 
 // resolveModelsProvider resolves the provider, API key, and base URL for the
 // models command and its list subcommand. The provider comes from the first
 // positional argument, or the active provider when no argument is given.
 // The API key and base URL follow flag > env > config > preset precedence.
-func resolveModelsProvider(cmd *cobra.Command, args []string) (providerName, apiKey, baseURL string, err error) {
+func resolveModelsProvider(cmd *cobra.Command, args []string) (resolvedModelsProvider, error) {
 	mgr, err := auth.New()
 	if err != nil {
-		return "", "", "", configUserErr(
+		return resolvedModelsProvider{}, configUserErr(
 			"Could not load configuration.",
 			"Check that ~/.potaco/ is readable.",
 			fmt.Errorf("init auth: %w", err),
 		)
 	}
 
+	cfg, _ := mgr.LoadConfig()
+	providerName := ""
 	if len(args) > 0 {
 		providerName = args[0]
-		if !isKnownProvider(providerName) {
-			return "", "", "", configUserErr(
+		if !isKnownProvider(providerName, cfg) {
+			return resolvedModelsProvider{}, configUserErr(
 				fmt.Sprintf("Unknown provider '%s'.", providerName),
 				"Run 'potaco auth list' to see connected providers.",
 				fmt.Errorf("unknown provider: %s", providerName),
@@ -83,7 +91,7 @@ func resolveModelsProvider(cmd *cobra.Command, args []string) (providerName, api
 	} else {
 		providerName, _, err = mgr.GetActiveProvider()
 		if err != nil || providerName == "" {
-			return "", "", "", configUserErr(
+			return resolvedModelsProvider{}, configUserErr(
 				"No active provider configured.",
 				"Run 'potaco auth add <provider>' to connect one.",
 				fmt.Errorf("no active provider"),
@@ -91,40 +99,58 @@ func resolveModelsProvider(cmd *cobra.Command, args []string) (providerName, api
 		}
 	}
 
-	apiKey, err = resolveModelsAPIKey(cmd, mgr, providerName, len(args) > 0)
+	apiKey, err := resolveModelsAPIKey(cmd, mgr, providerName)
 	if err != nil {
-		return "", "", "", configUserErr(
+		return resolvedModelsProvider{}, configUserErr(
 			fmt.Sprintf("Provider '%s' is not connected.", providerName),
 			fmt.Sprintf("Run 'potaco auth add %s' to store an API key.", providerName),
 			fmt.Errorf("provider %q is not connected: %w", providerName, err),
 		)
 	}
 
-	cfg, _ := mgr.LoadConfig()
-	baseURL = resolveBaseURL(cmd, providerName, cfg)
+	pc := config.ProviderConfig{}
+	if cfg != nil {
+		if configured, ok := cfg.Providers[providerName]; ok {
+			pc = configured
+		}
+	}
+	providerType := config.ResolveProviderType(providerName, pc)
+	baseURL := resolveBaseURL(cmd, providerName, cfg)
+	if providerType == "openai-compatible" && baseURL == "" {
+		return resolvedModelsProvider{}, configUserErr(
+			"A base URL is required for OpenAI-compatible providers.",
+			"Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.",
+			fmt.Errorf("base URL required for provider %s", providerName),
+		)
+	}
 
-	return providerName, apiKey, baseURL, nil
+	return resolvedModelsProvider{
+		ProviderName: providerName,
+		AdapterType:  config.AdapterType(providerType),
+		APIKey:       apiKey,
+		BaseURL:      baseURL,
+	}, nil
 }
 
-func isKnownProvider(name string) bool {
+func isKnownProvider(name string, cfg *config.MultiProviderConfig) bool {
 	for _, n := range adapter.List() {
 		if n == name {
 			return true
 		}
 	}
+	if cfg != nil {
+		_, ok := cfg.Providers[name]
+		return ok
+	}
 	return false
 }
 
-func resolveModelsAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName string, explicitProvider bool) (string, error) {
+func resolveModelsAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName string) (string, error) {
 	if v := flagString(cmd, "api-key"); v != "" {
 		return v, nil
 	}
 	if v := os.Getenv("POTACO_API_KEY"); v != "" {
 		return v, nil
-	}
-
-	if !explicitProvider {
-		return mgr.GetActiveAPIKey()
 	}
 
 	cfg, err := mgr.LoadConfig()
@@ -138,21 +164,15 @@ func resolveModelsAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName
 		return "", fmt.Errorf("provider not configured")
 	}
 
-	credPath := config.DefaultCredentialPath()
-	saltPath := config.DefaultSaltPath()
-	store, err := credential.New(credPath, saltPath)
-	if err != nil {
-		return "", err
-	}
-	return store.Get(providerName)
+	return mgr.GetAPIKey(providerName)
 }
 
-func printModels(cmd *cobra.Command, providerName, apiKey, baseURL string) error {
-	opts := adapter.AdapterOpts{BaseURL: baseURL}
-	ad, err := adapter.Get(providerName, apiKey, opts)
+func printModels(cmd *cobra.Command, resolved resolvedModelsProvider) error {
+	opts := adapter.AdapterOpts{BaseURL: resolved.BaseURL}
+	ad, err := adapter.Get(resolved.AdapterType, resolved.APIKey, opts)
 	if err != nil {
 		return configUserErr(
-			fmt.Sprintf("Could not connect to provider '%s'.", providerName),
+			fmt.Sprintf("Could not connect to provider '%s'.", resolved.ProviderName),
 			"Check that the provider name is correct and the provider is registered.",
 			fmt.Errorf("create adapter: %w", err),
 		)
