@@ -42,8 +42,7 @@ internal/
       fal.go             Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
       generate.go        Generate (text-to-image)
       edit.go            Edit (image-to-image)
-      discover.go        DiscoverModels (POST to api.fal.ai)
-      models.go          Known image model IDs
+      discover.go        DiscoverModels (GET /v1/models)
       response.go        Response types
       retry.go           Retry with exponential backoff
     vercel/              Vercel AI Gateway adapter (generate-only, no edit support)
@@ -51,7 +50,7 @@ internal/
       generate.go        Generate (text-to-image)
       edit.go            Edit (returns ErrEditNotSupported)
       discover.go        DiscoverModels
-      models.go          Known image model IDs
+      models.go          Helper functions (stripProviderPrefix)
       response.go        Response types
       retry.go           Retry with exponential backoff
     custom/              OpenAI-compatible custom provider adapter (user-supplied base URL)
