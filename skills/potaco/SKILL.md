@@ -2,17 +2,12 @@
 name: potaco
 version: 1.2.0
 description: |
-  Use when you want to generate images from text prompts, edit existing
-  images, perform inpainting or outpainting, set up provider credentials,
-  discover models, or troubleshoot potaco CLI failures. Covers OpenAI,
-  fal, Vercel AI Gateway, and custom OpenAI-compatible providers.
+  Use when you want to generate images from text prompts, edit existing images, perform inpainting or outpainting, set up provider credentials, discover models, or troubleshoot potaco CLI failures. Covers OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible providers.
 ---
 
 # Potaco CLI Usage
 
-Potaco is a Go CLI for image generation and editing via multi-provider
-adapters (OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible
-endpoints) with encrypted credential storage and interactive TUI flows.
+Potaco is a Go CLI for image generation and editing via multi-provider adapters (OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible endpoints) with encrypted credential storage and interactive TUI flows.
 
 ## Prerequisites: Verify potaco is installed
 
@@ -22,9 +17,7 @@ Before doing anything, check that potaco exists:
 potaco version
 ```
 
-If the command is not found, ask the user if they want to install it.
-The install script lives in the repo at `install.sh` and can also be
-fetched from GitHub releases:
+If the command is not found, ask the user if they want to install it. The install script lives in the repo at `install.sh` and can also be fetched from GitHub releases:
 
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | sh
@@ -36,8 +29,7 @@ For non-interactive installation (agents, non-TTY environments):
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh
 ```
 
-The binary installs to `~/.local/bin/potaco`. If `~/.local/bin` is not in
-PATH, the installer offers to add it to the shell config automatically.
+The binary installs to `~/.local/bin/potaco`. If `~/.local/bin` is not in PATH, the installer offers to add it to the shell config automatically.
 
 You can also build from source if the repo is cloned:
 
@@ -49,8 +41,7 @@ Do not proceed with any other command until potaco is installed and working.
 
 ## Auth Setup
 
-Before generating or editing images, a provider must be connected with an
-API key. Credentials are stored encrypted at `~/.potaco/credentials.enc`.
+Before generating or editing images, a provider must be connected with an API key. Credentials are stored encrypted at `~/.potaco/credentials.enc`.
 
 ### Connect a provider
 
@@ -66,10 +57,7 @@ potaco auth add openai --api-key sk-...
 
 Available providers: `openai`, `fal`, `vercel`, `custom`.
 
-The `custom` provider connects to any OpenAI-compatible endpoint (e.g.,
-Together, Groq, local vLLM). It has no preset base URL, so `--base-url`
-(or `POTACO_BASE_URL`) is required. The base URL is persisted to config
-after `auth add`, so subsequent commands do not need it again.
+The `custom` provider connects to any OpenAI-compatible endpoint (e.g., Together, Groq, local vLLM). It has no preset base URL, so `--base-url` (or `POTACO_BASE_URL`) is required. The base URL is persisted to config after `auth add`, so subsequent commands do not need it again.
 
 ```sh
 potaco auth add custom --api-key <key> --base-url https://api.example.com/v1
@@ -105,12 +93,9 @@ potaco status
 potaco status --json
 ```
 
-Shows the active provider, active model, base URL, connected providers,
-and file paths.
+Shows the active provider, active model, base URL, connected providers, and file paths.
 
-Always make sure at least one provider is connected before running gen or edit.
-If no provider is configured, the command will exit with a config error (code 2)
-and a hint to run `potaco auth add`.
+Always make sure at least one provider is connected before running gen or edit. If no provider is configured, the command will exit with a config error (code 2) and a hint to run `potaco auth add`.
 
 ## Generation (text-to-image)
 
@@ -150,8 +135,7 @@ Precedence: CLI flag > env var > config file > provider preset default.
 
 - **Default**: saves to an auto-generated filename, prints `Saved to: <path>`.
 - **`-o path.png`**: saves to the specified path. If `--n > 1`, appends `-0`, `-1`, etc.
-- **`--stdout`**: pipes raw image bytes to stdout. Only works with `--n 1`.
-  Use `--output-format jpeg` for JPEG output.
+- **`--stdout`**: pipes raw image bytes to stdout. Only works with `--n 1`. Use `--output-format jpeg` for JPEG output.
 - **`--json`**: prints JSON metadata (path, dimensions, model, params, latency) to stdout.
 
 ### Dry run
@@ -160,8 +144,7 @@ Precedence: CLI flag > env var > config file > provider preset default.
 potaco gen --prompt "test" --dry-run
 ```
 
-Prints the method, URL, headers (api key redacted), and request body as JSON.
-Useful for debugging request payloads without spending API credits.
+Prints the method, URL, headers (api key redacted), and request body as JSON. Useful for debugging request payloads without spending API credits.
 
 ## Image Editing
 
@@ -169,9 +152,7 @@ Useful for debugging request payloads without spending API credits.
 potaco edit --prompt "add a hat" --image photo.png
 ```
 
-Edit takes a source image and a text prompt. Three edit modes are available
-based on mask flags. For details on inpainting and outpainting, load the
-`references/editing.md` reference.
+Edit takes a source image and a text prompt. Three edit modes are available based on mask flags. For details on inpainting and outpainting, load the `references/editing.md` reference.
 
 ### Basic edit (no mask)
 
@@ -195,8 +176,7 @@ The provider applies the prompt to the entire image.
 | `--stdout` | Pipe raw image bytes to stdout |
 | `--dry-run` | Print request payload without calling the API |
 
-Note: the Vercel AI Gateway provider does not support image editing. If the
-active provider is vercel, the edit command returns a clear error.
+Note: the Vercel AI Gateway provider does not support image editing. If the active provider is vercel, the edit command returns a clear error.
 
 ## Model Discovery
 
@@ -209,16 +189,11 @@ potaco models --json              # JSON list (non-interactive fallback)
 potaco models list --json        # JSON list
 ```
 
-The `models` command launches an interactive search-and-select picker by
-default (in TTY environments). The selected model is persisted as the
-active model for the current provider. Use `models list` when you only
-want to view available models without changing the active model.
+The `models` command launches an interactive search-and-select picker by default (in TTY environments). The selected model is persisted as the active model for the current provider. Use `models list` when you only want to view available models without changing the active model.
 
-In non-interactive mode (`--non-interactive` or `POTACO_NON_INTERACTIVE=1`),
-`potaco models` falls back to a static list (same as `models list`).
+In non-interactive mode (`--non-interactive` or `POTACO_NON_INTERACTIVE=1`), `potaco models` falls back to a static list (same as `models list`).
 
-The `--params` flag has been removed. Model capabilities are shown as a
-list in the output instead.
+The `--params` flag has been removed. Model capabilities are shown as a list in the output instead.
 
 ## Utility Commands
 
@@ -297,36 +272,20 @@ potaco edit --prompt "test edit" --image input.png --dry-run
 
 ## Common Mistakes
 
-- **Running gen/edit without a provider**: Returns exit code 2. Always run
-  `potaco auth add <provider> --api-key <key>` first.
-- **Using `--stdout` with `--n > 1`**: Returns an image error. Stdout mode
-  requires a single image. Use `--output` for multiple images.
-- **Editing with the Vercel provider**: Vercel AI Gateway does not support
-  image editing. Switch with `potaco use openai`, `potaco use fal`, or
-  `potaco use custom`.
-- **Forgetting `--non-interactive` in non-TTY sessions**: Without it, commands
-  that need a TTY will hang. Set `POTACO_NON_INTERACTIVE=1` or pass
-  `--non-interactive`. This is the default mode for agents.
-- **Forgetting `--base-url` for the custom provider**: The `custom` provider
-  has no preset base URL. Supply `--base-url` (or `POTACO_BASE_URL`) when
-  running `auth add custom`. The base URL is persisted to config afterward.
-- **Wrong model name**: Causes API errors. Run `potaco models list` to list
-  available models, or `potaco models list <provider>` for a specific provider.
-- **Output path is a directory**: Returns an image error. `--output` expects
-  a filename, not a directory. Omit `-o` to auto-generate a filename.
-- **Multiple mask flags at once**: `--mask`, `--mask-rect`, and `--mask-circle`
-  are not combined. `--mask` takes priority, then `--mask-rect`, then
-  `--mask-circle`. Use only one per command.
+- **Running gen/edit without a provider**: Returns exit code 2. Always run `potaco auth add <provider> --api-key <key>` first.
+- **Using `--stdout` with `--n > 1`**: Returns an image error. Stdout mode requires a single image. Use `--output` for multiple images.
+- **Editing with the Vercel provider**: Vercel AI Gateway does not support image editing. Switch with `potaco use openai`, `potaco use fal`, or `potaco use custom`.
+- **Forgetting `--non-interactive` in non-TTY sessions**: Without it, commands that need a TTY will hang. Set `POTACO_NON_INTERACTIVE=1` or pass `--non-interactive`. This is the default mode for agents.
+- **Forgetting `--base-url` for the custom provider**: The `custom` provider has no preset base URL. Supply `--base-url` (or `POTACO_BASE_URL`) when running `auth add custom`. The base URL is persisted to config afterward.
+- **Wrong model name**: Causes API errors. Run `potaco models list` to list available models, or `potaco models list <provider>` for a specific provider.
+- **Output path is a directory**: Returns an image error. `--output` expects a filename, not a directory. Omit `-o` to auto-generate a filename.
+- **Multiple mask flags at once**: `--mask`, `--mask-rect`, and `--mask-circle` are not combined. `--mask` takes priority, then `--mask-rect`, then `--mask-circle`. Use only one per command.
 
 ## Advanced References
 
 Load these files for detailed guidance on advanced topics:
 
-- **`references/providers.md`** - Provider-specific details: base URLs,
-  auth headers, model discovery behavior, adapter interface, edit support matrix.
-- **`references/editing.md`** - Editing modes in depth: basic edit, inpainting
-  with masks (file, rect, circle), outpainting with extend, temp file cleanup.
-- **`references/configuration.md`** - Config file format, env vars, full
-  precedence chain, retries/timeouts, `config set/show` commands.
-- **`references/troubleshooting.md`** - Exit codes, error message patterns,
-  debug log location, common failure scenarios and fixes.
+- **`references/providers.md`** - Provider-specific details: base URLs, auth headers, model discovery behavior, adapter interface, edit support matrix.
+- **`references/editing.md`** - Editing modes in depth: basic edit, inpainting with masks (file, rect, circle), outpainting with extend, temp file cleanup.
+- **`references/configuration.md`** - Config file format, env vars, full precedence chain, retries/timeouts, `config set/show` commands.
+- **`references/troubleshooting.md`** - Exit codes, error message patterns, debug log location, common failure scenarios and fixes.
