@@ -158,8 +158,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 
 func resolveAuthProviderType(providerName, providerType string) (string, error) {
 	if providerType != "" {
-		switch providerType {
-		case "openai", "fal", "vercel", "openai-compatible":
+		if isAllowedAuthProviderType(providerType) {
 			return providerType, nil
 		}
 		return "", fmt.Errorf("unknown provider type: %s", providerType)
@@ -168,6 +167,15 @@ func resolveAuthProviderType(providerName, providerType string) (string, error) 
 		return providerName, nil
 	}
 	return "", fmt.Errorf("provider type required for %q: use --type openai-compatible, openai, fal, or vercel", providerName)
+}
+
+func isAllowedAuthProviderType(providerType string) bool {
+	switch providerType {
+	case "openai", "fal", "vercel", "openai-compatible":
+		return true
+	default:
+		return false
+	}
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {

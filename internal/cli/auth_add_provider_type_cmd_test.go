@@ -121,6 +121,13 @@ func TestShouldRunInteractiveAuthAdd(t *testing.T) {
 			interactive:      true,
 			want:             false,
 		},
+		{
+			name:             "custom provider type does not prompt",
+			providerName:     "openrouter",
+			providerTypeFlag: "custom",
+			interactive:      true,
+			want:             false,
+		},
 	}
 
 	for _, tt := range tests {

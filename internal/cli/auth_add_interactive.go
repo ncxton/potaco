@@ -15,9 +15,7 @@ func shouldRunInteractiveAuthAdd(input authAddInteractiveInput) bool {
 	if input.providerName == "" {
 		return true
 	}
-	if input.providerTypeFlag != "" &&
-		input.providerTypeFlag != "openai-compatible" &&
-		!isKnownProvider(input.providerTypeFlag, nil) {
+	if input.providerTypeFlag != "" && !isAllowedAuthProviderType(input.providerTypeFlag) {
 		return false
 	}
 	if input.providerTypeFlag == "" && !isKnownProvider(input.providerName, nil) {
