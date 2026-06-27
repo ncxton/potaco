@@ -22,14 +22,12 @@ var uninstallCmd = &cobra.Command{
 var findPotacoBinaryFn = findPotacoBinary
 
 func init() {
-	uninstallCmd.Flags().Bool("remove-config", false, "also remove ~/.potaco/ config directory")
 	uninstallCmd.Flags().BoolP("yes", "y", false, "skip confirmation prompts")
 	rootCmd.AddCommand(uninstallCmd)
 }
 
 func runUninstall(cmd *cobra.Command, args []string) error {
 	yes, _ := cmd.Flags().GetBool("yes")
-	removeConfig, _ := cmd.Flags().GetBool("remove-config")
 	nonInteractive := !tui.IsInteractive()
 
 	// Locate the binary
@@ -50,14 +48,14 @@ func runUninstall(cmd *cobra.Command, args []string) error {
 	configDir := filepath.Join(home, ".potaco")
 
 	if nonInteractive {
-		return runUninstallNonInteractive(cmd, binaryPath, configDir, removeConfig)
+		return runUninstallNonInteractive(cmd, binaryPath, configDir)
 	}
 
 	// Interactive mode: use the TUI flow
-	return runUninstallInteractive(cmd, binaryPath, configDir, yes, removeConfig)
+	return runUninstallInteractive(cmd, binaryPath, configDir, yes)
 }
 
-func runUninstallNonInteractive(cmd *cobra.Command, binaryPath, configDir string, removeConfig bool) error {
+func runUninstallNonInteractive(cmd *cobra.Command, binaryPath, configDir string) error {
 	out := cmd.OutOrStdout()
 
 	if binaryPath != "" {
@@ -76,19 +74,11 @@ func runUninstallNonInteractive(cmd *cobra.Command, binaryPath, configDir string
 		}
 	}
 
-	if removeConfig {
-		if err := os.RemoveAll(configDir); err != nil {
-			fmt.Fprintf(out, "Warning: could not remove config directory: %v\n", err)
-		} else {
-			fmt.Fprintf(out, "Config directory removed: %s\n", configDir)
-		}
-	}
-
 	fmt.Fprintf(out, "Uninstall complete.\n")
 	return nil
 }
 
-func runUninstallInteractive(cmd *cobra.Command, binaryPath, configDir string, yes, removeConfigFlag bool) error {
+func runUninstallInteractive(cmd *cobra.Command, binaryPath, configDir string, yes bool) error {
 	out := cmd.OutOrStdout()
 
 	// Step 1: Confirm binary removal
@@ -108,9 +98,6 @@ func runUninstallInteractive(cmd *cobra.Command, binaryPath, configDir string, y
 	removeConfig := false
 	if !yes {
 		removeConfig, _ = tui.ConfirmAction(fmt.Sprintf("Also remove configuration and credentials at '%s'?", configDir))
-	} else {
-		// --yes auto-answers Yes to all prompts, including config removal.
-		removeConfig = true
 	}
 
 	// Step 3: Final confirmation

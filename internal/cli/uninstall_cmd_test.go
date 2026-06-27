@@ -13,7 +13,7 @@ func resetUninstallCmdFlags(t *testing.T) {
 	for _, name := range []string{"remove-config", "yes"} {
 		flag := uninstallCmd.Flags().Lookup(name)
 		if flag == nil {
-			return
+			continue
 		}
 		_ = flag.Value.Set(flag.DefValue)
 		flag.Changed = false
@@ -44,6 +44,12 @@ func TestUninstallCommandExists(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("root command should have 'uninstall' subcommand")
+	}
+}
+
+func TestUninstallRemoveConfigFlagIsNotRegistered(t *testing.T) {
+	if flag := uninstallCmd.Flags().Lookup("remove-config"); flag != nil {
+		t.Fatal("remove-config flag should not be registered")
 	}
 }
 
@@ -78,13 +84,12 @@ func TestUninstallNonInteractiveRemovesBinary(t *testing.T) {
 		t.Errorf("output should mention binary removal, got: %q", buf.String())
 	}
 
-	// Verify the binary was removed
 	if _, err := os.Stat(binPath); !os.IsNotExist(err) {
 		t.Errorf("binary should have been removed, but file still exists at %s", binPath)
 	}
 }
 
-func TestUninstallNonInteractiveWithRemoveConfig(t *testing.T) {
+func TestUninstallNonInteractiveWithRemoveConfigFlagReturnsUnknownFlag(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetUninstallCmdFlags(t)
 	tmpHome := t.TempDir()
@@ -115,16 +120,18 @@ func TestUninstallNonInteractiveWithRemoveConfig(t *testing.T) {
 	rootCmd.SetArgs([]string{"uninstall", "--non-interactive", "--remove-config"})
 
 	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("uninstall error: %v", err)
+	if err == nil {
+		t.Fatal("uninstall should reject the removed --remove-config flag")
+	}
+	if !strings.Contains(err.Error(), "unknown flag: --remove-config") {
+		t.Fatalf("uninstall should return unknown flag error, got: %v", err)
 	}
 
-	// Verify both binary and config were removed
-	if _, err := os.Stat(binPath); !os.IsNotExist(err) {
-		t.Errorf("binary should have been removed")
+	if _, err := os.Stat(binPath); err != nil {
+		t.Errorf("binary should remain when flag parsing fails: %v", err)
 	}
-	if _, err := os.Stat(configDir); !os.IsNotExist(err) {
-		t.Errorf("config dir should have been removed")
+	if _, err := os.Stat(configDir); err != nil {
+		t.Errorf("config dir should remain when flag parsing fails: %v", err)
 	}
 }
 
