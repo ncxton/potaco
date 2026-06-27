@@ -181,6 +181,25 @@ func stripDataURLPrefix(s string) string {
 	return s
 }
 
+// FileToDataURI reads a file, detects its image format from magic bytes,
+// and returns a base64-encoded data URL (e.g. "data:image/png;base64,...").
+// The MIME type reflects the actual file contents rather than the file
+// extension, so providers that validate image_url MIME types accept it.
+func FileToDataURI(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read file: %w", err)
+	}
+	if int64(len(data)) > maxImageFileBytes {
+		return "", fmt.Errorf("image file too large: %d bytes exceeds limit %d", len(data), maxImageFileBytes)
+	}
+	format := FormatFromBytes(data)
+	if format == "" {
+		return "", fmt.Errorf("unsupported image format (magic bytes not recognized)")
+	}
+	return "data:image/" + format + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
 // formatBytesPreview returns a hex representation of the first 8 bytes,
 // useful for diagnosing "unknown format" errors.
 func formatBytesPreview(data []byte) string {

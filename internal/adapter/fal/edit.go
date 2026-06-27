@@ -3,13 +3,12 @@ package fal
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	img "github.com/ncxton/potaco/internal/image"
 	"github.com/ncxton/potaco/internal/observability"
 )
 
@@ -18,7 +17,7 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (result *ad
 		return nil, fmt.Errorf("image file path is required")
 	}
 
-	imageDataURI, err := fileToDataURI(req.ImagePath)
+	imageDataURI, err := img.FileToDataURI(req.ImagePath)
 	if err != nil {
 		return nil, fmt.Errorf("encode image: %w", err)
 	}
@@ -29,7 +28,7 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (result *ad
 		"sync_mode": true,
 	}
 	if req.MaskPath != "" {
-		maskDataURI, err := fileToDataURI(req.MaskPath)
+		maskDataURI, err := img.FileToDataURI(req.MaskPath)
 		if err != nil {
 			return nil, fmt.Errorf("encode mask: %w", err)
 		}
@@ -71,13 +70,4 @@ func (a *Adapter) Edit(ctx context.Context, req adapter.EditRequest) (result *ad
 	}()
 
 	return parseResponse(resp)
-}
-
-func fileToDataURI(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("read file: %w", err)
-	}
-	encoded := base64.StdEncoding.EncodeToString(data)
-	return "data:image/png;base64," + encoded, nil
 }

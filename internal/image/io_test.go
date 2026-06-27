@@ -295,3 +295,54 @@ func TestDecodeBase64ImageRejectsEncodedDataOverLimit(t *testing.T) {
 		t.Fatalf("error should mention base64 image too large, got: %v", err)
 	}
 }
+
+func TestFileToDataURIPNG(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.png")
+	pngData := makeTestPNG(t, 4, 4)
+	if err := os.WriteFile(path, pngData, 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	uri, err := FileToDataURI(path)
+	if err != nil {
+		t.Fatalf("FileToDataURI error: %v", err)
+	}
+	prefix := "data:image/png;base64,"
+	if !strings.HasPrefix(uri, prefix) {
+		t.Fatalf("uri = %q, want prefix %q", uri, prefix)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(uri, prefix))
+	if err != nil {
+		t.Fatalf("base64 decode: %v", err)
+	}
+	if !bytes.Equal(decoded, pngData) {
+		t.Errorf("decoded bytes do not match original file")
+	}
+}
+
+func TestFileToDataURIMissingFile(t *testing.T) {
+	_, err := FileToDataURI("/nonexistent/file.png")
+	if err == nil {
+		t.Fatal("FileToDataURI should error on missing file")
+	}
+	if !strings.Contains(err.Error(), "read file") {
+		t.Errorf("error should mention read file, got: %v", err)
+	}
+}
+
+func TestFileToDataURIUnsupportedFormat(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.txt")
+	if err := os.WriteFile(path, []byte("not an image"), 0644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := FileToDataURI(path)
+	if err == nil {
+		t.Fatal("FileToDataURI should error on unsupported format")
+	}
+	if !strings.Contains(err.Error(), "unsupported image format") {
+		t.Errorf("error should mention unsupported image format, got: %v", err)
+	}
+}
