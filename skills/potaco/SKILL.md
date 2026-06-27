@@ -1,18 +1,18 @@
 ---
 name: potaco
-version: 1.1.0
+version: 1.2.0
 description: |
   Use when you want to generate images from text prompts, edit existing
   images, perform inpainting or outpainting, set up provider credentials,
   discover models, or troubleshoot potaco CLI failures. Covers OpenAI,
-  fal, and Vercel AI Gateway providers.
+  fal, Vercel AI Gateway, and custom OpenAI-compatible providers.
 ---
 
 # Potaco CLI Usage
 
 Potaco is a Go CLI for image generation and editing via multi-provider
-adapters (OpenAI, fal, Vercel AI Gateway) with encrypted credential storage
-and interactive TUI flows.
+adapters (OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible
+endpoints) with encrypted credential storage and interactive TUI flows.
 
 ## Prerequisites: Verify potaco is installed
 
@@ -61,9 +61,19 @@ potaco auth add openai --api-key sk-...
 - `--api-key` can be omitted in interactive mode; a TUI prompt will appear.
 - `--force` skips provider verification (useful for custom base URLs).
 - `--model` overrides the default model for the provider.
+- `--base-url` overrides the API base URL (required for the `custom` provider).
 - Without a provider argument in interactive mode, a provider picker launches.
 
-Available providers: `openai`, `fal`, `vercel`.
+Available providers: `openai`, `fal`, `vercel`, `custom`.
+
+The `custom` provider connects to any OpenAI-compatible endpoint (e.g.,
+Together, Groq, local vLLM). It has no preset base URL, so `--base-url`
+(or `POTACO_BASE_URL`) is required. The base URL is persisted to config
+after `auth add`, so subsequent commands do not need it again.
+
+```sh
+potaco auth add custom --api-key <key> --base-url https://api.example.com/v1
+```
 
 ### List connected providers
 
@@ -83,6 +93,7 @@ potaco auth remove openai
 ```sh
 potaco use openai
 potaco use openai --model gpt-image-2
+potaco use custom
 ```
 
 Without a provider argument in interactive mode, a provider/model picker launches.
@@ -94,7 +105,8 @@ potaco status
 potaco status --json
 ```
 
-Shows the active provider, active model, connected providers, and file paths.
+Shows the active provider, active model, base URL, connected providers,
+and file paths.
 
 Always make sure at least one provider is connected before running gen or edit.
 If no provider is configured, the command will exit with a config error (code 2)
@@ -125,7 +137,7 @@ potaco gen --prompt "a cat in a spacesuit"
 
 | Flag | Env var | Description |
 |------|---------|-------------|
-| `--provider` | `POTACO_PROVIDER` | Provider preset: openai, fal, vercel |
+| `--provider` | `POTACO_PROVIDER` | Provider preset: openai, fal, vercel, custom |
 | `--api-key` | `POTACO_API_KEY` | Override API key |
 | `--base-url` | `POTACO_BASE_URL` | Override API base URL |
 | `--model` | `POTACO_MODEL` | Override model |
@@ -189,11 +201,24 @@ active provider is vercel, the edit command returns a clear error.
 ## Model Discovery
 
 ```sh
-potaco models                    # list models for active provider
-potaco models openai             # list models for a specific provider
-potaco models --params gpt-image-2  # show supported parameters for a model
-potaco models --json
+potaco models                    # interactive model picker (persists selection)
+potaco models list               # static list of models for active provider
+potaco models list openai        # static list for a specific provider
+potaco models openai             # interactive picker for a specific provider
+potaco models --json              # JSON list (non-interactive fallback)
+potaco models list --json        # JSON list
 ```
+
+The `models` command launches an interactive search-and-select picker by
+default (in TTY environments). The selected model is persisted as the
+active model for the current provider. Use `models list` when you only
+want to view available models without changing the active model.
+
+In non-interactive mode (`--non-interactive` or `POTACO_NON_INTERACTIVE=1`),
+`potaco models` falls back to a static list (same as `models list`).
+
+The `--params` flag has been removed. Model capabilities are shown as a
+list in the output instead.
 
 ## Utility Commands
 
@@ -277,12 +302,16 @@ potaco edit --prompt "test edit" --image input.png --dry-run
 - **Using `--stdout` with `--n > 1`**: Returns an image error. Stdout mode
   requires a single image. Use `--output` for multiple images.
 - **Editing with the Vercel provider**: Vercel AI Gateway does not support
-  image editing. Switch with `potaco use openai` or `potaco use fal`.
+  image editing. Switch with `potaco use openai`, `potaco use fal`, or
+  `potaco use custom`.
 - **Forgetting `--non-interactive` in non-TTY sessions**: Without it, commands
   that need a TTY will hang. Set `POTACO_NON_INTERACTIVE=1` or pass
   `--non-interactive`. This is the default mode for agents.
-- **Wrong model name**: Causes API errors. Run `potaco models` to list
-  available models, or `potaco models --params <model>` to check parameters.
+- **Forgetting `--base-url` for the custom provider**: The `custom` provider
+  has no preset base URL. Supply `--base-url` (or `POTACO_BASE_URL`) when
+  running `auth add custom`. The base URL is persisted to config afterward.
+- **Wrong model name**: Causes API errors. Run `potaco models list` to list
+  available models, or `potaco models list <provider>` for a specific provider.
 - **Output path is a directory**: Returns an image error. `--output` expects
   a filename, not a directory. Omit `-o` to auto-generate a filename.
 - **Multiple mask flags at once**: `--mask`, `--mask-rect`, and `--mask-circle`
@@ -293,8 +322,8 @@ potaco edit --prompt "test edit" --image input.png --dry-run
 
 Load these files for detailed guidance on advanced topics:
 
-- **`references/providers.md`** - Provider-specific details: default models,
-  base URLs, auth headers, fallback model lists, edit support matrix.
+- **`references/providers.md`** - Provider-specific details: base URLs,
+  auth headers, model discovery behavior, adapter interface, edit support matrix.
 - **`references/editing.md`** - Editing modes in depth: basic edit, inpainting
   with masks (file, rect, circle), outpainting with extend, temp file cleanup.
 - **`references/configuration.md`** - Config file format, env vars, full

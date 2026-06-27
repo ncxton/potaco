@@ -11,8 +11,8 @@ import (
 func TestNewSearchModel(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2", SupportsEdit: true},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
+		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
 	m := newSearchModel(models)
 
@@ -30,8 +30,8 @@ func TestNewSearchModel(t *testing.T) {
 func TestSearchFilterByID(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
+		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
 	m := newSearchModel(models)
 	m.query.SetValue("gpt")
@@ -49,26 +49,26 @@ func TestSearchFilterByID(t *testing.T) {
 func TestSearchFilterByDisplayName(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
+		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
 	m := newSearchModel(models)
-	m.query.SetValue("dall")
+	m.query.SetValue("flux")
 
 	m.applyFilter()
 
-	if len(m.filtered) != 1 {
-		t.Fatalf("expected 1 filtered model, got %d", len(m.filtered))
+	if len(m.filtered) != 2 {
+		t.Fatalf("expected 2 filtered models, got %d", len(m.filtered))
 	}
-	if m.filtered[0].ID != "dall-e-3" {
-		t.Errorf("expected dall-e-3, got %s", m.filtered[0].ID)
+	if m.filtered[0].ID != "flux-pro" {
+		t.Errorf("expected flux-pro, got %s", m.filtered[0].ID)
 	}
 }
 
 func TestSearchFilterCaseInsensitive(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "GPT-Image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
+		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
 	m := newSearchModel(models)
 	m.query.SetValue("gpt")
@@ -83,7 +83,7 @@ func TestSearchFilterCaseInsensitive(t *testing.T) {
 func TestSearchFilterEmptyShowsAll(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
+		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
 	m := newSearchModel(models)
 	m.query.SetValue("")
@@ -112,14 +112,14 @@ func TestSearchFilterNoMatch(t *testing.T) {
 func TestSearchCursorClampsToFiltered(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
+		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
 	m := newSearchModel(models)
 	m.cursor = 2 // at last item
 
 	// Filter to only 1 item
-	m.query.SetValue("flux")
+	m.query.SetValue("schnell")
 	m.applyFilter()
 
 	// applyFilter calls clampCursor internally, so cursor should be 0
@@ -147,7 +147,7 @@ func TestSearchEscQuits(t *testing.T) {
 func TestSearchEnterSelects(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
+		{ID: "flux-pro", DisplayName: "Flux Pro"},
 	}
 	m := newSearchModel(models)
 
@@ -167,8 +167,8 @@ func TestSearchEnterSelects(t *testing.T) {
 func TestSearchArrowDownMovesCursor(t *testing.T) {
 	models := []adapter.Model{
 		{ID: "gpt-image-2", DisplayName: "GPT Image 2"},
-		{ID: "dall-e-3", DisplayName: "DALL-E 3"},
 		{ID: "flux-pro", DisplayName: "Flux Pro"},
+		{ID: "flux-schnell", DisplayName: "Flux Schnell"},
 	}
 	m := newSearchModel(models)
 	m.Update(tea.KeyMsg{Type: tea.KeyDown})

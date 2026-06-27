@@ -81,7 +81,8 @@ Hint: Use 'potaco use openai' or 'potaco use fal' to switch to a provider
 that supports editing.
 ```
 
-Fix: Switch to a provider that supports editing: `potaco use openai`.
+Fix: Switch to a provider that supports editing: `potaco use openai`,
+`potaco use fal`, or `potaco use custom`.
 
 #### "Cannot write to '<path>'"
 
@@ -125,10 +126,21 @@ provider returned an unexpected response format.
 #### "Unknown provider: <name>"
 
 ```
-Error: unknown provider: custom (available: [fal openai vercel])
+Error: unknown provider: foo (available: [custom fal openai vercel])
 ```
 
-Fix: Use one of the registered provider names: `openai`, `fal`, or `vercel`.
+Fix: Use one of the registered provider names: `openai`, `fal`, `vercel`, or `custom`.
+
+#### "A base URL is required for the custom provider."
+
+```
+Error: A base URL is required for the custom provider.
+Hint: Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.
+```
+
+Fix: The `custom` provider has no preset base URL. Supply one via `--base-url`,
+`POTACO_BASE_URL`, or `potaco config set --base-url <url>`. The base URL is
+persisted to config after `auth add custom --base-url <url>`.
 
 ## Debugging Workflow
 
@@ -213,10 +225,9 @@ This mode is designed for agents and non-TTY environments.
 
 Most commands support `--json` for machine-readable output:
 
-- `potaco status --json`: active provider, model, all providers, file paths.
-- `potaco auth list --json`: array of providers with name, model, has_key, is_active.
-- `potaco models --json`: array of models with id, display_name, capabilities.
-- `potaco models --params <model> --json`: array of params with name, type, default, enum.
+- `potaco status --json`: active provider, model, base_url, all providers (with base_url, has_key, is_active, added_at), file paths.
+- `potaco auth list --json`: array of providers with name, model, base_url, has_key, is_active.
+- `potaco models --json` / `potaco models list --json`: array of models with id, display_name, supports_gen, supports_edit, capabilities.
 - `potaco version --json`: current, latest, update_available fields.
 - `potaco info <path> --json`: path, format, width, height, file_size, color_model.
 - `potaco gen --json` / `potaco edit --json`: path, format, dimensions, model, params, latency_ms.

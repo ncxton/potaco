@@ -24,7 +24,6 @@ func TestModelsListActiveProvider(t *testing.T) {
 			json.NewEncoder(w).Encode(map[string]any{
 				"data": []map[string]any{
 					{"id": "gpt-image-2", "owned_by": "openai"},
-					{"id": "dall-e-3", "owned_by": "openai"},
 					{"id": "text-embedding-3", "owned_by": "openai"},
 				},
 			})
