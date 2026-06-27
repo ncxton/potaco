@@ -132,7 +132,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return configError(fmt.Errorf("add provider: %w", err))
 	}
 
-	if baseURL != "" && (providerType == "openai-compatible" || providerName == "custom") {
+	if shouldPersistAuthBaseURL(cmd, providerType, baseURL) {
 		if err := mgr.SetBaseURL(providerName, baseURL); err != nil {
 			return configError(fmt.Errorf("set base URL: %w", err))
 		}
@@ -148,28 +148,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "Provider '%s' added successfully.\n", providerName)
 	fmt.Fprintf(cmd.OutOrStdout(), "Use 'potaco use %s' to switch to it.\n", providerName)
 	return nil
-}
-
-func resolveAuthProviderType(providerName, providerType string) (string, error) {
-	if providerType != "" {
-		if isAllowedAuthProviderType(providerType) {
-			return providerType, nil
-		}
-		return "", fmt.Errorf("unknown provider type: %s", providerType)
-	}
-	if isKnownProvider(providerName, nil) {
-		return providerName, nil
-	}
-	return "", fmt.Errorf("provider type required for %q: use --type openai-compatible, openai, fal, or vercel", providerName)
-}
-
-func isAllowedAuthProviderType(providerType string) bool {
-	switch providerType {
-	case "openai", "fal", "vercel", "openai-compatible":
-		return true
-	default:
-		return false
-	}
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {

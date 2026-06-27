@@ -28,6 +28,16 @@ func TestRunAuthAddCustomRequiresBaseURL(t *testing.T) {
 	}
 }
 
+func TestEnsureProviderTypeReturnsOpenAICompatibleForCustomProvider(t *testing.T) {
+	providerType, err := ensureProviderType("custom")
+	if err != nil {
+		t.Fatalf("ensureProviderType: %v", err)
+	}
+	if providerType != "openai-compatible" {
+		t.Fatalf("provider type = %q, want openai-compatible", providerType)
+	}
+}
+
 func TestPromptModelReturnsEmptyWhenNoModels(t *testing.T) {
 	modelID, err := promptModel("openai", []adapter.Model{})
 	if err != nil {

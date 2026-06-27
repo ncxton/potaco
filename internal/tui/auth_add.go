@@ -128,6 +128,9 @@ func isKnownProvider(name string) bool {
 }
 
 func ensureProviderType(providerName string) (string, error) {
+	if providerName == "custom" {
+		return "openai-compatible", nil
+	}
 	if isKnownProvider(providerName) {
 		return providerName, nil
 	}
@@ -153,7 +156,7 @@ func ensureProviderType(providerName string) (string, error) {
 // promptBaseURL prompts for a base URL when the provider type requires one.
 // For other providers it returns an empty string.
 func promptBaseURL(providerType string) (string, error) {
-	if providerType != "openai-compatible" && providerType != "custom" {
+	if providerType != "openai-compatible" {
 		return "", nil
 	}
 	var baseURL string

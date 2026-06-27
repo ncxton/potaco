@@ -29,7 +29,7 @@ type resolvedConfig struct {
 //
 //	--provider flag > POTACO_PROVIDER env > active_provider from config
 //	--api-key flag  > POTACO_API_KEY env  > credential store
-//	--model flag    > POTACO_MODEL env   > active_model from config
+//	--model flag    > POTACO_MODEL env   > provider model from config > active_model from config
 //	--base-url flag > POTACO_BASE_URL env > config.providers[provider].base_url > provider preset
 func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	mgr, err := auth.New()
@@ -51,7 +51,6 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		return nil, err
 	}
 
-	model := resolveModel(cmd, mgr)
 	cfg, _ := mgr.LoadConfig()
 	pc := config.ProviderConfig{}
 	if cfg != nil {
@@ -59,6 +58,7 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 			pc = configured
 		}
 	}
+	model := resolveModel(cmd, cfg, providerName)
 	providerType := config.ResolveProviderType(providerName, pc)
 	adapterType := config.AdapterType(providerType)
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
@@ -143,17 +143,20 @@ func resolveAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName strin
 	return k, nil
 }
 
-func resolveModel(cmd *cobra.Command, mgr *auth.AuthManager) string {
+func resolveModel(cmd *cobra.Command, cfg *config.MultiProviderConfig, providerName string) string {
 	if cmd.Flags().Changed("model") {
 		return flagString(cmd, "model")
 	}
 	if v := os.Getenv("POTACO_MODEL"); v != "" {
 		return v
 	}
-	// GetActiveProvider error is already handled by resolveProvider above;
-	// if we reach here, the provider is valid and the error is unreachable.
-	_, m, _ := mgr.GetActiveProvider()
-	return m
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok && pc.Model != "" {
+			return pc.Model
+		}
+		return cfg.ActiveModel
+	}
+	return ""
 }
 
 func resolveBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiProviderConfig) string {

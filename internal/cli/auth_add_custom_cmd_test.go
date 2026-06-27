@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestAuthAddCustomRequiresBaseURL(t *testing.T) {
@@ -42,6 +44,42 @@ func TestAuthAddCustomWithBaseURLForce(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "base_url: https://example.com/v1") {
 		t.Errorf("config should contain base_url, got: %s", string(data))
+	}
+
+	cfg, err := config.LoadMultiProvider(filepath.Join(tmpHome, ".potaco", "config.yaml"))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if got := cfg.Providers["custom"].Type; got != "openai-compatible" {
+		t.Fatalf("custom type = %q, want openai-compatible", got)
+	}
+}
+
+func TestAuthAddBuiltInTypeWithBaseURLPersistsBaseURL(t *testing.T) {
+	tmpHome, _ := newAuthTest(t)
+	rootCmd.SetArgs([]string{
+		"auth", "add", "local-openai",
+		"--type", "openai",
+		"--api-key", "sk-test",
+		"--base-url", "https://local.example.com/v1",
+		"--force",
+	})
+
+	err := rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("auth add named openai with base-url --force error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(filepath.Join(tmpHome, ".potaco", "config.yaml"))
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["local-openai"]
+	if pc.Type != "openai" {
+		t.Fatalf("type = %q, want openai", pc.Type)
+	}
+	if pc.BaseURL != "https://local.example.com/v1" {
+		t.Fatalf("base URL = %q, want https://local.example.com/v1", pc.BaseURL)
 	}
 }
 

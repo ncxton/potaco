@@ -89,6 +89,65 @@ func TestGenUsesConfiguredProviderTypeAndProviderKey(t *testing.T) {
 	}
 }
 
+func TestGenUsesSelectedProviderModelWhenProviderOverrideHasNoModelOverride(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetGenCmdFlags(t)
+	t.Cleanup(func() { resetGenCmdFlags(t) })
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+	outPath := filepath.Join(t.TempDir(), "selected-provider.png")
+
+	tile := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	tile.Set(0, 0, color.RGBA{R: 7, G: 8, B: 9, A: 255})
+	var tileBuf bytes.Buffer
+	if err := png.Encode(&tileBuf, tile); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+	tileB64 := base64.StdEncoding.EncodeToString(tileBuf.Bytes())
+
+	var gotModel string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		if model, ok := body["model"].(string); ok {
+			gotModel = model
+		}
+		fmt.Fprintf(w, `{"created":1,"data":[{"b64_json":%q}]}`, tileB64)
+	}))
+	defer server.Close()
+
+	mgr := addOpenAICompatibleProvider(t, server.URL)
+	cfg, err := mgr.LoadConfig()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	openaiConfig := cfg.Providers["openai"]
+	openaiConfig.Model = "active-provider-model"
+	cfg.Providers["openai"] = openaiConfig
+	openrouterConfig := cfg.Providers["openrouter"]
+	openrouterConfig.Model = "selected-provider-model"
+	cfg.Providers["openrouter"] = openrouterConfig
+	cfg.ActiveProvider = "openai"
+	cfg.ActiveModel = "active-provider-model"
+	if err := config.SaveMultiProvider(config.DefaultConfigPath(), cfg); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	rootCmd.SetArgs([]string{"gen", "--provider", "openrouter", "--prompt", "a cat", "--output", outPath})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("gen returned error: %v", err)
+	}
+
+	if gotModel != "selected-provider-model" {
+		t.Fatalf("model = %q, want selected-provider-model", gotModel)
+	}
+}
+
 func TestModelsListConfiguredOpenAICompatibleProvider(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("POTACO_API_KEY", "")
