@@ -56,6 +56,26 @@ func TestAuthAddCustomNamedProviderWithTypeAndBaseURL(t *testing.T) {
 	}
 }
 
+func TestAuthAddCustomNamedProviderRejectsCustomType(t *testing.T) {
+	newAuthTest(t)
+	rootCmd.SetArgs([]string{
+		"auth", "add", "openrouter",
+		"--type", "custom",
+		"--api-key", "sk-test",
+		"--base-url", "https://openrouter.ai/api/v1",
+		"--force",
+		"--non-interactive",
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for custom provider type")
+	}
+	if !strings.Contains(err.Error(), "unknown provider type: custom") {
+		t.Fatalf("error = %v, want custom type rejection", err)
+	}
+}
+
 func TestShouldRunInteractiveAuthAdd(t *testing.T) {
 	tests := []struct {
 		name             string
