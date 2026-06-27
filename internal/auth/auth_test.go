@@ -84,6 +84,26 @@ func TestAuthAddDoesNotSetDefaultModel(t *testing.T) {
 	}
 }
 
+func TestAuthManagerAddProviderStoresType(t *testing.T) {
+	auth := newTestAuth(t)
+
+	if err := auth.AddProvider("openrouter", "openai-compatible", "sk-test"); err != nil {
+		t.Fatalf("AddProvider: %v", err)
+	}
+
+	cfg, err := auth.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	pc := cfg.Providers["openrouter"]
+	if pc.Type != "openai-compatible" {
+		t.Fatalf("Type = %q, want openai-compatible", pc.Type)
+	}
+	if cfg.ActiveProvider != "openrouter" {
+		t.Fatalf("ActiveProvider = %q, want openrouter", cfg.ActiveProvider)
+	}
+}
+
 func TestAuthAddSetsActiveProvider(t *testing.T) {
 	auth := newTestAuth(t)
 

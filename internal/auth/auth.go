@@ -54,6 +54,12 @@ func (m *AuthManager) saveConfig(cfg *config.MultiProviderConfig) error {
 // Add stores the API key for a provider, creates a config entry, and
 // sets it as the active provider.
 func (m *AuthManager) Add(provider, apiKey string) error {
+	return m.AddProvider(provider, provider, apiKey)
+}
+
+// AddProvider stores the API key for a provider key using the given provider
+// type for adapter resolution, creates a config entry, and sets it active.
+func (m *AuthManager) AddProvider(provider, providerType, apiKey string) error {
 	if err := m.store.Set(provider, apiKey); err != nil {
 		return fmt.Errorf("store credential: %w", err)
 	}
@@ -67,13 +73,18 @@ func (m *AuthManager) Add(provider, apiKey string) error {
 		cfg.Providers = make(map[string]config.ProviderConfig)
 	}
 
-	if _, exists := cfg.Providers[provider]; !exists {
-		cfg.Providers[provider] = config.ProviderConfig{
-			Model:   "",
-			Retries: 2,
-			Timeout: 120,
-		}
+	pc := cfg.Providers[provider]
+	if providerType == "" {
+		providerType = config.ResolveProviderType(provider, pc)
 	}
+	pc.Type = providerType
+	if pc.Retries == 0 {
+		pc.Retries = 2
+	}
+	if pc.Timeout == 0 {
+		pc.Timeout = 120
+	}
+	cfg.Providers[provider] = pc
 
 	cfg.ActiveProvider = provider
 	cfg.ActiveModel = cfg.Providers[provider].Model

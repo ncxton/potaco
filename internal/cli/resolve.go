@@ -46,18 +46,34 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		return nil, err
 	}
 
-	apiKey, err := resolveAPIKey(cmd, mgr)
+	apiKey, err := resolveAPIKey(cmd, mgr, providerName)
 	if err != nil {
 		return nil, err
 	}
 
 	model := resolveModel(cmd, mgr)
 	cfg, _ := mgr.LoadConfig()
+	pc := config.ProviderConfig{}
+	if cfg != nil {
+		if configured, ok := cfg.Providers[providerName]; ok {
+			pc = configured
+		}
+	}
+	providerType := config.ResolveProviderType(providerName, pc)
+	adapterType := config.AdapterType(providerType)
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
 
 	retries, timeout, err := resolveRetriesTimeout(cmd, cfg, providerName)
 	if err != nil {
 		return nil, err
+	}
+
+	if providerType == "openai-compatible" && baseURL == "" {
+		return nil, configUserErr(
+			"A base URL is required for OpenAI-compatible providers.",
+			"Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.",
+			fmt.Errorf("base URL required for provider %s", providerName),
+		)
 	}
 
 	opts := adapter.AdapterOpts{
@@ -68,22 +84,12 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		opts.Timeout = timeout
 	}
 
-	ad, err := adapter.Get(providerName, apiKey, opts)
+	ad, err := adapter.Get(adapterType, apiKey, opts)
 	if err != nil {
 		return nil, configUserErr(
 			fmt.Sprintf("Could not connect to provider '%s'.", providerName),
 			"Check that the provider name is correct. Use 'potaco auth list' to see connected providers.",
 			fmt.Errorf("create adapter: %w", err),
-		)
-	}
-
-	// The custom provider has no preset base URL; it must be supplied
-	// explicitly via flag, env, or config.
-	if providerName == "custom" && baseURL == "" {
-		return nil, configUserErr(
-			"A base URL is required for the custom provider.",
-			"Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.",
-			fmt.Errorf("base URL required for provider custom"),
 		)
 	}
 
@@ -119,18 +125,18 @@ func resolveProvider(cmd *cobra.Command, mgr *auth.AuthManager) (string, error) 
 	return p, nil
 }
 
-func resolveAPIKey(cmd *cobra.Command, mgr *auth.AuthManager) (string, error) {
+func resolveAPIKey(cmd *cobra.Command, mgr *auth.AuthManager, providerName string) (string, error) {
 	if cmd.Flags().Changed("api-key") {
 		return flagString(cmd, "api-key"), nil
 	}
 	if v := os.Getenv("POTACO_API_KEY"); v != "" {
 		return v, nil
 	}
-	k, err := mgr.GetActiveAPIKey()
+	k, err := mgr.GetAPIKey(providerName)
 	if err != nil {
 		return "", configUserErr(
-			"No API key found for the active provider.",
-			"Run 'potaco auth add <provider> --api-key <key>' to set one.",
+			fmt.Sprintf("No API key found for provider '%s'.", providerName),
+			fmt.Sprintf("Run 'potaco auth add %s --api-key <key>' to set one.", providerName),
 			fmt.Errorf("get API key: %w", err),
 		)
 	}
