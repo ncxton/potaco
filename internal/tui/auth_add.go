@@ -10,6 +10,7 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 // errCancelled is returned by form helpers when the user aborts a TUI flow.
@@ -28,11 +29,12 @@ func RunAuthAdd(providerName string) error {
 	if providerName == "" {
 		return nil
 	}
-	if !isKnownProvider(providerName) {
-		return fmt.Errorf("unknown provider: %s (available: %v)", providerName, adapter.List())
+	providerType, err := ensureProviderType(providerName)
+	if err != nil {
+		return normalizeCancel(err)
 	}
 
-	baseURL, err := promptBaseURL(providerName)
+	baseURL, err := promptBaseURL(providerType)
 	if err != nil {
 		return normalizeCancel(err)
 	}
@@ -42,7 +44,7 @@ func RunAuthAdd(providerName string) error {
 		return normalizeCancel(err)
 	}
 
-	ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
+	ad, err := adapter.Get(config.AdapterType(providerType), apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 	if err != nil {
 		return fmt.Errorf("create adapter: %w", err)
 	}
@@ -67,7 +69,7 @@ func RunAuthAdd(providerName string) error {
 		}
 	}
 
-	return addProvider(providerName, apiKey, baseURL, modelID)
+	return addProvider(providerName, providerType, apiKey, baseURL, modelID)
 }
 
 // normalizeCancel converts errCancelled into a nil error so the CLI exits
@@ -125,16 +127,39 @@ func isKnownProvider(name string) bool {
 	return false
 }
 
-// promptBaseURL prompts for a base URL when the provider is custom.
+func ensureProviderType(providerName string) (string, error) {
+	if isKnownProvider(providerName) {
+		return providerName, nil
+	}
+	var providerType string
+	options := []huh.Option[string]{
+		huh.NewOption("OpenAI-compatible", "openai-compatible"),
+		huh.NewOption("OpenAI", "openai"),
+		huh.NewOption("fal", "fal"),
+		huh.NewOption("Vercel AI Gateway", "vercel"),
+	}
+	form := newForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Select provider type:").
+			Options(options...).
+			Value(&providerType),
+	))
+	if err := runForm(form, "provider type select"); err != nil {
+		return "", err
+	}
+	return providerType, nil
+}
+
+// promptBaseURL prompts for a base URL when the provider type requires one.
 // For other providers it returns an empty string.
-func promptBaseURL(providerName string) (string, error) {
-	if providerName != "custom" {
+func promptBaseURL(providerType string) (string, error) {
+	if providerType != "openai-compatible" && providerType != "custom" {
 		return "", nil
 	}
 	var baseURL string
 	form := newForm(huh.NewGroup(
 		huh.NewInput().
-			Title("Enter base URL for the custom provider:").
+			Title("Enter base URL for the provider:").
 			Value(&baseURL),
 	))
 	if err := runForm(form, "base URL input"); err != nil {
@@ -218,15 +243,15 @@ func promptModel(models []adapter.Model) (string, error) {
 }
 
 // addProvider stores the credential and config for the connected provider.
-func addProvider(providerName, apiKey, baseURL, modelID string) error {
+func addProvider(providerName, providerType, apiKey, baseURL, modelID string) error {
 	mgr, err := auth.New()
 	if err != nil {
 		return fmt.Errorf("init auth: %w", err)
 	}
-	if err := mgr.Add(providerName, apiKey); err != nil {
+	if err := mgr.AddProvider(providerName, providerType, apiKey); err != nil {
 		return fmt.Errorf("add provider: %w", err)
 	}
-	if providerName == "custom" && baseURL != "" {
+	if baseURL != "" {
 		if err := mgr.SetBaseURL(providerName, baseURL); err != nil {
 			return fmt.Errorf("set base URL: %w", err)
 		}
