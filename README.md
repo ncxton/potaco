@@ -247,11 +247,10 @@ potaco update --force            # force update even if already latest
 
 ### `potaco uninstall` -- Remove potaco
 
-Remove the potaco binary and optionally its configuration.
+Remove the potaco binary. Interactive uninstall asks whether to remove local configuration.
 
 ```sh
 potaco uninstall                  # interactive removal
-potaco uninstall --remove-config # also remove ~/.potaco/
 potaco uninstall --yes            # skip confirmation prompts
 ```
 

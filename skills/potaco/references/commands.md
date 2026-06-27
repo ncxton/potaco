@@ -28,12 +28,10 @@ Update or uninstall only after explicit approval:
 potaco update
 potaco update --force
 potaco uninstall
-potaco uninstall --remove-config
 potaco uninstall -y
-potaco uninstall -y --remove-config
 ```
 
-`--remove-config` deletes local config and encrypted credentials.
+Interactive uninstall asks whether to remove local config and encrypted credentials.
 
 ## Auth and status
 
