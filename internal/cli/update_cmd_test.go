@@ -59,8 +59,7 @@ func TestUpdateAlreadyUpToDate(t *testing.T) {
 	Version = "v1.0.0"
 	defer func() { Version = origVer }()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
 	}))
@@ -94,8 +93,7 @@ func TestUpdateForceBypassesVersionCheck(t *testing.T) {
 
 	// Even if versions match, --force should proceed past the version
 	// check. We test only that it doesn't print "up to date".
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
 	}))
@@ -147,8 +145,7 @@ func TestUpdateMigratesConfigAfterSuccessfulInstaller(t *testing.T) {
 	Version = "v0.9.0"
 	defer func() { Version = origVer }()
 
-	releaseSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r
+	releaseSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{"tag_name": "v1.0.0"})
 	}))
@@ -157,8 +154,7 @@ func TestUpdateMigratesConfigAfterSuccessfulInstaller(t *testing.T) {
 	githubReleaseURL = releaseSrv.URL
 	defer func() { githubReleaseURL = origURL }()
 
-	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = r
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/x-sh")
 		_, _ = w.Write([]byte(`#!/bin/sh
 mkdir -p "$HOME/.potaco"

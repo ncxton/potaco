@@ -10,7 +10,6 @@ import (
 func TestAuthRemoveCommand(t *testing.T) {
 	_, buf := newAuthTest(t)
 
-	// First add a provider
 	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add: %v", err)
@@ -20,7 +19,6 @@ func TestAuthRemoveCommand(t *testing.T) {
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
 
-	// Now remove it
 	rootCmd.SetArgs([]string{"auth", "remove", "openai"})
 
 	err := rootCmd.Execute()
@@ -33,7 +31,6 @@ func TestAuthRemoveCommand(t *testing.T) {
 		t.Errorf("output should mention removal of openai, got: %q", output)
 	}
 
-	// Verify it is actually removed from config
 	mgr, err := auth.New()
 	if err != nil {
 		t.Fatalf("create auth manager: %v", err)

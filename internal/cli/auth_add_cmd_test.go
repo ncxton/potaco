@@ -11,8 +11,6 @@ import (
 
 func TestAuthAddNonInteractive(t *testing.T) {
 	tmpHome, buf := newAuthTest(t)
-	// Use --force to skip verification, which would otherwise make a real
-	// HTTP call to the provider's API and is not available in tests.
 	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test-key", "--force"})
 
 	err := rootCmd.Execute()
@@ -25,8 +23,6 @@ func TestAuthAddNonInteractive(t *testing.T) {
 		t.Errorf("output should mention openai, got: %q", output)
 	}
 
-	// Verify credential was stored by reading it back through the auth
-	// manager, which resolves the same paths via HOME (tmpHome).
 	mgr, err := auth.New()
 	if err != nil {
 		t.Fatalf("create auth manager: %v", err)
@@ -39,14 +35,13 @@ func TestAuthAddNonInteractive(t *testing.T) {
 		t.Errorf("stored key = %q, want 'sk-test-key'", key)
 	}
 
-	// The config file should exist at ~/.potaco/config.yaml (HOME = tmpHome).
 	if _, err := os.Stat(filepath.Join(tmpHome, ".potaco", "config.yaml")); err != nil {
 		t.Errorf("config file should exist: %v", err)
 	}
 }
 
 func TestAuthAddRequiresAPIKey(t *testing.T) {
-	_, buf := newAuthTest(t)
+	newAuthTest(t)
 	rootCmd.SetArgs([]string{"auth", "add", "openai"})
 
 	err := rootCmd.Execute()
@@ -57,7 +52,6 @@ func TestAuthAddRequiresAPIKey(t *testing.T) {
 		t.Errorf("error should mention api-key, got: %v", err)
 	}
 
-	_ = buf // output may contain error message
 }
 
 func TestAuthAddUnknownProvider(t *testing.T) {
@@ -75,7 +69,6 @@ func TestAuthAddUnknownProvider(t *testing.T) {
 
 func TestAuthAddUsesEnvAPIKey(t *testing.T) {
 	_, buf := newAuthTest(t)
-	// POTACO_API_KEY was cleared in newAuthTest; set it explicitly here.
 	t.Setenv("POTACO_API_KEY", "sk-env-key")
 	rootCmd.SetArgs([]string{"auth", "add", "openai", "--force"})
 

@@ -60,8 +60,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		providerName = args[0]
 	}
 
-	// Interactive mode with no provider arg: launch TUI flow which
-	// includes a provider picker.
 	if providerName == "" {
 		if !tui.IsInteractive() {
 			return configError(fmt.Errorf("specify a provider: potaco auth add <provider>"))
@@ -78,7 +76,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
 	providerTypeFlag, _ := cmd.Flags().GetString("type")
 
-	// Resolve the API key from flag or env.
 	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
 	envKey := os.Getenv("POTACO_API_KEY")
 	apiKey := apiKeyFlag
@@ -120,7 +117,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	// Verify provider connectivity unless --force.
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
 		ad, err := adapter.Get(adapterType, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
@@ -132,7 +128,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Store the credential and set the provider as active.
 	if err := mgr.AddProvider(providerName, providerType, apiKey); err != nil {
 		return configError(fmt.Errorf("add provider: %w", err))
 	}
@@ -143,7 +138,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Override the default model if --model was specified.
 	model, _ := cmd.Flags().GetString("model")
 	if model != "" {
 		if err := mgr.SetActiveProvider(providerName, model); err != nil {
@@ -184,7 +178,6 @@ func runAuthRemove(cmd *cobra.Command, args []string) error {
 		providerName = args[0]
 	}
 
-	// Non-interactive mode: require provider arg and remove directly.
 	if !tui.IsInteractive() {
 		if providerName == "" {
 			return configError(fmt.Errorf("specify a provider: potaco auth remove <provider>"))

@@ -8,7 +8,6 @@ import (
 func TestAuthListCommand(t *testing.T) {
 	_, buf := newAuthTest(t)
 
-	// Add two providers
 	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-1", "--force"})
 	rootCmd.Execute()
 	resetAuthAddFlags(t)
@@ -23,7 +22,6 @@ func TestAuthListCommand(t *testing.T) {
 	rootCmd.SetOut(buf)
 	rootCmd.SetErr(buf)
 
-	// List
 	rootCmd.SetArgs([]string{"auth", "list"})
 
 	err := rootCmd.Execute()

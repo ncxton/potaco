@@ -26,7 +26,7 @@ func resetAuthAddFlags(t *testing.T) {
 	for _, name := range []string{"api-key", "force", "model", "base-url", "type"} {
 		flag := authAddCmd.Flags().Lookup(name)
 		if flag == nil {
-			return // flags not registered yet
+			return
 		}
 		_ = flag.Value.Set(flag.DefValue)
 		flag.Changed = false
