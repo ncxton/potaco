@@ -107,38 +107,20 @@ func ExpandCanvas(src image.Image, cfg ExtendConfig) image.Image {
 	return canvas
 }
 
-// ExpandMask creates a mask matching the expanded canvas: white where
-// new pixels are (the extended areas), black where the original image is.
+// ExpandMask creates a mask matching the expanded canvas. The extended
+// areas are transparent (alpha=0, edit) and the original image area is
+// opaque (alpha=255, keep), following the OpenAI Images API convention
+// where transparent pixels indicate areas to regenerate.
 func ExpandMask(src image.Image, cfg ExtendConfig) image.Image {
 	bounds := src.Bounds()
 	newW := bounds.Dx() + cfg.Left + cfg.Right
 	newH := bounds.Dy() + cfg.Top + cfg.Bottom
 
-	mask := image.NewGray(image.Rect(0, 0, newW, newH))
+	mask := image.NewRGBA(image.Rect(0, 0, newW, newH))
 
-	whiteRow := bytes.Repeat([]byte{0xff}, newW)
-
-	if cfg.Top > 0 {
-		for y := 0; y < cfg.Top; y++ {
-			copy(mask.Pix[y*mask.Stride:y*mask.Stride+newW], whiteRow)
-		}
-	}
-	if cfg.Bottom > 0 {
-		for y := cfg.Top + bounds.Dy(); y < newH; y++ {
-			copy(mask.Pix[y*mask.Stride:y*mask.Stride+newW], whiteRow)
-		}
-	}
-	if cfg.Left > 0 {
-		leftRow := bytes.Repeat([]byte{0xff}, cfg.Left)
-		for y := cfg.Top; y < cfg.Top+bounds.Dy(); y++ {
-			copy(mask.Pix[y*mask.Stride:y*mask.Stride+cfg.Left], leftRow)
-		}
-	}
-	if cfg.Right > 0 {
-		rightRow := bytes.Repeat([]byte{0xff}, cfg.Right)
-		for y := cfg.Top; y < cfg.Top+bounds.Dy(); y++ {
-			copy(mask.Pix[y*mask.Stride+cfg.Left+bounds.Dx():y*mask.Stride+newW], rightRow)
-		}
+	opaqueRow := bytes.Repeat([]byte{0x00, 0x00, 0x00, 0xff}, bounds.Dx())
+	for y := cfg.Top; y < cfg.Top+bounds.Dy(); y++ {
+		copy(mask.Pix[y*mask.Stride+cfg.Left*4:y*mask.Stride+(cfg.Left+bounds.Dx())*4], opaqueRow)
 	}
 
 	return mask

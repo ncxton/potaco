@@ -12,7 +12,9 @@ import (
 )
 
 // RectMask creates a mask image of the given source dimensions with a
-// white rectangle at (x, y) of size (w, h) on a black background.
+// transparent rectangle at (x, y) of size (w, h) on an opaque background.
+// Transparent areas (alpha=0) indicate where the API should regenerate
+// content; opaque areas (alpha=255) are kept as-is.
 func RectMask(sourceWidth, sourceHeight, x, y, w, h int) (image.Image, error) {
 	if x < 0 || y < 0 {
 		return nil, fmt.Errorf("rect offset cannot be negative: x=%d y=%d", x, y)
@@ -21,35 +23,51 @@ func RectMask(sourceWidth, sourceHeight, x, y, w, h int) (image.Image, error) {
 		return nil, fmt.Errorf("rect dimensions must be positive: w=%d h=%d", w, h)
 	}
 
-	mask := image.NewGray(image.Rect(0, 0, sourceWidth, sourceHeight))
-	for row := y; row < y+h && row < sourceHeight; row++ {
-		for col := x; col < x+w && col < sourceWidth; col++ {
-			mask.SetGray(col, row, color.Gray{0xff})
+	mask := image.NewRGBA(image.Rect(0, 0, sourceWidth, sourceHeight))
+	opaque := color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	transparent := color.RGBA{R: 0, G: 0, B: 0, A: 0}
+
+	for row := 0; row < sourceHeight; row++ {
+		for col := 0; col < sourceWidth; col++ {
+			if col >= x && col < x+w && row >= y && row < y+h {
+				mask.SetRGBA(col, row, transparent)
+			} else {
+				mask.SetRGBA(col, row, opaque)
+			}
 		}
 	}
 	return mask, nil
 }
 
 // CircleMask creates a mask image of the given source dimensions with a
-// filled white circle centered at (cx, cy) with radius r on a black background.
+// filled transparent circle centered at (cx, cy) with radius r on an
+// opaque background. Transparent areas (alpha=0) indicate where the API
+// should regenerate content; opaque areas (alpha=255) are kept as-is.
 func CircleMask(sourceWidth, sourceHeight, cx, cy, r int) (image.Image, error) {
 	if r <= 0 {
 		return nil, fmt.Errorf("radius must be positive: r=%d", r)
 	}
 
-	mask := image.NewGray(image.Rect(0, 0, sourceWidth, sourceHeight))
+	mask := image.NewRGBA(image.Rect(0, 0, sourceWidth, sourceHeight))
+	opaque := color.RGBA{R: 0, G: 0, B: 0, A: 255}
+	transparent := color.RGBA{R: 0, G: 0, B: 0, A: 0}
+
 	r2 := r * r
 	yStart := max(cy-r, 0)
 	yEnd := min(cy+r, sourceHeight)
 	xStart := max(cx-r, 0)
 	xEnd := min(cx+r, sourceWidth)
-	for y := yStart; y < yEnd; y++ {
-		for x := xStart; x < xEnd; x++ {
-			dx := x - cx
-			dy := y - cy
-			if dx*dx+dy*dy <= r2 {
-				mask.SetGray(x, y, color.Gray{0xff})
+	for y := 0; y < sourceHeight; y++ {
+		for x := 0; x < sourceWidth; x++ {
+			if x >= xStart && x < xEnd && y >= yStart && y < yEnd {
+				dx := x - cx
+				dy := y - cy
+				if dx*dx+dy*dy <= r2 {
+					mask.SetRGBA(x, y, transparent)
+					continue
+				}
 			}
+			mask.SetRGBA(x, y, opaque)
 		}
 	}
 	return mask, nil
@@ -57,7 +75,8 @@ func CircleMask(sourceWidth, sourceHeight, cx, cy, r int) (image.Image, error) {
 
 // LoadMaskFile loads a mask from a file path and ensures it matches the
 // source image dimensions. If dimensions differ, the mask is scaled.
-// Any non-black pixel becomes white; black stays black.
+// The result is an RGBA image where transparent pixels (alpha=0) indicate
+// areas to regenerate and opaque pixels (alpha=255) indicate areas to keep.
 func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -77,26 +96,31 @@ func LoadMaskFile(path string, sourceWidth, sourceHeight int) (image.Image, erro
 	}
 
 	bounds := rawImg.Bounds()
-	grayMask := image.NewGray(bounds)
+	rgbaMask := image.NewRGBA(bounds)
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			c := rawImg.At(x, y)
-			r, g, b, _ := c.RGBA()
-			// If any channel is non-zero, treat as white
-			if r > 0 || g > 0 || b > 0 {
-				grayMask.SetGray(x, y, color.Gray{0xff})
+			_, _, _, a := rawImg.At(x, y).RGBA()
+			if a == 0 {
+				rgbaMask.SetRGBA(x, y, color.RGBA{A: 0})
+			} else {
+				r, g, b, _ := rawImg.At(x, y).RGBA()
+				if r > 0 || g > 0 || b > 0 {
+					rgbaMask.SetRGBA(x, y, color.RGBA{A: 0})
+				} else {
+					rgbaMask.SetRGBA(x, y, color.RGBA{A: 255})
+				}
 			}
 		}
 	}
 
 	srcBounds := image.Rect(0, 0, sourceWidth, sourceHeight)
 	if bounds.Dx() != sourceWidth || bounds.Dy() != sourceHeight {
-		scaled := image.NewGray(srcBounds)
-		draw.NearestNeighbor.Scale(scaled, srcBounds, grayMask, bounds, draw.Over, nil)
+		scaled := image.NewRGBA(srcBounds)
+		draw.NearestNeighbor.Scale(scaled, srcBounds, rgbaMask, bounds, draw.Over, nil)
 		return scaled, nil
 	}
 
-	return grayMask, nil
+	return rgbaMask, nil
 }
 
 // WriteMask writes a mask image as a PNG file to the given path.

@@ -128,22 +128,22 @@ func TestExpandMask(t *testing.T) {
 		t.Errorf("dimensions = %dx%d, want 150x150", bounds.Dx(), bounds.Dy())
 	}
 
-	// Pixel in new area (top) should be white
-	r, g, b, _ := mask.At(50, 10).RGBA()
-	if r == 0 || g == 0 || b == 0 {
-		t.Error("pixel in new top area should be white")
+	// Pixel in new area (top) should be transparent (alpha=0, edit)
+	_, _, _, a := mask.At(50, 10).RGBA()
+	if a != 0 {
+		t.Error("pixel in new top area should be transparent (alpha=0)")
 	}
 
-	// Pixel in new area (right) should be white
-	r2, g2, b2, _ := mask.At(130, 100).RGBA()
-	if r2 == 0 || g2 == 0 || b2 == 0 {
-		t.Error("pixel in new right area should be white")
+	// Pixel in new area (right) should be transparent (alpha=0, edit)
+	_, _, _, a2 := mask.At(130, 100).RGBA()
+	if a2 != 0 {
+		t.Error("pixel in new right area should be transparent (alpha=0)")
 	}
 
-	// Pixel where original image was should be black
-	r3, g3, b3, _ := mask.At(10, 60).RGBA()
-	if r3 != 0 || g3 != 0 || b3 != 0 {
-		t.Error("pixel in original area should be black")
+	// Pixel where original image was should be opaque (alpha=255, keep)
+	_, _, _, a3 := mask.At(10, 60).RGBA()
+	if a3 != 0xffff {
+		t.Error("pixel in original area should be opaque (alpha=255)")
 	}
 }
 
