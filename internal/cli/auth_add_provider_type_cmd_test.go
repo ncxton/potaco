@@ -55,3 +55,66 @@ func TestAuthAddCustomNamedProviderWithTypeAndBaseURL(t *testing.T) {
 		t.Fatalf("base URL = %q, want https://openrouter.ai/api/v1", pc.BaseURL)
 	}
 }
+
+func TestShouldRunInteractiveAuthAdd(t *testing.T) {
+	tests := []struct {
+		name             string
+		providerName     string
+		providerTypeFlag string
+		apiKey           string
+		baseURL          string
+		interactive      bool
+		want             bool
+	}{
+		{
+			name:         "unknown provider without type prompts in interactive mode",
+			providerName: "openrouter",
+			interactive:  true,
+			want:         true,
+		},
+		{
+			name:         "unknown provider without type errors in non-interactive mode",
+			providerName: "openrouter",
+			interactive:  false,
+			want:         false,
+		},
+		{
+			name:             "openai-compatible provider without base URL prompts in interactive mode",
+			providerName:     "openrouter",
+			providerTypeFlag: "openai-compatible",
+			apiKey:           "sk-test",
+			interactive:      true,
+			want:             true,
+		},
+		{
+			name:         "known provider without key prompts in interactive mode",
+			providerName: "openai",
+			interactive:  true,
+			want:         true,
+		},
+		{
+			name:             "complete openai-compatible provider does not prompt",
+			providerName:     "openrouter",
+			providerTypeFlag: "openai-compatible",
+			apiKey:           "sk-test",
+			baseURL:          "https://openrouter.ai/api/v1",
+			interactive:      true,
+			want:             false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldRunInteractiveAuthAdd(authAddInteractiveInput{
+				providerName:     tt.providerName,
+				providerTypeFlag: tt.providerTypeFlag,
+				apiKey:           tt.apiKey,
+				baseURL:          tt.baseURL,
+				interactive:      tt.interactive,
+			})
+			if got != tt.want {
+				t.Fatalf("shouldRunInteractiveAuthAdd() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

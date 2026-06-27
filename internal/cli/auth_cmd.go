@@ -77,11 +77,6 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	cfg, _ := mgr.LoadConfig()
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
 	providerTypeFlag, _ := cmd.Flags().GetString("type")
-	providerType, err := resolveAuthProviderType(providerName, providerTypeFlag)
-	if err != nil {
-		return configError(err)
-	}
-	adapterType := config.AdapterType(providerType)
 
 	// Resolve the API key from flag or env.
 	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
@@ -91,14 +86,21 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		apiKey = envKey
 	}
 
-	// If either credential is missing in interactive mode, hand off to the
-	// TUI flow which can prompt for both. For the custom provider the base URL
-	// is also required for verification.
-	needsKey := apiKey == ""
-	needsBaseURL := (providerType == "openai-compatible" || providerName == "custom") && baseURL == ""
-	if (needsKey || needsBaseURL) && tui.IsInteractive() {
+	if shouldRunInteractiveAuthAdd(authAddInteractiveInput{
+		providerName:     providerName,
+		providerTypeFlag: providerTypeFlag,
+		apiKey:           apiKey,
+		baseURL:          baseURL,
+		interactive:      tui.IsInteractive(),
+	}) {
 		return tui.RunAuthAdd(providerName)
 	}
+
+	providerType, err := resolveAuthProviderType(providerName, providerTypeFlag)
+	if err != nil {
+		return configError(err)
+	}
+	adapterType := config.AdapterType(providerType)
 
 	if apiKey == "" {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
