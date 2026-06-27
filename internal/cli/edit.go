@@ -26,7 +26,7 @@ func init() {
 	_ = editCmd.MarkFlagRequired("image")
 
 	// Mask flags
-	editCmd.Flags().String("mask", "", "path to mask image file (white=edit, black=keep)")
+	editCmd.Flags().String("mask", "", "path to mask image file (transparent=edit, opaque=keep)")
 	editCmd.Flags().String("mask-rect", "", "rectangular mask: x,y,w,h in pixels")
 	editCmd.Flags().String("mask-circle", "", "circular mask: x,y,r in pixels")
 	editCmd.Flags().String("extend", "", "outpaint extension: top=N,bottom=N,left=N,right=N or all=N")

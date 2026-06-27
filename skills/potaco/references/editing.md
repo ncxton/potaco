@@ -19,8 +19,8 @@ fal, and custom (OpenAI-compatible) adapters.
 ## Mode 2: Inpainting (masked edit)
 
 Use `--mask`, `--mask-rect`, or `--mask-circle` to edit a specific region.
-The mask is a PNG where white pixels indicate the area to edit and black
-pixels indicate areas to keep unchanged.
+The mask is a PNG where transparent pixels (alpha=0) indicate the area to
+edit and opaque pixels (alpha=255) indicate areas to keep unchanged.
 
 ### Mask from file
 
@@ -38,10 +38,10 @@ color space and written to a temp PNG before being sent to the provider.
 potaco edit --prompt "add a tree" --image landscape.png --mask-rect 100,200,300,400
 ```
 
-Format: `x,y,w,h` in pixels. Generates a mask PNG with a white rectangle at
-the specified coordinates on a black background, matching the source image
-dimensions. The mask is written to a temp directory and cleaned up after the
-request completes.
+Format: `x,y,w,h` in pixels. Generates a mask PNG with a transparent
+rectangle at the specified coordinates on an opaque background, matching
+the source image dimensions. The mask is written to a temp directory and
+cleaned up after the request completes.
 
 ### Circular mask
 
@@ -70,7 +70,7 @@ approach as rectangular masks.
 Use `--extend` to expand the canvas in one or more directions. The CLI
 creates a new larger canvas, pastes the source image at the appropriate
 offset, fills new areas with neutral gray (RGB 128), and generates a mask
-where extended areas are white and original areas are black.
+where extended areas are transparent and original areas are opaque.
 
 ```sh
 potaco edit --prompt "extend the landscape" --image photo.png --extend right=256
@@ -97,8 +97,8 @@ Examples:
 2. `ExpandCanvas` creates a new RGBA image of size
    (width + left + right, height + top + bottom), fills with gray (128),
    and pastes the source at offset (left, top).
-3. `ExpandMask` creates a grayscale mask: white in the extended border areas,
-   black where the original image sits.
+3. `ExpandMask` creates an RGBA mask: transparent in the extended border
+   areas, opaque where the original image sits.
 4. Both are written to a temp directory as PNG files.
 5. The expanded image + mask are sent to the provider's edit endpoint.
 6. Temp directory is deleted after the request completes (via `defer cleanup()`).

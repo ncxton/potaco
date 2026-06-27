@@ -187,7 +187,7 @@ The provider applies the prompt to the entire image.
 |------|-------------|
 | `--prompt` / `-p` | (required) Text description of the edit |
 | `--image` | (required) Path to source image |
-| `--mask` | Path to mask image file (white=edit, black=keep) |
+| `--mask` | Path to mask image file (transparent=edit, opaque=keep) |
 | `--mask-rect` | Rectangular mask: `x,y,w,h` in pixels |
 | `--mask-circle` | Circular mask: `x,y,r` in pixels |
 | `--extend` | Outpaint: `top=N,bottom=N,left=N,right=N` or `all=N` |
