@@ -20,35 +20,22 @@ func printEditDryRun(cmd *cobra.Command, baseURL, providerName, authHeader, prom
 	maskCircleFlag, _ := flags.GetString("mask-circle")
 
 	var mode string
-	var extra map[string]any
 
 	if extendFlag != "" {
-		extendCfg, err := img.ParseExtend(extendFlag)
-		if err != nil {
+		if _, err := img.ParseExtend(extendFlag); err != nil {
 			return fmt.Errorf("parse extend: %w", err)
 		}
 		mode = "outpaint"
-		extra = map[string]any{"extend": extendCfg}
 	} else if maskFlag != "" || maskRectFlag != "" || maskCircleFlag != "" {
 		mode = "inpaint"
-		extra = map[string]any{
-			"mask":        maskFlag,
-			"mask_rect":   maskRectFlag,
-			"mask_circle": maskCircleFlag,
-		}
 	} else {
 		mode = "basic"
-		extra = nil
 	}
 
 	body := map[string]any{
 		"prompt": prompt,
 		"model":  model,
-		"image":  imagePath,
 		"mode":   mode,
-	}
-	for k, v := range extra {
-		body[k] = v
 	}
 
 	editURL := baseURL + "/v1/images/edits"
@@ -56,10 +43,46 @@ func printEditDryRun(cmd *cobra.Command, baseURL, providerName, authHeader, prom
 	if providerName == "fal" {
 		editURL = baseURL + "/" + model + "/image-to-image"
 		contentType = "application/json"
-	} else if strings.HasSuffix(baseURL, "/v1") {
-		editURL = baseURL + "/images/edits"
+		body["image_url"] = "<data:" + detectImageMIME(imagePath) + ";base64,...>"
+	} else if providerName == "custom" {
+		contentType = "application/json"
+		if strings.HasSuffix(baseURL, "/v1") {
+			editURL = baseURL + "/images/edits"
+		}
+		body["images"] = []map[string]any{
+			{"image_url": "<data:" + detectImageMIME(imagePath) + ";base64,...>"},
+		}
+		// A mask is sent when any mask-producing flag is set: --mask,
+		// --mask-rect, --mask-circle, or --extend (auto-generated).
+		if maskFlag != "" || maskRectFlag != "" || maskCircleFlag != "" || extendFlag != "" {
+			if maskFlag != "" {
+				body["mask"] = "<data:" + detectImageMIME(maskFlag) + ";base64,...>"
+			} else {
+				body["mask"] = "<data:png;base64,...>"
+			}
+		}
+	} else {
+		body["image"] = imagePath
+		if strings.HasSuffix(baseURL, "/v1") {
+			editURL = baseURL + "/images/edits"
+		}
 	}
 	return printDryRun(cmd, "POST", editURL, contentType, authHeader, body)
+}
+
+// detectImageMIME returns the MIME subtype for an image file by reading
+// its magic bytes. Used by dry-run output to show the data URL prefix
+// without inlining the full base64 payload.
+func detectImageMIME(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "octet-stream"
+	}
+	format := img.FormatFromBytes(data)
+	if format == "" {
+		return "octet-stream"
+	}
+	return format
 }
 
 func noopCleanup() {}

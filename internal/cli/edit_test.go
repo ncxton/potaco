@@ -599,6 +599,87 @@ func TestEditVercelNotSupportedNonDryRun(t *testing.T) {
 	}
 }
 
+func TestEditDryRunCustomProviderJSONContentType(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetAuthAddFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("POTACO_API_KEY", "")
+	t.Setenv("POTACO_BASE_URL", "")
+	t.Setenv("POTACO_PROVIDER", "")
+	t.Setenv("POTACO_MODEL", "")
+
+	var setupBuf bytes.Buffer
+	rootCmd.SetOut(&setupBuf)
+	rootCmd.SetErr(&setupBuf)
+	rootCmd.SetArgs([]string{"auth", "add", "custom", "--api-key", "custom-key",
+		"--base-url", "https://custom.example.com/v1", "--model", "gpt-image-2", "--force"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup auth add custom: %v", err)
+	}
+	resetAuthAddFlags(t)
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+
+	tmpDir := t.TempDir()
+	imgPath := tmpDir + "/test.png"
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run",
+		"--provider", "custom"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "application/json") {
+		t.Errorf("dry-run should show application/json for custom provider, got: %s", output)
+	}
+	if strings.Contains(output, "multipart/form-data") {
+		t.Errorf("dry-run should not show multipart/form-data for custom provider, got: %s", output)
+	}
+	if !strings.Contains(output, "images") {
+		t.Errorf("dry-run should show images array for custom provider, got: %s", output)
+	}
+	if !strings.Contains(output, "data:png;base64") {
+		t.Errorf("dry-run should show data URL prefix for custom provider, got: %s", output)
+	}
+	if strings.Contains(output, "custom.example.com/v1/v1/images/edits") {
+		t.Errorf("dry-run URL should not duplicate /v1, got: %s", output)
+	}
+	if !strings.Contains(output, "custom.example.com/v1/images/edits") {
+		t.Errorf("dry-run should use correct URL, got: %s", output)
+	}
+}
+
+func TestEditDryRunOpenAIProviderMultipartContentType(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
+	setupAuthProvider(t, "sk-test")
+
+	tmpDir := t.TempDir()
+	imgPath := tmpDir + "/test.png"
+	createTestPNG(t, imgPath, 4, 4)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "test", "--image", imgPath, "--dry-run"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "multipart/form-data") {
+		t.Errorf("dry-run should show multipart/form-data for openai provider, got: %s", output)
+	}
+}
+
 // resetEditCmdFlags restores edit subcommand flags to their defaults so that
 // values set by earlier tests (e.g. --dry-run, --extend, --provider) do not
 // leak in when tests run in shuffled order.
