@@ -12,6 +12,7 @@ import (
 type ProviderInfo struct {
 	Name     string
 	Model    string
+	BaseURL  string
 	HasKey   bool
 	AddedAt  string // formatted date
 	IsActive bool
@@ -68,7 +69,7 @@ func (m *AuthManager) Add(provider, apiKey string) error {
 
 	if _, exists := cfg.Providers[provider]; !exists {
 		cfg.Providers[provider] = config.ProviderConfig{
-			Model:   defaultModelForProvider(provider),
+			Model:   "",
 			Retries: 2,
 			Timeout: 120,
 		}
@@ -123,6 +124,7 @@ func (m *AuthManager) List() []ProviderInfo {
 		info := ProviderInfo{
 			Name:     name,
 			Model:    pc.Model,
+			BaseURL:  pc.BaseURL,
 			IsActive: cfg.ActiveProvider == name,
 		}
 		// Check if key exists in credential store
@@ -168,6 +170,27 @@ func (m *AuthManager) SetActiveProvider(provider, model string) error {
 	return m.saveConfig(cfg)
 }
 
+// SetBaseURL persists a base URL for the given provider. It is separate
+// from Add so that Add stays focused on credentials and the basic config
+// entry; callers that need to store a base URL (e.g., the custom provider
+// auth flow) can do so explicitly after Add.
+func (m *AuthManager) SetBaseURL(provider, baseURL string) error {
+	cfg, err := m.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	if _, ok := cfg.Providers[provider]; !ok {
+		return fmt.Errorf("provider %q is not configured. Use 'potaco auth add %s' first", provider, provider)
+	}
+
+	pc := cfg.Providers[provider]
+	pc.BaseURL = baseURL
+	cfg.Providers[provider] = pc
+
+	return m.saveConfig(cfg)
+}
+
 // GetActiveAPIKey returns the API key for the active provider.
 func (m *AuthManager) GetActiveAPIKey() (string, error) {
 	cfg, err := m.LoadConfig()
@@ -192,17 +215,4 @@ func (m *AuthManager) GetActiveProvider() (provider, model string, err error) {
 		return "", "", fmt.Errorf("load config: %w", err)
 	}
 	return cfg.ActiveProvider, cfg.ActiveModel, nil
-}
-
-// defaultModelForProvider returns a sensible default model for a provider name.
-func defaultModelForProvider(provider string) string {
-	defaults := map[string]string{
-		"openai": "gpt-image-2",
-		"fal":    "fal-ai/flux/dev",
-		"vercel": "openai/gpt-image-2",
-	}
-	if m, ok := defaults[provider]; ok {
-		return m
-	}
-	return ""
 }

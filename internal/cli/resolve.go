@@ -9,6 +9,7 @@ import (
 
 	"github.com/ncxton/potaco/internal/adapter"
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +30,7 @@ type resolvedConfig struct {
 //	--provider flag > POTACO_PROVIDER env > active_provider from config
 //	--api-key flag  > POTACO_API_KEY env  > credential store
 //	--model flag    > POTACO_MODEL env   > active_model from config
-//	--base-url flag > POTACO_BASE_URL env > provider preset default
+//	--base-url flag > POTACO_BASE_URL env > config.providers[provider].base_url > provider preset
 func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	mgr, err := auth.New()
 	if err != nil {
@@ -51,18 +52,10 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	}
 
 	model := resolveModel(cmd, mgr)
-	baseURL := resolveBaseURL(cmd)
+	cfg, _ := mgr.LoadConfig()
+	baseURL := resolveBaseURL(cmd, providerName, cfg)
 
-	// Fall back to the provider preset's BaseURL for dry-run output when
-	// no explicit override is given. The adapter has its own default, but
-	// dry-run constructs the URL from BaseURL directly.
-	if baseURL == "" {
-		if preset, ok := getProviderPreset(providerName); ok {
-			baseURL = preset.BaseURL
-		}
-	}
-
-	retries, timeout, err := resolveRetriesTimeout(cmd, mgr, providerName)
+	retries, timeout, err := resolveRetriesTimeout(cmd, cfg, providerName)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +74,16 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 			fmt.Sprintf("Could not connect to provider '%s'.", providerName),
 			"Check that the provider name is correct. Use 'potaco auth list' to see connected providers.",
 			fmt.Errorf("create adapter: %w", err),
+		)
+	}
+
+	// The custom provider has no preset base URL; it must be supplied
+	// explicitly via flag, env, or config.
+	if providerName == "custom" && baseURL == "" {
+		return nil, configUserErr(
+			"A base URL is required for the custom provider.",
+			"Use --base-url, set POTACO_BASE_URL, or run 'potaco config set --base-url <url>'.",
+			fmt.Errorf("base URL required for provider custom"),
 		)
 	}
 
@@ -147,22 +150,29 @@ func resolveModel(cmd *cobra.Command, mgr *auth.AuthManager) string {
 	return m
 }
 
-func resolveBaseURL(cmd *cobra.Command) string {
+func resolveBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiProviderConfig) string {
 	if cmd.Flags().Changed("base-url") {
 		return strings.TrimRight(flagString(cmd, "base-url"), "/")
 	}
 	if v := os.Getenv("POTACO_BASE_URL"); v != "" {
 		return strings.TrimRight(v, "/")
 	}
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok && pc.BaseURL != "" {
+			return strings.TrimRight(pc.BaseURL, "/")
+		}
+	}
+	if preset, ok := getProviderPreset(providerName); ok {
+		return preset.BaseURL
+	}
 	return ""
 }
 
-func resolveRetriesTimeout(cmd *cobra.Command, mgr *auth.AuthManager, providerName string) (int, time.Duration, error) {
+func resolveRetriesTimeout(cmd *cobra.Command, cfg *config.MultiProviderConfig, providerName string) (int, time.Duration, error) {
 	retries := 2
 	timeout := 120 * time.Second
 
 	// If config is corrupted, fall back to defaults rather than blocking generation.
-	cfg, _ := mgr.LoadConfig()
 	if cfg != nil {
 		if pc, ok := cfg.Providers[providerName]; ok {
 			if pc.Retries > 0 {

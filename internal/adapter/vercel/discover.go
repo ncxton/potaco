@@ -22,7 +22,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
@@ -31,7 +31,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var result struct {
@@ -41,7 +41,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("decode models response: %w", err)
 	}
 
 	for _, model := range result.Data {
@@ -53,11 +53,10 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 			DisplayName:  stripProviderPrefix(model.ID),
 			SupportsGen:  true,
 			SupportsEdit: false,
-			Capabilities: modelCapabilities(model.ID),
 		})
 	}
 	if len(models) == 0 {
-		return fallbackModels, nil
+		return nil, adapter.ErrDiscoveryFailed
 	}
 	return models, nil
 }
@@ -70,14 +69,6 @@ func (a *Adapter) Verify(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-func (a *Adapter) ModelParams(_ context.Context, modelID string) ([]adapter.Param, error) {
-	params, ok := lookupModelParams(modelID)
-	if !ok {
-		return nil, adapter.ErrModelNotFound
-	}
-	return params, nil
 }
 
 func (a *Adapter) verifyReachable(ctx context.Context) (err error) {

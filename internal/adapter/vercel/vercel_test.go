@@ -27,6 +27,20 @@ func TestVercelAuthHeader(t *testing.T) {
 	}
 }
 
+func TestVercelSupportsGenerate(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{})
+	if !ad.SupportsGenerate() {
+		t.Error("SupportsGenerate should be true")
+	}
+}
+
+func TestVercelSupportsEdit(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{})
+	if ad.SupportsEdit() {
+		t.Error("SupportsEdit should be false")
+	}
+}
+
 func TestVercelNewWithDefaults(t *testing.T) {
 	ad := New("key", adapter.AdapterOpts{})
 	va, ok := ad.(*Adapter)
@@ -123,19 +137,16 @@ func TestVercelDiscoverModels(t *testing.T) {
 	}
 }
 
-func TestVercelDiscoverModelsFallback(t *testing.T) {
+func TestVercelDiscoverModelsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
 
 	ad := New("test-key", adapter.AdapterOpts{BaseURL: srv.URL + "/v1"})
-	models, err := ad.DiscoverModels(context.Background())
-	if err != nil {
-		t.Fatalf("DiscoverModels should fall back: %v", err)
-	}
-	if len(models) == 0 {
-		t.Fatal("fallback models should not be empty")
+	_, err := ad.DiscoverModels(context.Background())
+	if err == nil {
+		t.Fatal("DiscoverModels should return error on API failure")
 	}
 }
 
@@ -185,24 +196,5 @@ func TestVercelVerifyInvalidKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid API key") {
 		t.Errorf("error should mention invalid key, got: %v", err)
-	}
-}
-
-func TestVercelModelParamsKnownModel(t *testing.T) {
-	ad := New("key", adapter.AdapterOpts{})
-	params, err := ad.ModelParams(context.Background(), "openai/gpt-image-2")
-	if err != nil {
-		t.Fatalf("ModelParams: %v", err)
-	}
-	if len(params) == 0 {
-		t.Fatal("params should not be empty")
-	}
-}
-
-func TestVercelModelParamsUnknownModel(t *testing.T) {
-	ad := New("key", adapter.AdapterOpts{})
-	_, err := ad.ModelParams(context.Background(), "unknown/model")
-	if err != adapter.ErrModelNotFound {
-		t.Errorf("got %v, want ErrModelNotFound", err)
 	}
 }

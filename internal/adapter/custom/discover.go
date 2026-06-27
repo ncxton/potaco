@@ -1,4 +1,4 @@
-package openai
+package custom
 
 import (
 	"context"
@@ -10,9 +10,11 @@ import (
 	"github.com/ncxton/potaco/internal/observability"
 )
 
-// DiscoverModels calls GET /v1/models and filters for known image model
-// IDs. On any API failure it returns an error instead of falling back to
-// a hardcoded list.
+// DiscoverModels calls GET /v1/models and returns every model from the
+// endpoint. Unlike openai, we do not filter for known image model IDs
+// because a custom provider may expose any model identifiers.
+// On any API failure it returns an error instead of falling back to a
+// hardcoded list.
 func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 	url := a.modelsURL()
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -46,14 +48,11 @@ func (a *Adapter) DiscoverModels(ctx context.Context) ([]adapter.Model, error) {
 
 	var models []adapter.Model
 	for _, m := range result.Data {
-		if !imageModelIDs[m.ID] {
-			continue
-		}
 		models = append(models, adapter.Model{
 			ID:           m.ID,
 			DisplayName:  m.ID,
 			SupportsGen:  true,
-			SupportsEdit: editCapableModels[m.ID],
+			SupportsEdit: true,
 		})
 	}
 	if len(models) == 0 {

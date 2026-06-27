@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Potaco is a Go CLI for image generation and editing via multi-provider adapters (OpenAI, fal, Vercel AI Gateway) with encrypted credential storage and interactive TUI flows.
+Potaco is a Go CLI for image generation and editing via multi-provider adapters (OpenAI, fal, Vercel AI Gateway, and custom OpenAI-compatible endpoints) with encrypted credential storage and interactive TUI flows.
 
 ## Project Structure & Module Organization
 
@@ -13,7 +13,7 @@ internal/
     edit.go, edit_mask.go  edit subcommand (image editing, inpainting, outpainting)
     auth_cmd.go          auth add/remove/list subcommands
     config_cmd.go        config set/show subcommands
-    models_cmd.go        models subcommand (discover models, show params)
+    models_cmd.go        models subcommand (discover models)
     status_cmd.go        status subcommand
     use_cmd.go           use subcommand (switch active provider)
     info.go              info subcommand (image metadata)
@@ -21,37 +21,43 @@ internal/
     version_cmd.go       version subcommand (print version, check for updates)
     version.go           Version variable, SetVersion (ldflags injection)
     uninstall_cmd.go     uninstall subcommand (remove binary and config)
-    resolve.go           Provider/credential/model resolution with flag>env>config precedence
+    resolve.go           Provider/credential/model/base-url resolution with flag>env>config>preset precedence
     helpers.go           Flag accessors, provider presets, dry-run output, processAndOutput
     output.go            Output formatting (text, JSON, stdout modes)
     usererr.go           UserError type with friendly message, hint, debug logging
     errors.go            Exit code constants and legacy error wrappers
     spinner.go           Terminal spinner for gen/edit operations
   adapter/               Provider adapter interface and registry
-    adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, ModelParams)
+    adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, SupportsGenerate, SupportsEdit)
     registry.go          Factory registry: Register/Get/List for provider adapters
     openai/              OpenAI adapter (Images API, /v1/images/generations, /v1/images/edits)
-      openai.go          Adapter struct, AuthHeader, Name
+      openai.go          Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
       generate.go        Generate (text-to-image)
       edit.go            Edit (inpainting with mask)
       discover.go        DiscoverModels (GET /v1/models)
-      models.go          Fallback model list, ModelParams
+      models.go          Known image model IDs, edit-capable model IDs
       response.go        Response types
       retry.go           Retry with exponential backoff
     fal/                 fal adapter (fal.run inference, api.fal.ai discovery, image-to-image)
-      fal.go             Adapter struct, AuthHeader, Name
+      fal.go             Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
       generate.go        Generate (text-to-image)
       edit.go            Edit (image-to-image)
-      discover.go        DiscoverModels (POST to api.fal.ai)
-      models.go          Fallback model list, ModelParams
+      discover.go        DiscoverModels (GET /v1/models)
       response.go        Response types
       retry.go           Retry with exponential backoff
     vercel/              Vercel AI Gateway adapter (generate-only, no edit support)
-      vercel.go          Adapter struct, AuthHeader, Name
+      vercel.go          Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
       generate.go        Generate (text-to-image)
       edit.go            Edit (returns ErrEditNotSupported)
       discover.go        DiscoverModels
-      models.go          Fallback model list, ModelParams
+      models.go          Helper functions (stripProviderPrefix)
+      response.go        Response types
+      retry.go           Retry with exponential backoff
+    custom/              OpenAI-compatible custom provider adapter (user-supplied base URL)
+      custom.go          Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (inpainting with mask)
+      discover.go        DiscoverModels (GET /models), Verify
       response.go        Response types
       retry.go           Retry with exponential backoff
   auth/                  AuthManager: coordinates credential store and multi-provider config
@@ -94,17 +100,22 @@ Makefile                 Build, test, coverage, staticcheck, complexity targets
 .gitleaks.toml            Gitleaks secret scanning config
 ```
 
+Provider presets in `internal/cli/helpers.go` store only a base URL (`BaseURL`).
+There is no `DefaultModel` preset; models are selected by the user via `potaco
+models` or `potaco config set --model`. The `custom` provider has no preset and
+requires a user-supplied base URL.
+
 Layered monolith dependency graph:
 
 ```
 cli --> adapter, auth, config, credential, tui, image, observability
 tui  --> adapter, auth
 auth --> config, credential
-adapter/openai|fal|vercel --> adapter (parent), config, observability
+adapter/openai|fal|vercel|custom --> adapter (parent), config, observability
 config, credential, image, observability --> (no internal deps)
 ```
 
-All packages live under `internal/` (not importable externally). Adapter sub-packages register themselves via `init()` and are imported for side effects in `cli/helpers.go`.
+All packages live under `internal/` (not importable externally). Adapter sub-packages, including `custom`, register themselves via `init()` and are imported for side effects in `cli/helpers.go`.
 
 ## Build, Test, and Development Commands
 

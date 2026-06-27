@@ -65,6 +65,12 @@ func (a *Adapter) SetSleep(fn func(context.Context, time.Duration)) {
 // Name returns the provider name.
 func (a *Adapter) Name() string { return "fal" }
 
+// SupportsGenerate reports whether this provider supports image generation.
+func (a *Adapter) SupportsGenerate() bool { return true }
+
+// SupportsEdit reports whether this provider supports image editing.
+func (a *Adapter) SupportsEdit() bool { return true }
+
 // AuthHeader returns the Authorization header value for the given API key.
 // fal uses "Key" prefix instead of "Bearer".
 func (a *Adapter) AuthHeader(apiKey string) string {

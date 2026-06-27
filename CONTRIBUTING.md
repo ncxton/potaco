@@ -48,9 +48,11 @@ Provider credentials are managed via `auth add`:
 
 ```sh
 ./potaco auth add openai --api-key sk-...   # Connect a provider
+./potaco auth add custom --api-key sk-... --base-url https://api.example.com/v1  # Connect custom endpoint
 ./potaco auth list                          # List connected providers
 ./potaco use openai                         # Switch active provider
-./potaco models                             # Discover available models (interactive)
+./potaco models                             # Pick a model interactively
+./potaco models list                        # List available models without changing selection
 ./potaco status                             # Show current provider/model status
 ```
 
@@ -74,7 +76,7 @@ internal/
     edit.go, edit_mask.go  edit subcommand (image editing, inpainting, outpainting)
     auth_cmd.go          auth add/remove/list subcommands
     config_cmd.go        config set/show subcommands
-    models_cmd.go        models subcommand (discover models, show params)
+    models_cmd.go        models subcommand (discover and pick models)
     status_cmd.go        status subcommand
     use_cmd.go           use subcommand (switch active provider)
     info.go              info subcommand (image metadata)
@@ -89,11 +91,18 @@ internal/
     errors.go            Exit code constants and legacy error wrappers
     spinner.go           Terminal spinner for gen/edit operations
   adapter/               Provider adapter interface and registry
-    adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, ModelParams)
+    adapter.go           Adapter interface (Generate, Edit, DiscoverModels, Verify, SupportsGenerate, SupportsEdit)
     registry.go          Factory registry: Register/Get/List for provider adapters
     openai/              OpenAI adapter (Images API, /v1/images/generations, /v1/images/edits)
     fal/                 fal adapter (fal.run inference, api.fal.ai discovery, image-to-image)
     vercel/              Vercel AI Gateway adapter (generate-only, no edit support)
+    custom/              OpenAI-compatible custom provider adapter (user-supplied base URL)
+      custom.go          Adapter struct, AuthHeader, Name, SupportsGenerate, SupportsEdit
+      generate.go        Generate (text-to-image)
+      edit.go            Edit (inpainting with mask)
+      discover.go        DiscoverModels (GET /models), Verify
+      response.go        Response types
+      retry.go           Retry with exponential backoff
   auth/                  AuthManager: coordinates credential store and multi-provider config
   credential/            Encrypted credential storage (AES-256-GCM, machine-derived key)
   config/                Multi-provider YAML config (~/.potaco/config.yaml)
@@ -115,7 +124,7 @@ Makefile                 Build, test, coverage, staticcheck, complexity targets
 .env.example             Environment variable template
 ```
 
-All packages live under `internal/`. Adapter sub-packages register via `init()` and are blank-imported in `cli/helpers.go`.
+All packages live under `internal/`. Adapter sub-packages register via `init()` and are blank-imported in `cli/helpers.go`. The `custom` adapter has no preset base URL; tests and users must supply one via `--base-url` or `base_url` in config.
 
 ## Commit Style
 

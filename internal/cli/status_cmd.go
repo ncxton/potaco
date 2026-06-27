@@ -38,11 +38,17 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	configPath := config.DefaultConfigPath()
 	credPath := config.DefaultCredentialPath()
 
+	activeBaseURL := ""
+	cfg, _ := mgr.LoadConfig()
+	if cfg != nil && provider != "" {
+		activeBaseURL = cfg.Providers[provider].BaseURL
+	}
+
 	jsonMode, _ := cmd.Root().PersistentFlags().GetBool("json")
 	out := cmd.OutOrStdout()
 
 	if jsonMode {
-		return printStatusJSON(out, provider, model, configPath, credPath, providers)
+		return printStatusJSON(out, provider, model, activeBaseURL, configPath, credPath, providers)
 	}
 
 	if provider == "" {
@@ -51,9 +57,11 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	} else if tui.IsTTY() {
 		fmt.Fprintf(out, "%s %s\n", statusLabelStyle.Render("Active provider:"), statusActiveStyle.Render(provider))
 		fmt.Fprintf(out, "%s %s\n", statusLabelStyle.Render("Active model:"), model)
+		fmt.Fprintf(out, "%s %s\n", statusLabelStyle.Render("Base URL:"), formatStatusBaseURL(activeBaseURL))
 	} else {
 		fmt.Fprintf(out, "Active provider: %s\n", provider)
 		fmt.Fprintf(out, "Active model:    %s\n", model)
+		fmt.Fprintf(out, "Base URL:        %s\n", formatStatusBaseURL(activeBaseURL))
 	}
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "Config file:     %s\n", configPath)
@@ -75,21 +83,30 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			if p.HasKey {
 				keyStatus = "configured"
 			}
+			baseURL := formatStatusBaseURL(p.BaseURL)
 			added := ""
 			if p.AddedAt != "" {
 				added = "  added: " + p.AddedAt
 			}
-			fmt.Fprintf(out, "  %s\t%s\tkey: %s%s%s\n", p.Name, p.Model, keyStatus, active, added)
+			fmt.Fprintf(out, "  %s\t%s\tbase_url: %s\tkey: %s%s%s\n", p.Name, p.Model, baseURL, keyStatus, active, added)
 		}
 	}
 
 	return nil
 }
 
-func printStatusJSON(out io.Writer, provider, model, configPath, credPath string, providers []auth.ProviderInfo) error {
+func formatStatusBaseURL(baseURL string) string {
+	if baseURL == "" {
+		return "default"
+	}
+	return baseURL
+}
+
+func printStatusJSON(out io.Writer, provider, model, activeBaseURL, configPath, credPath string, providers []auth.ProviderInfo) error {
 	type providerJSON struct {
 		Name     string `json:"name"`
 		Model    string `json:"model"`
+		BaseURL  string `json:"base_url"`
 		HasKey   bool   `json:"has_key"`
 		IsActive bool   `json:"is_active"`
 		AddedAt  string `json:"added_at,omitempty"`
@@ -100,6 +117,7 @@ func printStatusJSON(out io.Writer, provider, model, configPath, credPath string
 		pjs = append(pjs, providerJSON{
 			Name:     p.Name,
 			Model:    p.Model,
+			BaseURL:  p.BaseURL,
 			HasKey:   p.HasKey,
 			IsActive: p.IsActive,
 			AddedAt:  p.AddedAt,
@@ -109,6 +127,7 @@ func printStatusJSON(out io.Writer, provider, model, configPath, credPath string
 	status := map[string]any{
 		"active_provider": provider,
 		"active_model":    model,
+		"base_url":        activeBaseURL,
 		"config_path":     configPath,
 		"credential_path": credPath,
 		"providers":       pjs,

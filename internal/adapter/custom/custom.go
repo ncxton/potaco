@@ -1,6 +1,8 @@
-// Package openai implements the adapter.Adapter interface for the
-// OpenAI Images API.
-package openai
+// Package custom implements the adapter.Adapter interface for an
+// OpenAI-compatible API endpoint. It is intended for providers such as
+// Together, Groq, or local vLLM servers that expose the same Images API
+// as OpenAI.
+package custom
 
 import (
 	"context"
@@ -11,10 +13,7 @@ import (
 	"github.com/ncxton/potaco/internal/adapter"
 )
 
-// defaultBaseURL is the default OpenAI API base URL.
-const defaultBaseURL = "https://api.openai.com/v1"
-
-// Adapter implements adapter.Adapter for the OpenAI Images API.
+// Adapter implements adapter.Adapter for an OpenAI-compatible endpoint.
 type Adapter struct {
 	apiKey  string
 	baseURL string
@@ -25,12 +24,9 @@ type Adapter struct {
 	sleep   func(ctx context.Context, d time.Duration)
 }
 
-// New creates an OpenAI adapter with the given API key and options.
+// New creates a custom adapter with the given API key and options.
 func New(apiKey string, opts adapter.AdapterOpts) adapter.Adapter {
-	baseURL := defaultBaseURL
-	if opts.BaseURL != "" {
-		baseURL = opts.BaseURL
-	}
+	baseURL := opts.BaseURL
 	timeout := 120 * time.Second
 	if opts.Timeout > 0 {
 		timeout = opts.Timeout
@@ -61,7 +57,7 @@ func (a *Adapter) SetSleep(fn func(context.Context, time.Duration)) {
 }
 
 // Name returns the provider name.
-func (a *Adapter) Name() string { return "openai" }
+func (a *Adapter) Name() string { return "custom" }
 
 // SupportsGenerate reports whether this provider supports image generation.
 func (a *Adapter) SupportsGenerate() bool { return true }
@@ -102,7 +98,7 @@ func (a *Adapter) modelsURL() string {
 }
 
 func init() {
-	adapter.Register("openai", func(apiKey string, opts adapter.AdapterOpts) (adapter.Adapter, error) {
+	adapter.Register("custom", func(apiKey string, opts adapter.AdapterOpts) (adapter.Adapter, error) {
 		return New(apiKey, opts), nil
 	})
 }

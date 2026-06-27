@@ -86,11 +86,11 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 	model := resolved.Model
 
-	if resolved.Adapter.Name() == "vercel" {
+	if !resolved.Adapter.SupportsEdit() {
 		return apiUserErr(
-			"Image editing is not supported by the Vercel AI Gateway provider.",
-			"Use 'potaco use openai' or 'potaco use fal' to switch to a provider that supports editing.",
-			fmt.Errorf("image editing is not supported by the Vercel AI Gateway provider"),
+			fmt.Sprintf("Image editing is not supported by the '%s' provider.", resolved.Adapter.Name()),
+			"Use 'potaco use' to switch to a provider that supports editing.",
+			fmt.Errorf("image editing not supported by provider %s", resolved.Adapter.Name()),
 		)
 	}
 

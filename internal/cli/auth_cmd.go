@@ -44,6 +44,7 @@ func init() {
 	authAddCmd.Flags().String("api-key", "", "API key for the provider")
 	authAddCmd.Flags().Bool("force", false, "skip provider verification")
 	authAddCmd.Flags().String("model", "", "override the default model for this provider")
+	authAddCmd.Flags().String("base-url", "", "override API base URL for verification")
 
 	authCmd.AddCommand(authAddCmd)
 	authCmd.AddCommand(authRemoveCmd)
@@ -78,31 +79,46 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return configError(fmt.Errorf("unknown provider: %s (available: %v)", providerName, available))
 	}
 
-	// If no API key was provided via flag or env and we're interactive,
-	// launch the TUI flow to prompt for the key.
-	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
-	envKey := os.Getenv("POTACO_API_KEY")
-	if apiKeyFlag == "" && envKey == "" && tui.IsInteractive() {
-		return tui.RunAuthAdd(providerName)
-	}
-
-	apiKey := apiKeyFlag
-	if apiKey == "" {
-		apiKey = envKey
-	}
-	if apiKey == "" {
-		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
-	}
-
 	mgr, err := auth.New()
 	if err != nil {
 		return configError(fmt.Errorf("init auth: %w", err))
 	}
 
+	cfg, _ := mgr.LoadConfig()
+	baseURL := resolveBaseURL(cmd, providerName, cfg)
+
+	// Resolve the API key from flag or env.
+	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
+	envKey := os.Getenv("POTACO_API_KEY")
+	apiKey := apiKeyFlag
+	if apiKey == "" {
+		apiKey = envKey
+	}
+
+	// If either credential is missing in interactive mode, hand off to the
+	// TUI flow which can prompt for both. For the custom provider the base URL
+	// is also required for verification.
+	needsKey := apiKey == ""
+	needsBaseURL := providerName == "custom" && baseURL == ""
+	if (needsKey || needsBaseURL) && tui.IsInteractive() {
+		return tui.RunAuthAdd(providerName)
+	}
+
+	if apiKey == "" {
+		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
+	}
+	if providerName == "custom" && baseURL == "" {
+		return configUserErr(
+			"A base URL is required for the custom provider.",
+			"Use --base-url or set POTACO_BASE_URL.",
+			fmt.Errorf("base URL required for provider custom"),
+		)
+	}
+
 	// Verify provider connectivity unless --force.
 	force, _ := cmd.Flags().GetBool("force")
 	if !force {
-		ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{})
+		ad, err := adapter.Get(providerName, apiKey, adapter.AdapterOpts{BaseURL: baseURL})
 		if err != nil {
 			return configError(fmt.Errorf("create adapter: %w", err))
 		}
@@ -114,6 +130,14 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	// Store the credential and set the provider as active.
 	if err := mgr.Add(providerName, apiKey); err != nil {
 		return configError(fmt.Errorf("add provider: %w", err))
+	}
+
+	// Persist the base URL for custom so subsequent commands can resolve it
+	// from config without passing --base-url every time.
+	if providerName == "custom" && baseURL != "" {
+		if err := mgr.SetBaseURL(providerName, baseURL); err != nil {
+			return configError(fmt.Errorf("set base URL: %w", err))
+		}
 	}
 
 	// Override the default model if --model was specified.
@@ -169,6 +193,7 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 		type providerJSON struct {
 			Name     string `json:"name"`
 			Model    string `json:"model"`
+			BaseURL  string `json:"base_url,omitempty"`
 			HasKey   bool   `json:"has_key"`
 			IsActive bool   `json:"is_active"`
 		}
@@ -177,6 +202,7 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 			items = append(items, providerJSON{
 				Name:     p.Name,
 				Model:    p.Model,
+				BaseURL:  p.BaseURL,
 				HasKey:   p.HasKey,
 				IsActive: p.IsActive,
 			})
@@ -212,6 +238,9 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 				keyStatus = keyMissingStyle.Render("missing")
 			}
 			fmt.Fprintf(out, "  %s  %s  key: %s\n", name, p.Model, keyStatus)
+			if p.BaseURL != "" {
+				fmt.Fprintf(out, "    base_url: %s\n", p.BaseURL)
+			}
 		}
 		return nil
 	}
@@ -228,6 +257,9 @@ func runAuthList(cmd *cobra.Command, args []string) error {
 			keyStatus = "configured"
 		}
 		fmt.Fprintf(out, "  %s\t%s\tkey: %s%s\n", p.Name, p.Model, keyStatus, active)
+		if p.BaseURL != "" {
+			fmt.Fprintf(out, "    base_url: %s\n", p.BaseURL)
+		}
 	}
 	return nil
 }

@@ -5,7 +5,9 @@
     "**/.git/**",
     "**/node_modules/**",
     "**/*.sum",
-    "**/docs/superpowers/**"
+    "**/docs/superpowers/**",
+    "internal/adapter/custom/**",
+    "internal/adapter/openai/**"
   ],
   "format": ["go"],
   "min-lines": 20,

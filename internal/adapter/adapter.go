@@ -11,11 +11,12 @@ import (
 // and verification.
 type Adapter interface {
 	Name() string
+	SupportsGenerate() bool
+	SupportsEdit() bool
 	Generate(ctx context.Context, req GenerateRequest) (*GenerateResponse, error)
 	Edit(ctx context.Context, req EditRequest) (*GenerateResponse, error)
 	DiscoverModels(ctx context.Context) ([]Model, error)
 	Verify(ctx context.Context) error
-	ModelParams(ctx context.Context, modelID string) ([]Param, error)
 	AuthHeader(apiKey string) string
 }
 
@@ -71,20 +72,9 @@ type Model struct {
 	Capabilities []string
 }
 
-// Param describes a supported parameter for a specific model.
-type Param struct {
-	Name        string
-	Type        string // "string", "int", "float", "bool", "enum"
-	Description string
-	Default     string
-	EnumValues  []string
-	Required    bool
-}
-
 // Sentinel errors for adapter operations.
 var (
 	ErrEditNotSupported   = errors.New("image editing not supported by this provider")
-	ErrModelNotFound      = errors.New("model not found")
 	ErrVerificationFailed = errors.New("provider verification failed")
 	ErrDiscoveryFailed    = errors.New("model discovery failed")
 )

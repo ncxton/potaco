@@ -17,3 +17,10 @@ func TestRunAuthAddEmptyProvider(t *testing.T) {
 		t.Fatal("RunAuthAdd with empty provider should return an error")
 	}
 }
+
+func TestRunAuthAddCustomRequiresBaseURL(t *testing.T) {
+	err := RunAuthAdd("custom")
+	if err == nil {
+		t.Fatal("RunAuthAdd with custom provider should require a base URL")
+	}
+}

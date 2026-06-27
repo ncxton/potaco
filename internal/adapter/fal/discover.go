@@ -23,7 +23,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 
 	resp, err := a.http.Do(httpReq)
 	if err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models: %w", err)
 	}
 	defer func() {
 		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
@@ -32,7 +32,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("discover models failed (HTTP %d)", resp.StatusCode)
 	}
 
 	var result struct {
@@ -44,7 +44,7 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 		} `json:"models"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return fallbackModels, nil
+		return nil, fmt.Errorf("decode models response: %w", err)
 	}
 
 	for _, model := range result.Models {
@@ -56,12 +56,11 @@ func (a *Adapter) DiscoverModels(ctx context.Context) (models []adapter.Model, e
 			ID:           model.ID,
 			DisplayName:  displayName,
 			SupportsGen:  true,
-			SupportsEdit: isEditEndpoint(model.ID),
-			Capabilities: modelCapabilities(model.ID),
+			SupportsEdit: true,
 		})
 	}
 	if len(models) == 0 {
-		return fallbackModels, nil
+		return nil, adapter.ErrDiscoveryFailed
 	}
 	return models, nil
 }
@@ -91,25 +90,6 @@ func (a *Adapter) Verify(ctx context.Context) (err error) {
 	}
 	if resp.StatusCode >= http.StatusBadRequest {
 		return fmt.Errorf("verification failed (HTTP %d)", resp.StatusCode)
-	}
-	return nil
-}
-
-func (a *Adapter) ModelParams(_ context.Context, modelID string) ([]adapter.Param, error) {
-	params, ok := lookupModelParams(modelID)
-	if !ok {
-		return nil, adapter.ErrModelNotFound
-	}
-	return params, nil
-}
-
-func modelCapabilities(modelID string) []string {
-	if params, ok := lookupModelParams(modelID); ok {
-		capabilities := make([]string, len(params))
-		for i, param := range params {
-			capabilities[i] = param.Name
-		}
-		return capabilities
 	}
 	return nil
 }

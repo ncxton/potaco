@@ -3,7 +3,6 @@ package fal
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,6 +24,20 @@ func TestFalAuthHeader(t *testing.T) {
 	want := "Key my-key"
 	if got != want {
 		t.Errorf("AuthHeader() = %q, want %q", got, want)
+	}
+}
+
+func TestFalSupportsGenerate(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{})
+	if !ad.SupportsGenerate() {
+		t.Error("SupportsGenerate should be true")
+	}
+}
+
+func TestFalSupportsEdit(t *testing.T) {
+	ad := New("key", adapter.AdapterOpts{})
+	if !ad.SupportsEdit() {
+		t.Error("SupportsEdit should be true")
 	}
 }
 
@@ -122,18 +135,21 @@ func TestFalDiscoverModels(t *testing.T) {
 	if !models[0].SupportsGen {
 		t.Error("model[0] should support gen")
 	}
-	if models[0].SupportsEdit {
-		t.Error("model[0] should not support edit")
+	if !models[0].SupportsEdit {
+		t.Error("model[0] should support edit")
 	}
 	if models[1].ID != "fal-ai/flux/dev/image-to-image" {
 		t.Errorf("model[1] ID = %q", models[1].ID)
 	}
 	if !models[1].SupportsEdit {
-		t.Error("model[1] should support edit (has 'image-to-image' in ID)")
+		t.Error("model[1] should support edit")
+	}
+	if !models[2].SupportsEdit {
+		t.Error("model[2] should support edit")
 	}
 }
 
-func TestFalDiscoverModelsFallback(t *testing.T) {
+func TestFalDiscoverModelsError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -143,12 +159,9 @@ func TestFalDiscoverModelsFallback(t *testing.T) {
 	fa := ad.(*Adapter)
 	fa.apiBaseURL = srv.URL
 
-	models, err := ad.DiscoverModels(context.Background())
-	if err != nil {
-		t.Fatalf("DiscoverModels should fall back, got error: %v", err)
-	}
-	if len(models) == 0 {
-		t.Fatal("fallback models should not be empty")
+	_, err := ad.DiscoverModels(context.Background())
+	if err == nil {
+		t.Fatal("DiscoverModels should return error on API failure")
 	}
 }
 
@@ -186,24 +199,5 @@ func TestFalVerifyInvalidKey(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "invalid API key") {
 		t.Errorf("error should mention invalid key, got: %v", err)
-	}
-}
-
-func TestFalModelParamsKnownModel(t *testing.T) {
-	ad := New("key", adapter.AdapterOpts{})
-	params, err := ad.ModelParams(context.Background(), "fal-ai/flux/dev")
-	if err != nil {
-		t.Fatalf("ModelParams: %v", err)
-	}
-	if len(params) == 0 {
-		t.Fatal("params should not be empty for known model")
-	}
-}
-
-func TestFalModelParamsUnknownModel(t *testing.T) {
-	ad := New("key", adapter.AdapterOpts{})
-	_, err := ad.ModelParams(context.Background(), "unknown-model")
-	if !errors.Is(err, adapter.ErrModelNotFound) {
-		t.Errorf("ModelParams unknown model: got %v, want ErrModelNotFound", err)
 	}
 }

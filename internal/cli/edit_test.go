@@ -436,7 +436,7 @@ func TestEditWithAuthCredentials(t *testing.T) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"edit", "--prompt", "make it blue", "--image", imgPath, "--dry-run"})
+	rootCmd.SetArgs([]string{"edit", "--prompt", "make it blue", "--image", imgPath, "--model", "gpt-image-2", "--dry-run"})
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -448,7 +448,7 @@ func TestEditWithAuthCredentials(t *testing.T) {
 		t.Errorf("dry-run should contain edit endpoint, got: %q", output)
 	}
 	if !strings.Contains(output, "gpt-image-2") {
-		t.Errorf("dry-run should contain default model, got: %q", output)
+		t.Errorf("dry-run should contain model, got: %q", output)
 	}
 }
 
@@ -568,6 +568,9 @@ func TestEditDryRunVercelNotSupported(t *testing.T) {
 	if !strings.Contains(err.Error(), "not supported") {
 		t.Errorf("error should mention 'not supported', got: %v", err)
 	}
+	if !strings.Contains(err.Error(), "vercel") {
+		t.Errorf("error should mention provider 'vercel', got: %v", err)
+	}
 }
 
 func TestEditVercelNotSupportedNonDryRun(t *testing.T) {
@@ -590,6 +593,9 @@ func TestEditVercelNotSupportedNonDryRun(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not supported") {
 		t.Errorf("error should mention 'not supported', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "vercel") {
+		t.Errorf("error should mention provider 'vercel', got: %v", err)
 	}
 }
 

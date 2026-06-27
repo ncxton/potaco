@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ncxton/potaco/internal/adapter"
+	_ "github.com/ncxton/potaco/internal/adapter/custom" // register custom adapter
 	_ "github.com/ncxton/potaco/internal/adapter/fal"    // register fal adapter
 	_ "github.com/ncxton/potaco/internal/adapter/openai" // register openai adapter
 	_ "github.com/ncxton/potaco/internal/adapter/vercel" // register vercel adapter
@@ -18,16 +19,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// providerPreset holds known defaults (base URL, default model) for a provider.
+// providerPreset holds known defaults (base URL) for a provider.
 type providerPreset struct {
-	BaseURL      string
-	DefaultModel string
+	BaseURL string
 }
 
 var providerPresets = map[string]providerPreset{
-	"openai": {BaseURL: "https://api.openai.com/v1", DefaultModel: "gpt-image-2"},
-	"fal":    {BaseURL: "https://fal.run", DefaultModel: "fal-ai/flux/dev"},
-	"vercel": {BaseURL: "https://ai-gateway.vercel.sh/v1", DefaultModel: "openai/gpt-image-2"},
+	"openai": {BaseURL: "https://api.openai.com/v1"},
+	"fal":    {BaseURL: "https://fal.run"},
+	"vercel": {BaseURL: "https://ai-gateway.vercel.sh/v1"},
+	// "custom" has no preset: users must supply a base URL.
 }
 
 func getProviderPreset(name string) (providerPreset, bool) {
