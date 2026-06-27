@@ -59,7 +59,6 @@ func TestUninstallNonInteractiveRemovesBinary(t *testing.T) {
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)
 
-	// Create a fake binary
 	binPath := filepath.Join(tmpHome, ".local", "bin", "potaco")
 	if err := os.MkdirAll(filepath.Dir(binPath), 0755); err != nil {
 		t.Fatalf("mkdir: %v", err)
@@ -68,6 +67,14 @@ func TestUninstallNonInteractiveRemovesBinary(t *testing.T) {
 		t.Fatalf("write fake binary: %v", err)
 	}
 	withBinaryFinder(t, binPath)
+
+	configDir := filepath.Join(tmpHome, ".potaco")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("mkdir config: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(legacyCustomProviderConfigYAML), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
 
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
@@ -86,6 +93,9 @@ func TestUninstallNonInteractiveRemovesBinary(t *testing.T) {
 
 	if _, err := os.Stat(binPath); !os.IsNotExist(err) {
 		t.Errorf("binary should have been removed, but file still exists at %s", binPath)
+	}
+	if _, err := os.Stat(configDir); err != nil {
+		t.Errorf("config dir should be preserved during non-interactive uninstall: %v", err)
 	}
 }
 
