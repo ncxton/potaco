@@ -160,7 +160,7 @@ Common JSON outputs:
 
 - `potaco status --json`: active provider, model, base_url, all providers (with base_url, has_key, is_active, added_at), file paths.
 - `potaco auth list --json`: array of providers with name, model, base_url, has_key, is_active.
-- `potaco models --json` / `potaco models list --json`: array of models with id, display_name, supports_gen, supports_edit, capabilities.
+- `potaco models --json` / `potaco models list --json`: array of models with id and display_name.
 - `potaco version --json`: current, latest, update_available fields.
 - `potaco info <path> --json`: path, format, width, height, file_size, color_model.
 - `potaco gen --json` / `potaco edit --json`: path, format, dimensions, model, params, latency_ms.

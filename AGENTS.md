@@ -6,8 +6,12 @@ Potaco is a Go CLI for image generation and editing via multi-provider adapters 
 
 Provider presets in `internal/cli/helpers.go` store only a base URL (`BaseURL`).
 There is no `DefaultModel` preset; models are selected by the user via `potaco
-models` or `potaco config set model <model>`. The `custom` provider has no preset and
-requires a user-supplied base URL.
+models` or `potaco config set model <model>`. Generation is assumed available for
+the selected model. Edit capability is user-configured per model with
+`potaco config set model.edit true` or
+`potaco config set providers.<name>.models.<model>.edit true`; do not infer it
+from provider discovery. The `custom` provider has no preset and requires a
+user-supplied base URL.
 
 Layered monolith dependency graph:
 

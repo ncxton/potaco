@@ -157,6 +157,13 @@ potaco edit --prompt "replace with a tree" --image photo.png --mask-rect 100,200
 potaco edit --prompt "extend the landscape" --image photo.png --extend right=256,bottom=256
 ```
 
+`edit` only runs when the selected model is configured as edit capable. Interactive model selection asks this after you pick a model. For non-interactive setup, set it yourself after confirming provider support:
+
+```sh
+potaco config set model.edit true
+potaco config set providers.openai.models.gpt-image-2.edit true
+```
+
 ### `potaco auth` -- Manage provider credentials
 
 Connect providers, add API keys, and manage credentials. Credentials are encrypted at rest.
@@ -197,7 +204,7 @@ potaco status --json                            # JSON output
 
 ### `potaco models` -- Pick or list available models
 
-Discover models from the active provider or a specified provider. By default, the command launches an interactive picker that persists the selected model to config. In non-interactive mode it falls back to a static list.
+Discover models from the active provider or a specified provider. By default, the command launches an interactive picker that persists the selected model to config and asks whether it can edit images. In non-interactive mode it falls back to a static list.
 
 ```sh
 potaco models                                    # interactive picker for the active provider
@@ -208,7 +215,7 @@ potaco models list openai                        # static list for a specific pr
 potaco models --json --non-interactive           # JSON output (static list)
 ```
 
-Use `potaco models list` when you only want to see the available models without changing the active model.
+Use `potaco models list` when you only want to see available model IDs without changing the active model. Model discovery does not configure or display generation/edit capability; generation is assumed available, and edit capability is user-configured.
 
 ### `potaco config` -- Provider settings
 
@@ -217,6 +224,8 @@ Manage per-provider settings stored in `~/.potaco/config.yaml`. API keys are sto
 ```sh
 potaco config set model gpt-image-2                         # change active provider model
 potaco config set providers.vercel.model openai/gpt-image-2 # set a provider model
+potaco config set model.edit true                           # mark active provider model edit capable
+potaco config set providers.openai.models.gpt-image-2.edit true # mark a specific model edit capable
 potaco config set base_url https://api.example.com/v1        # set active provider base URL
 potaco config set retries 3                                 # set active provider retries
 potaco config set timeout 120                               # set active provider timeout in seconds

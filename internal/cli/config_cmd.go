@@ -261,6 +261,17 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "    base_url: %s\n", formatBaseURL(pc.BaseURL))
 		fmt.Fprintf(out, "    retries: %d\n", pc.Retries)
 		fmt.Fprintf(out, "    timeout: %s\n", formatTimeout(pc.Timeout))
+		if len(pc.Models) > 0 {
+			models := make([]string, 0, len(pc.Models))
+			for model := range pc.Models {
+				models = append(models, model)
+			}
+			sort.Strings(models)
+			fmt.Fprintln(out, "    models:")
+			for _, model := range models {
+				fmt.Fprintf(out, "      %s: edit=%t\n", model, pc.Models[model].Edit)
+			}
+		}
 	}
 	return nil
 }

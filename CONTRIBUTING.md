@@ -56,6 +56,7 @@ Provider credentials are managed via `auth add`:
 ./potaco models list                        # List available models without changing selection
 ./potaco status                             # Show current provider/model status
 ./potaco config set model gpt-image-2       # Set active provider model
+./potaco config set model.edit true         # Mark active provider model edit capable
 ./potaco config set auto_update false       # Disable automatic update prompts
 ```
 

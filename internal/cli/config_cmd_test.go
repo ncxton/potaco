@@ -821,6 +821,32 @@ func TestConfigShowDisplaysBaseURL(t *testing.T) {
 	}
 }
 
+func TestConfigShowDisplaysModelEditCapability(t *testing.T) {
+	path, buf := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {
+				Model: "gpt-image-2",
+				Models: map[string]config.ModelConfig{
+					"gpt-image-2": {Edit: true},
+				},
+			},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "show"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config show error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "models:") || !strings.Contains(output, "gpt-image-2: edit=true") {
+		t.Errorf("config show should include model edit capability, got: %s", output)
+	}
+}
+
 func TestConfigShowOldConfigWithoutBaseURL(t *testing.T) {
 	path, buf := newConfigTest(t)
 	// Old-format config without base_url.

@@ -96,6 +96,7 @@ potaco info image.png --json
 ```
 
 Interactive `models` persists selection. `models list` only displays. In non-interactive mode, `models` behaves like `models list`.
+Interactive model selection asks whether the selected model can edit images and stores that answer. Non-interactive setup must use `potaco config set model.edit true` or `potaco config set providers.<name>.models.<model>.edit true`. Generation is assumed available; edit capability is user-configured, not inferred from discovery.
 
 ## Persistent flags and overrides
 

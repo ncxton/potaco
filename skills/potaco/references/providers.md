@@ -39,4 +39,4 @@ Setup:
 potaco auth add custom
 ```
 
-The base URL is stored in config after setup. Custom model discovery returns every `/v1/models` result as generation/edit capable.
+The base URL is stored in config after setup. Model discovery lists model IDs only; generation is assumed available and edit capability is configured by the user per model.
