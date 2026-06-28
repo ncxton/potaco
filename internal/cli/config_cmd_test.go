@@ -35,6 +35,12 @@ func resetConfigSetFlags(t *testing.T) {
 		}
 		flag.Changed = false
 	}
+	if flag := configSetCmd.Flags().Lookup("help"); flag != nil {
+		if err := flag.Value.Set("false"); err != nil {
+			t.Fatalf("reset config set help flag: %v", err)
+		}
+		flag.Changed = false
+	}
 }
 
 func newConfigTest(t *testing.T) (string, *bytes.Buffer) {
@@ -64,6 +70,23 @@ func TestConfigSetHasNewFlags(t *testing.T) {
 		if configSetCmd.Flags().Lookup(name) == nil {
 			t.Fatalf("config set should have --%s flag", name)
 		}
+	}
+}
+
+func TestConfigSetHelpHidesLegacyFlags(t *testing.T) {
+	_, buf := newConfigTest(t)
+	rootCmd.SetArgs([]string{"config", "set", "--help"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set --help: %v", err)
+	}
+	out := buf.String()
+	for _, s := range []string{"--model", "--base-url", "--retries", "--timeout"} {
+		if strings.Contains(out, s) {
+			t.Fatalf("help should not show legacy flag %s:\n%s", s, out)
+		}
+	}
+	if !strings.Contains(out, "set <key> <value>") {
+		t.Fatalf("help should show key/value usage:\n%s", out)
 	}
 }
 
@@ -255,10 +278,10 @@ func TestConfigSetErrorsWhenNoFlags(t *testing.T) {
 	rootCmd.SetArgs([]string{"config", "set"})
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Fatal("config set should error when no flags are given")
+		t.Fatal("config set should error when no value is given")
 	}
-	if !strings.Contains(err.Error(), "no flags specified") {
-		t.Fatalf("error should mention 'no flags specified', got: %v", err)
+	if !strings.Contains(err.Error(), "potaco config set <key> <value>") {
+		t.Fatalf("error should mention key/value usage, got: %v", err)
 	}
 }
 
@@ -460,6 +483,221 @@ func TestConfigSetBaseURLTrimsTrailingSlash(t *testing.T) {
 	}
 }
 
+func TestConfigSetKeyValueActiveProviderFields(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		key   string
+		value string
+		check func(t *testing.T, cfg *config.MultiProviderConfig)
+	}{
+		{
+			name:  "model",
+			key:   "model",
+			value: "gpt-image-3",
+			check: func(t *testing.T, cfg *config.MultiProviderConfig) {
+				t.Helper()
+				if got := cfg.Providers["openai"].Model; got != "gpt-image-3" {
+					t.Fatalf("model = %q, want gpt-image-3", got)
+				}
+				if got := cfg.ActiveModel; got != "gpt-image-3" {
+					t.Fatalf("ActiveModel = %q, want gpt-image-3", got)
+				}
+			},
+		},
+		{
+			name:  "base_url",
+			key:   "base_url",
+			value: "https://api.example.com/v1/",
+			check: func(t *testing.T, cfg *config.MultiProviderConfig) {
+				t.Helper()
+				if got := cfg.Providers["openai"].BaseURL; got != "https://api.example.com/v1" {
+					t.Fatalf("base_url = %q, want trimmed URL", got)
+				}
+			},
+		},
+		{
+			name:  "retries",
+			key:   "retries",
+			value: "6",
+			check: func(t *testing.T, cfg *config.MultiProviderConfig) {
+				t.Helper()
+				if got := cfg.Providers["openai"].Retries; got != 6 {
+					t.Fatalf("retries = %d, want 6", got)
+				}
+			},
+		},
+		{
+			name:  "timeout",
+			key:   "timeout",
+			value: "45",
+			check: func(t *testing.T, cfg *config.MultiProviderConfig) {
+				t.Helper()
+				if got := cfg.Providers["openai"].Timeout; got != 45 {
+					t.Fatalf("timeout = %d, want 45", got)
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path, _ := newConfigTest(t)
+			writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+				ActiveProvider: "openai",
+				ActiveModel:    "gpt-image-2",
+				Providers: map[string]config.ProviderConfig{
+					"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+				},
+			})
+
+			rootCmd.SetArgs([]string{"config", "set", tc.key, tc.value})
+			if err := rootCmd.Execute(); err != nil {
+				t.Fatalf("config set %s error: %v", tc.key, err)
+			}
+
+			cfg, err := config.LoadMultiProvider(path)
+			if err != nil {
+				t.Fatalf("load config: %v", err)
+			}
+			tc.check(t, cfg)
+		})
+	}
+}
+
+func TestConfigSetKeyValueExplicitProviderFields(t *testing.T) {
+	for _, tc := range []struct {
+		key   string
+		value string
+		check func(t *testing.T, pc config.ProviderConfig)
+	}{
+		{
+			key:   "providers.vercel.model",
+			value: "openai/gpt-image-2",
+			check: func(t *testing.T, pc config.ProviderConfig) {
+				t.Helper()
+				if pc.Model != "openai/gpt-image-2" {
+					t.Fatalf("model = %q, want openai/gpt-image-2", pc.Model)
+				}
+			},
+		},
+		{
+			key:   "providers.vercel.base_url",
+			value: "https://gateway.ai/v1/",
+			check: func(t *testing.T, pc config.ProviderConfig) {
+				t.Helper()
+				if pc.BaseURL != "https://gateway.ai/v1" {
+					t.Fatalf("base_url = %q, want trimmed URL", pc.BaseURL)
+				}
+			},
+		},
+		{
+			key:   "providers.vercel.retries",
+			value: "5",
+			check: func(t *testing.T, pc config.ProviderConfig) {
+				t.Helper()
+				if pc.Retries != 5 {
+					t.Fatalf("retries = %d, want 5", pc.Retries)
+				}
+			},
+		},
+		{
+			key:   "providers.vercel.timeout",
+			value: "75",
+			check: func(t *testing.T, pc config.ProviderConfig) {
+				t.Helper()
+				if pc.Timeout != 75 {
+					t.Fatalf("timeout = %d, want 75", pc.Timeout)
+				}
+			},
+		},
+	} {
+		t.Run(tc.key, func(t *testing.T) {
+			path, _ := newConfigTest(t)
+			writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+				ActiveProvider: "openai",
+				ActiveModel:    "gpt-image-2",
+				Providers: map[string]config.ProviderConfig{
+					"openai": {Model: "gpt-image-2", Retries: 2, Timeout: 120},
+					"vercel": {Model: "old", Retries: 1, Timeout: 30},
+				},
+			})
+
+			rootCmd.SetArgs([]string{"config", "set", tc.key, tc.value})
+			if err := rootCmd.Execute(); err != nil {
+				t.Fatalf("config set %s error: %v", tc.key, err)
+			}
+
+			cfg, err := config.LoadMultiProvider(path)
+			if err != nil {
+				t.Fatalf("load config: %v", err)
+			}
+			tc.check(t, cfg.Providers["vercel"])
+		})
+	}
+}
+
+func TestConfigSetAutoUpdate(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2"},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "auto_update", "false"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set auto_update error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if cfg.AutoUpdate == nil || *cfg.AutoUpdate {
+		t.Fatalf("AutoUpdate = %v, want explicit false", cfg.AutoUpdate)
+	}
+	if cfg.AutoUpdateEnabled() {
+		t.Fatal("AutoUpdateEnabled = true, want false")
+	}
+}
+
+func TestConfigSetUnknownKeyErrors(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2"},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "unknown", "value"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("config set should reject unknown keys")
+	}
+	if !strings.Contains(err.Error(), "unknown config key") {
+		t.Fatalf("error should mention unknown config key, got: %v", err)
+	}
+}
+
+func TestConfigSetExplicitProviderRequiresConfiguredProvider(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2"},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "providers.openrouter.model", "openai/gpt-image-2"})
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("config set should reject unknown provider entries")
+	}
+	if !strings.Contains(err.Error(), `provider "openrouter" is not configured`) {
+		t.Fatalf("error should mention missing provider, got: %v", err)
+	}
+}
+
 func TestConfigSetOtherFieldsPreservesBaseURL(t *testing.T) {
 	path, _ := newConfigTest(t)
 	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
@@ -501,10 +739,10 @@ func TestConfigSetNoFlagsIncludesBaseURL(t *testing.T) {
 	rootCmd.SetArgs([]string{"config", "set"})
 	err := rootCmd.Execute()
 	if err == nil {
-		t.Fatal("config set should error when no flags are given")
+		t.Fatal("config set should error when no value is given")
 	}
-	if !strings.Contains(err.Error(), "--base-url") {
-		t.Errorf("error should mention --base-url, got: %v", err)
+	if !strings.Contains(err.Error(), "potaco config set <key> <value>") {
+		t.Errorf("error should mention key/value usage, got: %v", err)
 	}
 	_ = path
 }

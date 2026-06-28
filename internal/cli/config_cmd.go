@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/ncxton/potaco/internal/config"
@@ -15,7 +16,7 @@ var configCmd = &cobra.Command{
 }
 
 var configSetCmd = &cobra.Command{
-	Use:   "set",
+	Use:   "set <key> <value>",
 	Short: "Set configuration values for the active provider",
 	RunE:  runConfigSet,
 }
@@ -31,6 +32,10 @@ func init() {
 	configSetCmd.Flags().String("base-url", "", "base URL for the active provider")
 	configSetCmd.Flags().Int("retries", 0, "max retry attempts for the active provider")
 	configSetCmd.Flags().String("timeout", "", "request timeout in seconds for the active provider (e.g., 120)")
+	_ = configSetCmd.Flags().MarkHidden("model")
+	_ = configSetCmd.Flags().MarkHidden("base-url")
+	_ = configSetCmd.Flags().MarkHidden("retries")
+	_ = configSetCmd.Flags().MarkHidden("timeout")
 
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configShowCmd)
@@ -43,6 +48,20 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	cfg, err := config.LoadMultiProvider(path)
 	if err != nil {
 		return configError(err)
+	}
+
+	if len(args) > 0 {
+		if len(args) != 2 {
+			return configError(fmt.Errorf("usage: potaco config set <key> <value>"))
+		}
+		if err := setConfigKeyValue(cfg, args[0], args[1]); err != nil {
+			return configError(err)
+		}
+		if err := config.SaveMultiProvider(path, cfg); err != nil {
+			return configError(err)
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "Configuration saved to %s\n", path)
+		return nil
 	}
 
 	if cfg.ActiveProvider == "" {
@@ -82,7 +101,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	if !changed {
-		return configError(fmt.Errorf("no flags specified. Use --model, --base-url, --retries, or --timeout"))
+		return configError(fmt.Errorf("no value specified. Use 'potaco config set <key> <value>'"))
 	}
 
 	cfg.Providers[cfg.ActiveProvider] = pc
@@ -92,6 +111,70 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "Configuration saved to %s\n", path)
+	return nil
+}
+
+func setConfigKeyValue(cfg *config.MultiProviderConfig, key, value string) error {
+	if key == "auto_update" {
+		v, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("auto_update must be true or false, got %q", value)
+		}
+		cfg.AutoUpdate = &v
+		return nil
+	}
+
+	if strings.HasPrefix(key, "providers.") {
+		parts := strings.Split(key, ".")
+		if len(parts) != 3 || parts[1] == "" {
+			return fmt.Errorf("unknown config key %q", key)
+		}
+		return setProviderConfigValue(cfg, parts[1], parts[2], value)
+	}
+
+	switch key {
+	case "model", "base_url", "retries", "timeout":
+		if cfg.ActiveProvider == "" {
+			return fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one")
+		}
+		return setProviderConfigValue(cfg, cfg.ActiveProvider, key, value)
+	default:
+		return fmt.Errorf("unknown config key %q", key)
+	}
+}
+
+func setProviderConfigValue(cfg *config.MultiProviderConfig, providerName, field, value string) error {
+	if cfg.Providers == nil {
+		cfg.Providers = make(map[string]config.ProviderConfig)
+	}
+	pc, ok := cfg.Providers[providerName]
+	if !ok {
+		return fmt.Errorf("provider %q is not configured. Use 'potaco auth add %s' first", providerName, providerName)
+	}
+	switch field {
+	case "model":
+		pc.Model = value
+		if providerName == cfg.ActiveProvider {
+			cfg.ActiveModel = value
+		}
+	case "base_url":
+		pc.BaseURL = strings.TrimRight(value, "/")
+	case "retries":
+		retries, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("retries must be a number, got %q", value)
+		}
+		pc.Retries = retries
+	case "timeout":
+		timeout, err := parseTimeoutString(value)
+		if err != nil {
+			return err
+		}
+		pc.Timeout = int(timeout.Seconds())
+	default:
+		return fmt.Errorf("unknown config key %q", "providers."+providerName+"."+field)
+	}
+	cfg.Providers[providerName] = pc
 	return nil
 }
 
