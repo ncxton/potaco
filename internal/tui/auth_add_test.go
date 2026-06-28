@@ -28,6 +28,31 @@ func TestRunAuthAddCustomRequiresBaseURL(t *testing.T) {
 	}
 }
 
+func TestAuthAddRequiresBaseURLForAliases(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerName string
+		providerType string
+		want         bool
+	}{
+		{name: "custom", providerName: "custom", providerType: "openai-compatible", want: true},
+		{name: "openai alias", providerName: "staging-openai", providerType: "openai", want: true},
+		{name: "fal alias", providerName: "staging-fal", providerType: "fal", want: true},
+		{name: "vercel alias", providerName: "staging-vercel", providerType: "vercel", want: true},
+		{name: "openai built-in", providerName: "openai", providerType: "openai", want: false},
+		{name: "fal built-in", providerName: "fal", providerType: "fal", want: false},
+		{name: "vercel built-in", providerName: "vercel", providerType: "vercel", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := authAddRequiresBaseURL(tt.providerName, tt.providerType); got != tt.want {
+				t.Fatalf("authAddRequiresBaseURL(%q, %q) = %v, want %v", tt.providerName, tt.providerType, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEnsureProviderTypeReturnsOpenAICompatibleForCustomProvider(t *testing.T) {
 	providerType, err := ensureProviderType("custom")
 	if err != nil {

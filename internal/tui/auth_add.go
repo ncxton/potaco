@@ -34,7 +34,7 @@ func RunAuthAdd(providerName string) error {
 		return normalizeCancel(err)
 	}
 
-	baseURL, err := promptBaseURL(providerType)
+	baseURL, err := promptBaseURL(providerName, providerType)
 	if err != nil {
 		return normalizeCancel(err)
 	}
@@ -155,8 +155,20 @@ func ensureProviderType(providerName string) (string, error) {
 
 // promptBaseURL prompts for a base URL when the provider type requires one.
 // For other providers it returns an empty string.
-func promptBaseURL(providerType string) (string, error) {
-	if providerType != "openai-compatible" {
+func authAddRequiresBaseURL(providerName, providerType string) bool {
+	if providerType == "openai-compatible" || providerName == "custom" {
+		return true
+	}
+	switch providerName {
+	case "openai", "fal", "vercel":
+		return false
+	default:
+		return true
+	}
+}
+
+func promptBaseURL(providerName, providerType string) (string, error) {
+	if !authAddRequiresBaseURL(providerName, providerType) {
 		return "", nil
 	}
 	var baseURL string
@@ -170,7 +182,7 @@ func promptBaseURL(providerType string) (string, error) {
 	}
 	baseURL = strings.TrimRight(baseURL, "/")
 	if baseURL == "" {
-		return "", fmt.Errorf("base URL is required for the custom provider")
+		return "", fmt.Errorf("base URL is required for this provider")
 	}
 	return baseURL, nil
 }

@@ -24,5 +24,13 @@ func shouldRunInteractiveAuthAdd(input authAddInteractiveInput) bool {
 	if input.apiKey == "" {
 		return true
 	}
-	return (input.providerTypeFlag == "openai-compatible" || input.providerName == "custom") && input.baseURL == ""
+	return authAddRequiresBaseURL(input.providerName, input.providerTypeFlag) && input.baseURL == ""
+}
+
+func authAddRequiresBaseURL(providerName, providerType string) bool {
+	if providerType == "openai-compatible" || providerName == "custom" {
+		return true
+	}
+	_, ok := getProviderPreset(providerName)
+	return !ok
 }

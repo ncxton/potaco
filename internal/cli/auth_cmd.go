@@ -102,18 +102,11 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	if apiKey == "" {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
 	}
-	if providerType == "openai-compatible" && baseURL == "" {
+	if authAddRequiresBaseURL(providerName, providerType) && baseURL == "" {
 		return configUserErr(
-			"A base URL is required for OpenAI-compatible providers.",
+			"A base URL is required for this provider.",
 			"Use --base-url or set POTACO_BASE_URL.",
 			fmt.Errorf("base URL required for provider %s", providerName),
-		)
-	}
-	if providerName == "custom" && baseURL == "" {
-		return configUserErr(
-			"A base URL is required for the custom provider.",
-			"Use --base-url or set POTACO_BASE_URL.",
-			fmt.Errorf("base URL required for provider custom"),
 		)
 	}
 

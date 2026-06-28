@@ -1,6 +1,6 @@
 # Providers
 
-Potaco supports built-in `openai`, `fal`, `vercel`, plus `custom` OpenAI-compatible endpoints.
+Potaco supports built-in `openai`, `fal`, `vercel`, plus aliases and `custom` endpoints.
 
 ## Provider Support Matrix
 
@@ -11,6 +11,8 @@ Potaco supports built-in `openai`, `fal`, `vercel`, plus `custom` OpenAI-compati
 | Model discovery | GET `/v1/models` | GET `api.fal.ai/v1/models` | GET `/v1/models` | GET `/v1/models` |
 | Auth header | `Bearer <key>` | `Key <key>` | `Bearer <key>` | `Bearer <key>` |
 | Requires `--base-url` | No | No | No | Yes |
+
+Built-in provider names use preset base URLs. Any other provider name, including an alias using a built-in adapter type, must provide `--base-url` or `base_url`.
 
 ## Provider notes
 
