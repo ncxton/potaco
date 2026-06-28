@@ -200,34 +200,23 @@ func printModelsText(out io.Writer, models []adapter.Model) error {
 		fmt.Fprintln(out, "No models found.")
 		return nil
 	}
-	fmt.Fprintf(out, "%-40s %-20s %s\n", "MODEL ID", "DISPLAY NAME", "CAPABILITIES")
+	fmt.Fprintf(out, "%-40s %s\n", "MODEL ID", "DISPLAY NAME")
 	for _, m := range models {
-		editBadge := ""
-		if m.SupportsEdit {
-			editBadge = " [edit]"
-		}
-		caps := fmt.Sprintf("%v", m.Capabilities)
-		fmt.Fprintf(out, "%-40s %-20s%s %s\n", m.ID, m.DisplayName, editBadge, caps)
+		fmt.Fprintf(out, "%-40s %s\n", m.ID, m.DisplayName)
 	}
 	return nil
 }
 
 func printModelsJSON(out io.Writer, models []adapter.Model) error {
 	type modelJSON struct {
-		ID           string   `json:"id"`
-		DisplayName  string   `json:"display_name"`
-		SupportsGen  bool     `json:"supports_gen"`
-		SupportsEdit bool     `json:"supports_edit"`
-		Capabilities []string `json:"capabilities"`
+		ID          string `json:"id"`
+		DisplayName string `json:"display_name"`
 	}
 	items := make([]modelJSON, 0, len(models))
 	for _, m := range models {
 		items = append(items, modelJSON{
-			ID:           m.ID,
-			DisplayName:  m.DisplayName,
-			SupportsGen:  m.SupportsGen,
-			SupportsEdit: m.SupportsEdit,
-			Capabilities: m.Capabilities,
+			ID:          m.ID,
+			DisplayName: m.DisplayName,
 		})
 	}
 	data, err := json.MarshalIndent(items, "", "  ")

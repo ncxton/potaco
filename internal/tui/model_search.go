@@ -137,9 +137,6 @@ func (m *searchModel) View() string {
 		if model.DisplayName != "" && model.DisplayName != model.ID {
 			label += "  " + model.DisplayName
 		}
-		if model.SupportsEdit {
-			label += " " + modelBadgeStyle.Render("[edit]")
-		}
 		if i == m.cursor {
 			label = modelFocusStyle.Render(label)
 		}
