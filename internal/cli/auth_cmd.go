@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/ncxton/potaco/internal/adapter"
@@ -73,7 +74,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	cfg, _ := mgr.LoadConfig()
-	baseURL := resolveBaseURL(cmd, providerName, cfg)
+	baseURL := resolveAuthAddBaseURL(cmd, providerName, cfg)
 	providerTypeFlag, _ := cmd.Flags().GetString("type")
 
 	apiKeyFlag, _ := cmd.Flags().GetString("api-key")
@@ -98,6 +99,9 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return configError(err)
 	}
 	adapterType := config.AdapterType(providerType)
+	if baseURL == "" && !authAddRequiresBaseURL(providerName, providerType) {
+		baseURL = resolveBaseURL(cmd, providerName, cfg)
+	}
 
 	if apiKey == "" {
 		return configError(fmt.Errorf("API key required: use --api-key or set POTACO_API_KEY"))
@@ -141,6 +145,21 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(cmd.OutOrStdout(), "Provider '%s' added successfully.\n", providerName)
 	fmt.Fprintf(cmd.OutOrStdout(), "Use 'potaco use %s' to switch to it.\n", providerName)
 	return nil
+}
+
+func resolveAuthAddBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiProviderConfig) string {
+	if cmd.Flags().Changed("base-url") {
+		return strings.TrimRight(flagString(cmd, "base-url"), "/")
+	}
+	if v := os.Getenv("POTACO_BASE_URL"); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok && pc.BaseURL != "" {
+			return strings.TrimRight(pc.BaseURL, "/")
+		}
+	}
+	return ""
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {

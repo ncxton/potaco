@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestAuthAddCustomNamedProviderRequiresType(t *testing.T) {
@@ -77,6 +79,30 @@ func TestAuthAddAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
 				t.Fatalf("error = %v, want base URL", err)
 			}
 		})
+	}
+}
+
+func TestAuthAddAliasWithConfiguredBuiltInTypeRequiresExplicitBaseURL(t *testing.T) {
+	home, _ := newAuthTest(t)
+	writeMultiProviderConfig(t, filepath.Join(home, ".potaco", "config.yaml"), &config.MultiProviderConfig{
+		Providers: map[string]config.ProviderConfig{
+			"staging-openai": {Type: "openai", Model: "gpt-image-2"},
+		},
+	})
+	rootCmd.SetArgs([]string{
+		"auth", "add", "staging-openai",
+		"--type", "openai",
+		"--api-key", "sk-test",
+		"--force",
+		"--non-interactive",
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing alias base URL")
+	}
+	if !strings.Contains(err.Error(), "base URL") {
+		t.Fatalf("error = %v, want base URL", err)
 	}
 }
 
