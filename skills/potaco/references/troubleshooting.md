@@ -122,14 +122,14 @@ Error: unknown provider: foo (available: [custom fal openai vercel])
 
 Fix: Use one of the registered provider names: `openai`, `fal`, `vercel`, or `custom`.
 
-#### "A base URL is required for the custom provider."
+#### "A base URL is required for OpenAI-compatible providers."
 
 ```
-Error: A base URL is required for the custom provider.
-Hint: Use --base-url, set POTACO_BASE_URL, or run 'potaco config set base_url <url>'.
+Error: A base URL is required for OpenAI-compatible providers.
+Hint: Use --base-url, set POTACO_BASE_URL, or run 'potaco config set providers.openrouter.base_url <url>'.
 ```
 
-Fix: prefer `potaco auth add custom` interactively with a trusted base URL. Use `--base-url`, `POTACO_BASE_URL`, or `potaco config set base_url <url>` only in explicitly approved non-interactive workflows.
+Fix: prefer `potaco auth add custom` or `potaco auth add <name> --type openai-compatible` interactively with a trusted base URL. Use `--base-url`, `POTACO_BASE_URL`, or `potaco config set providers.<name>.base_url <url>` only in explicitly approved non-interactive workflows.
 
 ## Debugging Workflow
 
