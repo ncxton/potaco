@@ -29,7 +29,7 @@ potaco version
 
 If missing, ask before installing. Explain the installer downloads a release, writes `~/.local/bin/potaco`, and can update PATH. Proceed only if the user approves.
 
-Default approved install path is the official installer in non-interactive mode:
+Default approved install path is the official installer in non-interactive mode for agents and automated terminal execution:
 
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh
