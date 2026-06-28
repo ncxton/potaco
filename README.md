@@ -29,7 +29,7 @@ Potaco is a Go CLI for image generation and editing via multiple AI image provid
 - **Retry** with exponential backoff on rate-limit and server errors
 - **JSON output** for scripting and piping
 - **Dry-run mode** to validate requests without calling the API
-- **Non-interactive mode** with `--non-interactive` flag for CI and agents
+- **Non-interactive mode** with `--non-interactive` flag for agents and automated terminal execution
 
 ## Installation
 
@@ -46,6 +46,8 @@ The installer detects your platform, downloads the matching binary, verifies the
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh
 ```
+
+Non-interactive installer mode is plain output for agents and automated terminal execution, not a polished scripting API.
 
 ### Manual download
 
@@ -258,7 +260,7 @@ potaco uninstall --yes            # skip confirmation prompts
 
 ### `--non-interactive` flag
 
-Disable interactive TUI flows. Useful for CI, scripts, and AI agents. Can also be set via the `POTACO_NON_INTERACTIVE=1` environment variable.
+Disable interactive TUI flows. Useful for agents and automated terminal execution, not a polished scripting API. Can also be set via the `POTACO_NON_INTERACTIVE=1` environment variable.
 
 ```sh
 potaco --non-interactive auth add openai --api-key sk-xxx
@@ -301,7 +303,7 @@ API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a 
 | `POTACO_BASE_URL` | Override the provider's base URL (required for `custom`) |
 | `POTACO_RETRIES` | Max retry attempts |
 | `POTACO_TIMEOUT` | Request timeout in seconds (e.g., `120`) |
-| `POTACO_NON_INTERACTIVE` | Set to `1` to disable TUI flows |
+| `POTACO_NON_INTERACTIVE` | Set to `1` to disable TUI flows for agents and automated terminal execution; not a polished scripting API |
 
 **Supported providers:**
 

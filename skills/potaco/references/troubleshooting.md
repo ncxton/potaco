@@ -152,7 +152,7 @@ potaco config set --retries 5
 
 ## Non-Interactive Mode
 
-`--non-interactive`/`POTACO_NON_INTERACTIVE=1` skips TUI, disables color/spinner, and requires explicit args. For `auth add`, it requires `--api-key`; use only with explicit approval because secrets may leak through flags/env handling.
+`--non-interactive`/`POTACO_NON_INTERACTIVE=1` skips TUI, disables color/spinner, and requires explicit args. It is plain support for agents and automated terminal execution, not a polished scripting API. For `auth add`, it requires `--api-key`; use only with explicit approval because secrets may leak through flags/env handling.
 
 ## Programmatic Usage (JSON Output)
 

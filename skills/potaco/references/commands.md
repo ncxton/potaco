@@ -8,7 +8,7 @@ Check first:
 potaco version
 ```
 
-If missing, ask before installing. Default to the official installer in non-interactive mode after approval:
+If missing, ask before installing. Default to the official installer in non-interactive mode for agents and automated terminal execution after approval:
 
 ```sh
 curl -fsSL https://github.com/ncxton/potaco/releases/latest/download/install.sh | POTACO_NON_INTERACTIVE=1 sh

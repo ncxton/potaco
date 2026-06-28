@@ -66,9 +66,9 @@ For `custom`, the base URL is required during setup, then persisted. Confirm rem
 | `POTACO_BASE_URL` | Override API base URL (required for custom provider) |
 | `POTACO_RETRIES` | Override retry count |
 | `POTACO_TIMEOUT` | Override timeout in seconds |
-| `POTACO_NON_INTERACTIVE` | Set to `1` to force non-interactive mode |
+| `POTACO_NON_INTERACTIVE` | Set to `1` to force non-interactive mode for agents and automated terminal execution |
 
-`POTACO_NON_INTERACTIVE=1` equals `--non-interactive` and skips TUI flows.
+`POTACO_NON_INTERACTIVE=1` equals `--non-interactive` and skips TUI flows. It is plain automation support, not a polished scripting API.
 
 ## Config File
 

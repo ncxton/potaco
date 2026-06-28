@@ -2,7 +2,8 @@
 set -eu
 
 # Potaco installer - downloads and installs the potaco CLI
-# Interactive by default. Set POTACO_NON_INTERACTIVE=1 for silent mode.
+# Interactive by default. POTACO_NON_INTERACTIVE=1 is for agents and automated
+# terminal execution, not a polished scripting API.
 
 # ============================================================================
 # Constants
@@ -17,14 +18,12 @@ if [ "${NO_COLOR:-}" ] || [ "${TERM:-}" = "dumb" ] || [ ! -t 1 ]; then
     GREEN=""
     YELLOW=""
     RED=""
-    BOLD=""
     RESET=""
 else
     CYAN="\033[36m"
     GREEN="\033[32m"
     YELLOW="\033[33m"
     RED="\033[31m"
-    BOLD="\033[1m"
     RESET="\033[0m"
 fi
 
@@ -105,39 +104,6 @@ confirm() {
     esac
 }
 
-# Print a bordered box with a title and content lines
-# Usage: print_box "Title" "line1" "line2" ...
-print_box() {
-    title="$1"
-    shift
-    if [ "$NON_INTERACTIVE" = "1" ]; then
-        printf '%s\n' "$title"
-        for line in "$@"; do
-            printf '  %s\n' "$line"
-        done
-        return
-    fi
-    # Title
-    printf "${CYAN}${BOLD}+ %s${RESET}\n" "$title"
-    # Content
-    for line in "$@"; do
-        printf "${CYAN}+${RESET} %b\n" "$line"
-    done
-}
-
-# ============================================================================
-# Banner
-# ============================================================================
-
-print_banner() {
-    if [ "$NON_INTERACTIVE" = "1" ]; then
-        return
-    fi
-    info "Potaco - Terminal image generation & editing CLI"
-    printf "\n"
-}
-
-# ============================================================================
 # Spinner
 # ============================================================================
 
@@ -375,20 +341,10 @@ main() {
         exit 1
     fi
 
-    # Print banner
-    print_banner
-
     # Detect platform
     platform=$(detect_platform)
     os=$(printf '%s' "$platform" | cut -d/ -f1)
     arch=$(printf '%s' "$platform" | cut -d/ -f2)
-
-    if [ "$NON_INTERACTIVE" = "1" ]; then
-        printf 'Detected: %s\n' "$platform"
-    else
-        print_box "Platform" "OS: $os" "Arch: $arch"
-        printf "\n"
-    fi
 
     # Detect version
     version=$(detect_version)
@@ -413,13 +369,15 @@ main() {
     install_path="${install_dir}/potaco"
     add_path_after_install="0"
 
-    # Show version info
     if [ "$NON_INTERACTIVE" = "1" ]; then
-        printf 'Installing potaco %s...\n' "$version_display"
+        printf 'Installing potaco %s for %s to %s\n' "$version_display" "$platform" "$install_path"
     else
-        info "Installing potaco $version_display..."
+        printf 'potaco %s\n' "$version_display"
+        printf 'platform: %s\n' "$platform"
+        printf 'install:  %s\n' "$install_path"
+        printf 'source:   %s\n' "$GITHUB_BASE"
         printf "\n"
-        if ! confirm "Download and install potaco ${version_display} from ${GITHUB_BASE}?" "y"; then
+        if ! confirm "Install potaco ${version_display}?" "y"; then
             warn "Installation cancelled."
             exit 0
         fi
@@ -545,22 +503,9 @@ main() {
 
     # Print success
     printf "\n"
-    if [ "$NON_INTERACTIVE" = "1" ]; then
-        printf 'Done. Potaco installed to %s\n' "$install_path"
-    else
-        print_box "Success" \
-            "${GREEN}Potaco installed successfully!${RESET}" \
-            "" \
-            "Installed to: $install_path" \
-            "" \
-            "Next steps:" \
-            "  potaco auth add openai" \
-            "  potaco gen --prompt \"hello\"" \
-            "" \
-            "Docs: https://github.com/ncxton/potaco#readme"
-    fi
-
-    printf "\n"
+    success "Done. Potaco installed to $install_path"
+    printf 'Next: potaco auth add openai\n'
+    printf '      potaco gen --prompt "hello"\n'
     exit 0
 }
 
