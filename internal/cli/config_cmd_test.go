@@ -634,6 +634,59 @@ func TestConfigSetKeyValueExplicitProviderFields(t *testing.T) {
 	}
 }
 
+func TestConfigSetProviderModelEditCapability(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {
+				Model: "gpt-image-2",
+				Models: map[string]config.ModelConfig{
+					"gpt-image-2": {Edit: false},
+				},
+			},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "providers.openai.models.gpt-image-2.edit", "true"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set model edit error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.Providers["openai"].Models["gpt-image-2"].Edit {
+		t.Fatal("model edit capability = false, want true")
+	}
+}
+
+func TestConfigSetActiveModelEditCapability(t *testing.T) {
+	path, _ := newConfigTest(t)
+	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{
+		ActiveProvider: "openai",
+		ActiveModel:    "gpt-image-2",
+		Providers: map[string]config.ProviderConfig{
+			"openai": {Model: "gpt-image-2"},
+		},
+	})
+
+	rootCmd.SetArgs([]string{"config", "set", "model.edit", "true"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set active model edit error: %v", err)
+	}
+
+	cfg, err := config.LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	if !cfg.Providers["openai"].Models["gpt-image-2"].Edit {
+		t.Fatal("active model edit capability = false, want true")
+	}
+}
+
 func TestConfigSetAutoUpdate(t *testing.T) {
 	path, _ := newConfigTest(t)
 	writeMultiProviderConfig(t, path, &config.MultiProviderConfig{

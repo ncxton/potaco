@@ -6,11 +6,16 @@ const CurrentSchemaVersion = 2
 // Timeout is stored in seconds (plain integer in YAML) so users do not need
 // to add unit suffixes like "s" or "m".
 type ProviderConfig struct {
-	Type    string `yaml:"type,omitempty"`
-	Model   string `yaml:"model"`
-	BaseURL string `yaml:"base_url,omitempty"`
-	Retries int    `yaml:"retries"`
-	Timeout int    `yaml:"timeout"`
+	Type    string                 `yaml:"type,omitempty"`
+	Model   string                 `yaml:"model"`
+	BaseURL string                 `yaml:"base_url,omitempty"`
+	Models  map[string]ModelConfig `yaml:"models,omitempty"`
+	Retries int                    `yaml:"retries"`
+	Timeout int                    `yaml:"timeout"`
+}
+
+type ModelConfig struct {
+	Edit bool `yaml:"edit"`
 }
 
 // MultiProviderConfig is the v2 config format supporting multiple providers

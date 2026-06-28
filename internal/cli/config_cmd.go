@@ -126,10 +126,19 @@ func setConfigKeyValue(cfg *config.MultiProviderConfig, key, value string) error
 
 	if strings.HasPrefix(key, "providers.") {
 		parts := strings.Split(key, ".")
+		if len(parts) == 3 && parts[1] != "" {
+			return setProviderConfigValue(cfg, parts[1], parts[2], value)
+		}
+		if len(parts) >= 5 && parts[1] != "" && parts[2] == "models" && parts[len(parts)-1] == "edit" {
+			modelID := strings.Join(parts[3:len(parts)-1], ".")
+			if modelID == "" {
+				return fmt.Errorf("unknown config key %q", key)
+			}
+			return setProviderModelEditValue(cfg, parts[1], modelID, value)
+		}
 		if len(parts) != 3 || parts[1] == "" {
 			return fmt.Errorf("unknown config key %q", key)
 		}
-		return setProviderConfigValue(cfg, parts[1], parts[2], value)
 	}
 
 	switch key {
@@ -138,6 +147,15 @@ func setConfigKeyValue(cfg *config.MultiProviderConfig, key, value string) error
 			return fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one")
 		}
 		return setProviderConfigValue(cfg, cfg.ActiveProvider, key, value)
+	case "model.edit":
+		if cfg.ActiveProvider == "" {
+			return fmt.Errorf("no active provider. Use 'potaco auth add <provider>' to connect one")
+		}
+		pc := cfg.Providers[cfg.ActiveProvider]
+		if pc.Model == "" {
+			return fmt.Errorf("active provider %q has no model configured", cfg.ActiveProvider)
+		}
+		return setProviderModelEditValue(cfg, cfg.ActiveProvider, pc.Model, value)
 	default:
 		return fmt.Errorf("unknown config key %q", key)
 	}
@@ -174,6 +192,28 @@ func setProviderConfigValue(cfg *config.MultiProviderConfig, providerName, field
 	default:
 		return fmt.Errorf("unknown config key %q", "providers."+providerName+"."+field)
 	}
+	cfg.Providers[providerName] = pc
+	return nil
+}
+
+func setProviderModelEditValue(cfg *config.MultiProviderConfig, providerName, modelID, value string) error {
+	edit, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("model edit must be true or false, got %q", value)
+	}
+	if cfg.Providers == nil {
+		cfg.Providers = make(map[string]config.ProviderConfig)
+	}
+	pc, ok := cfg.Providers[providerName]
+	if !ok {
+		return fmt.Errorf("provider %q is not configured. Use 'potaco auth add %s' first", providerName, providerName)
+	}
+	if pc.Models == nil {
+		pc.Models = make(map[string]config.ModelConfig)
+	}
+	mc := pc.Models[modelID]
+	mc.Edit = edit
+	pc.Models[modelID] = mc
 	cfg.Providers[providerName] = pc
 	return nil
 }
