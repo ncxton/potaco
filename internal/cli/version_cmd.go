@@ -18,11 +18,13 @@ var githubReleaseURL = "https://api.github.com/repos/ncxton/potaco/releases/late
 // repeated calls within the same process do not hit the API multiple
 // times (e.g. version command + update command sharing the cache).
 var (
-	latestCache     string
-	latestCacheTime time.Time
+	latestCache      string
+	latestCacheTime  time.Time
+	latestHTTPClient = &http.Client{Timeout: 10 * time.Second}
 )
 
 const latestCacheTTL = 1 * time.Hour
+const maxLatestVersionResponseBytes = 1 << 20
 
 // checkLatestVersion queries the GitHub API for the latest release tag.
 // The result is cached for latestCacheTTL. On error, returns ("", err)
@@ -32,7 +34,7 @@ func checkLatestVersion() (string, error) {
 		return latestCache, nil
 	}
 
-	resp, err := http.Get(githubReleaseURL)
+	resp, err := latestHTTPClient.Get(githubReleaseURL)
 	if err != nil {
 		return "", fmt.Errorf("fetch latest release: %w", err)
 	}
@@ -42,9 +44,12 @@ func checkLatestVersion() (string, error) {
 		return "", fmt.Errorf("github API returned status %d", resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxLatestVersionResponseBytes+1))
 	if err != nil {
 		return "", fmt.Errorf("read response body: %w", err)
+	}
+	if len(body) > maxLatestVersionResponseBytes {
+		return "", fmt.Errorf("github API response exceeds %d bytes", maxLatestVersionResponseBytes)
 	}
 
 	var release struct {

@@ -40,6 +40,39 @@ func TestCheckLatestVersion(t *testing.T) {
 	}
 }
 
+func TestLatestVersionHTTPClientHasTimeout(t *testing.T) {
+	if latestHTTPClient == nil {
+		t.Fatal("latestHTTPClient is nil")
+	}
+	if latestHTTPClient.Timeout <= 0 {
+		t.Fatal("latestHTTPClient must have a timeout")
+	}
+}
+
+func TestCheckLatestVersionRejectsOversizedResponse(t *testing.T) {
+	resetVersionCache()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(bytes.Repeat([]byte("x"), maxLatestVersionResponseBytes+1))
+	}))
+	defer srv.Close()
+
+	origURL := githubReleaseURL
+	githubReleaseURL = srv.URL
+	defer func() { githubReleaseURL = origURL }()
+
+	tag, err := checkLatestVersion()
+	if err == nil {
+		t.Fatal("expected oversized response error")
+	}
+	if tag != "" {
+		t.Fatalf("tag = %q, want empty", tag)
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("error should mention response size, got: %v", err)
+	}
+}
+
 func TestCheckLatestVersionCaches(t *testing.T) {
 	resetVersionCache()
 	calls := 0

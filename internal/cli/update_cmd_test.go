@@ -135,6 +135,30 @@ func TestUpdateForceBypassesVersionCheck(t *testing.T) {
 	}
 }
 
+func TestInstallUpdateRejectsOversizedInstaller(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetUpdateCmdFlags(t)
+	t.Setenv("HOME", t.TempDir())
+
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/x-sh")
+		_, _ = w.Write(bytes.Repeat([]byte("x"), maxInstallScriptBytes+1))
+	}))
+	defer installerSrv.Close()
+
+	origInstallScriptURL := installScriptURL
+	installScriptURL = func(tag string) string { return installerSrv.URL }
+	defer func() { installScriptURL = origInstallScriptURL }()
+
+	err := installUpdate(updateCmd, "v1.0.0")
+	if err == nil {
+		t.Fatal("expected oversized installer error")
+	}
+	if !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("error should mention installer size, got: %v", err)
+	}
+}
+
 func TestUpdateMigratesConfigAfterSuccessfulInstaller(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetVersionCache()
