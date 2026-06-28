@@ -19,6 +19,8 @@ var updateCmd = &cobra.Command{
 	RunE:    runUpdate,
 }
 
+const maxInstallScriptBytes = 1 << 20
+
 func init() {
 	updateCmd.Flags().BoolP("force", "f", false, "force update even if already at latest version")
 	rootCmd.AddCommand(updateCmd)
@@ -50,6 +52,15 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Forcing update (already at %s)...\n", Version)
 	}
 
+	if err := installUpdate(cmd, latest); err != nil {
+		return err
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "Update complete.\n")
+	return nil
+}
+
+func installUpdate(cmd *cobra.Command, latest string) error {
 	installURL := installScriptURL(latest)
 	tmpFile, err := os.CreateTemp("", "potaco-install-*.sh")
 	if err != nil {
@@ -61,7 +72,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 	}
 	defer os.Remove(tmpFile.Name())
 
-	resp, err := http.Get(installURL)
+	resp, err := latestHTTPClient.Get(installURL)
 	if err != nil {
 		return apiUserErr(
 			"Could not download the installer.",
@@ -79,11 +90,19 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		)
 	}
 
-	if _, err := io.Copy(tmpFile, resp.Body); err != nil {
+	written, err := io.Copy(tmpFile, io.LimitReader(resp.Body, maxInstallScriptBytes+1))
+	if err != nil {
 		return apiUserErr(
 			"Could not save the installer to disk.",
 			"",
 			fmt.Errorf("write temp file: %w", err),
+		)
+	}
+	if written > maxInstallScriptBytes {
+		return apiUserErr(
+			"Could not save the installer to disk.",
+			"The downloaded installer was larger than expected.",
+			fmt.Errorf("install.sh exceeds %d bytes", maxInstallScriptBytes),
 		)
 	}
 	tmpFile.Close()
@@ -129,6 +148,5 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Update complete.\n")
 	return nil
 }
