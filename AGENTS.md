@@ -6,7 +6,7 @@ Potaco is a Go CLI for image generation and editing via multi-provider adapters 
 
 Provider presets in `internal/cli/helpers.go` store only a base URL (`BaseURL`).
 There is no `DefaultModel` preset; models are selected by the user via `potaco
-models` or `potaco config set --model`. The `custom` provider has no preset and
+models` or `potaco config set model <model>`. The `custom` provider has no preset and
 requires a user-supplied base URL.
 
 Layered monolith dependency graph:
@@ -59,7 +59,7 @@ sh scripts/install-hooks.sh   # Installs pre-commit (gofmt, vet, tidy) and pre-p
 - `go test -coverprofile` - Coverage measurement with artifact upload
 - `gitleaks` - Secret scanning on all PRs and scheduled
 
-Config file lives at `~/.potaco/config.yaml`. Encrypted credentials at `~/.potaco/credentials.enc` with salt at `~/.potaco/.salt`. For local testing without a real provider, use `--dry-run`:
+Config file lives at `~/.potaco/config.yaml`. Update check cache lives at `~/.potaco/.potaco.json`. Encrypted credentials at `~/.potaco/credentials.enc` with salt at `~/.potaco/.salt`. For local testing without a real provider, use `--dry-run`:
 ```
 POTACO_BASE_URL=https://api.openai.com POTACO_API_KEY=sk-test \
   ./potaco gen --prompt "a cat" --dry-run

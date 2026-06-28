@@ -30,7 +30,7 @@ Security:
 2. `POTACO_MODEL` env var
 3. `active_model` from config file
 
-There is no provider preset model. Use `potaco models` or `potaco config set --model`.
+There is no provider preset model. Use `potaco models` or `potaco config set model <model>`.
 
 ### Base URL
 
@@ -68,7 +68,7 @@ For `custom`, the base URL is required during setup, then persisted. Confirm rem
 | `POTACO_TIMEOUT` | Override timeout in seconds |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to force non-interactive mode for agents and automated terminal execution |
 
-`POTACO_NON_INTERACTIVE=1` equals `--non-interactive` and skips TUI flows. It is plain automation support, not a polished scripting API.
+`POTACO_NON_INTERACTIVE=1` equals `--non-interactive` and skips TUI flows and automatic update prompts. It is plain automation support, not a polished scripting API.
 
 ## Config File
 
@@ -79,6 +79,7 @@ Located at `~/.potaco/config.yaml`.
 ```yaml
 active_provider: openai
 active_model: gpt-image-2
+auto_update: true
 providers:
   openai:
     model: gpt-image-2
@@ -96,7 +97,7 @@ providers:
     timeout: 120
 ```
 
-`base_url` is optional for built-ins and required for `custom`. `timeout` is integer seconds.
+`auto_update` defaults to enabled when omitted. `base_url` is optional for built-ins and required for `custom`. `timeout` is integer seconds.
 
 ### Config commands
 
@@ -107,13 +108,15 @@ potaco config show
 Shows config path, active provider/model, and per-provider model/base URL/retries/timeout.
 
 ```sh
-potaco config set --model gpt-image-2
-potaco config set --base-url https://api.example.com/v1
-potaco config set --retries 5
-potaco config set --timeout 60
+potaco config set model gpt-image-2
+potaco config set providers.vercel.model openai/gpt-image-2
+potaco config set base_url https://api.example.com/v1
+potaco config set retries 5
+potaco config set timeout 60
+potaco config set auto_update false
 ```
 
-Sets values for the active provider. Multiple flags can be combined. Confirm custom base URLs are trusted before saving because prompts/images may be sent there.
+Sets values for the active provider or a named provider. Confirm custom base URLs are trusted before saving because prompts/images may be sent there.
 
 ## Credential Storage
 
@@ -127,6 +130,7 @@ Sets values for the active provider. Multiple flags can be combined. Confirm cus
 | File | Purpose |
 |------|---------|
 | `~/.potaco/config.yaml` | Multi-provider config |
+| `~/.potaco/.potaco.json` | Update check cache |
 | `~/.potaco/credentials.enc` | Encrypted API keys |
 | `~/.potaco/.salt` | Salt for key derivation |
 | `~/.potaco/debug.log` | Raw error log (append-only) |

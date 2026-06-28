@@ -215,9 +215,12 @@ Use `potaco models list` when you only want to see the available models without 
 Manage per-provider settings stored in `~/.potaco/config.yaml`. API keys are stored separately in the encrypted credential file.
 
 ```sh
-potaco config set --retries 3 --timeout 120   # set retries and timeout (seconds) for active provider
-potaco config set --model gpt-image-2           # change default model
-potaco config set --base-url https://api.example.com/v1  # change custom base URL for active provider
+potaco config set model gpt-image-2                         # change active provider model
+potaco config set providers.vercel.model openai/gpt-image-2 # set a provider model
+potaco config set base_url https://api.example.com/v1        # set active provider base URL
+potaco config set retries 3                                 # set active provider retries
+potaco config set timeout 120                               # set active provider timeout in seconds
+potaco config set auto_update false                         # disable automatic update prompts
 potaco config show                               # display current config
 ```
 
@@ -232,7 +235,7 @@ potaco info output.png --json
 
 ### `potaco version` -- Print version
 
-Print the current binary version and check for updates.
+Print the current binary version and check for updates. Interactive commands check for updates automatically by default; disable that with `potaco config set auto_update false`.
 
 ```sh
 potaco version
@@ -260,7 +263,7 @@ potaco uninstall --yes            # skip confirmation prompts
 
 ### `--non-interactive` flag
 
-Disable interactive TUI flows. Useful for agents and automated terminal execution, not a polished scripting API. Can also be set via the `POTACO_NON_INTERACTIVE=1` environment variable.
+Disable interactive TUI flows and automatic update prompts. Useful for agents and automated terminal execution, not a polished scripting API. Can also be set via the `POTACO_NON_INTERACTIVE=1` environment variable.
 
 ```sh
 potaco --non-interactive auth add openai --api-key sk-xxx
@@ -276,6 +279,7 @@ Potaco stores configuration in `~/.potaco/config.yaml` and encrypted credentials
 ```yaml
 active_provider: openai
 active_model: gpt-image-2
+auto_update: true
 providers:
   openai:
     model: gpt-image-2
@@ -292,6 +296,7 @@ providers:
 The `base_url` field is optional and overrides the preset URL for a provider. It is required for the `custom` provider because there is no preset base URL.
 
 API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a machine-derived key.
+Update check metadata is stored separately in `~/.potaco/.potaco.json`.
 
 **Environment variables:**
 

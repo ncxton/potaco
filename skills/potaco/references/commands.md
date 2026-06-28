@@ -31,6 +31,12 @@ potaco uninstall
 potaco uninstall -y
 ```
 
+Interactive commands check for updates automatically by default. To disable prompts:
+
+```sh
+potaco config set auto_update false
+```
+
 Interactive uninstall asks whether to remove local config and encrypted credentials.
 
 ## Auth and status
@@ -91,7 +97,7 @@ Interactive `models` persists selection. `models list` only displays. In non-int
 
 ## Persistent flags and overrides
 
-Persistent flags: `--json`, `--verbose`, `--non-interactive`. `POTACO_NON_INTERACTIVE=1` equals `--non-interactive`.
+Persistent flags: `--json`, `--verbose`, `--non-interactive`. `POTACO_NON_INTERACTIVE=1` equals `--non-interactive`; both skip automatic update prompts.
 
 Provider override precedence: CLI flag > env var > config > provider preset.
 
