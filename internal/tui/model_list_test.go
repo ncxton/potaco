@@ -61,14 +61,14 @@ func TestRunModelListPersistsSelection(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
 		if providerName != "openai" {
 			t.Errorf("providerName = %q, want openai", providerName)
 		}
 		if len(models) != 1 {
 			t.Errorf("models = %d, want 1", len(models))
 		}
-		return "gpt-image-2", nil
+		return modelSelection{ID: "gpt-image-2", Edit: true}, nil
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)
@@ -93,6 +93,9 @@ func TestRunModelListPersistsSelection(t *testing.T) {
 	}
 	if cfg.Providers["openai"].Model != "gpt-image-2" {
 		t.Errorf("provider model = %q, want gpt-image-2", cfg.Providers["openai"].Model)
+	}
+	if !cfg.Providers["openai"].Models["gpt-image-2"].Edit {
+		t.Fatal("model edit capability = false, want true")
 	}
 }
 
@@ -121,8 +124,8 @@ func TestRunModelListCancelDoesNotPersist(t *testing.T) {
 		t.Fatalf("get active provider: %v", err)
 	}
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
-		return "", huh.ErrUserAborted
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
+		return modelSelection{}, huh.ErrUserAborted
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)
@@ -164,8 +167,8 @@ func TestRunModelListEmptySelectionDoesNotPersist(t *testing.T) {
 		t.Fatalf("get active provider: %v", err)
 	}
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
-		return "", nil
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
+		return modelSelection{}, nil
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)
@@ -209,8 +212,8 @@ func TestRunModelListUsesBaseURLFromConfig(t *testing.T) {
 
 	// Override the config base URL by pointing at the test server while keeping
 	// the discovery URL path. The mock server reports the requested path.
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
-		return "gpt-image-2", nil
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
+		return modelSelection{ID: "gpt-image-2"}, nil
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)
@@ -232,9 +235,9 @@ func TestRunModelListAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
 		t.Fatalf("add provider: %v", err)
 	}
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
 		t.Fatal("picker should not be called without a base URL")
-		return "", nil
+		return modelSelection{}, nil
 	}
 
 	err = runModelListWithPicker("openrouter", "sk-test", "", mockPicker)
@@ -261,9 +264,9 @@ func TestRunModelListDiscoveryError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
 		t.Fatal("picker should not be called when discovery fails")
-		return "", nil
+		return modelSelection{}, nil
 	}
 
 	err = runModelListWithPicker("openai", "sk-test", srv.URL, mockPicker)

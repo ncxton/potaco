@@ -81,6 +81,11 @@ func TestModelsListJSON(t *testing.T) {
 	if strings.Contains(output, "params") {
 		t.Errorf("JSON models should not contain params, got: %s", output)
 	}
+	for _, field := range []string{"supports_gen", "supports_edit", "capabilities"} {
+		if strings.Contains(output, field) {
+			t.Errorf("JSON models should not expose discovered capability field %q, got: %s", field, output)
+		}
+	}
 }
 
 func TestModelsNonInteractiveFallback(t *testing.T) {
@@ -111,6 +116,9 @@ func TestModelsNonInteractiveFallback(t *testing.T) {
 	}
 	if !strings.Contains(output, "MODEL ID") {
 		t.Errorf("models should print text table, got: %s", output)
+	}
+	if strings.Contains(output, "CAPABILITIES") || strings.Contains(output, "[edit]") {
+		t.Errorf("models text should not expose discovered capabilities, got: %s", output)
 	}
 }
 

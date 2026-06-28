@@ -45,11 +45,11 @@ func TestRunModelListUsesConfiguredProviderType(t *testing.T) {
 		t.Fatalf("save config: %v", err)
 	}
 
-	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
+	mockPicker := func(providerName string, models []adapter.Model) (modelSelection, error) {
 		if providerName != "openrouter" {
 			t.Errorf("providerName = %q, want openrouter", providerName)
 		}
-		return "openrouter/image-model", nil
+		return modelSelection{ID: "openrouter/image-model"}, nil
 	}
 
 	err = runModelListWithPicker("openrouter", "", "", mockPicker)

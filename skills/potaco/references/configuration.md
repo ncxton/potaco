@@ -31,6 +31,7 @@ Security:
 3. `active_model` from config file
 
 There is no provider preset model. Use `potaco models` or `potaco config set model <model>`.
+Generation capability is assumed available. Edit capability is not auto-detected; configure it per model with `potaco config set model.edit true` or `potaco config set providers.<name>.models.<model>.edit true`.
 
 ### Base URL
 
@@ -84,6 +85,9 @@ providers:
   openai:
     model: gpt-image-2
     base_url: https://api.openai.com/v1
+    models:
+      gpt-image-2:
+        edit: true
     retries: 3
     timeout: 120
   fal:
@@ -97,7 +101,7 @@ providers:
     timeout: 120
 ```
 
-`auto_update` defaults to enabled when omitted. `base_url` is optional for built-in provider names and required for `custom` or non-built-in aliases. `timeout` is integer seconds.
+`auto_update` defaults to enabled when omitted. `base_url` is optional for built-in provider names and required for `custom` or non-built-in aliases. `timeout` is integer seconds. `models.<id>.edit` is the user-configured edit capability for that model.
 
 ### Config commands
 
@@ -110,6 +114,8 @@ Shows config path, active provider/model, and per-provider model/base URL/retrie
 ```sh
 potaco config set model gpt-image-2
 potaco config set providers.vercel.model openai/gpt-image-2
+potaco config set model.edit true
+potaco config set providers.openai.models.gpt-image-2.edit true
 potaco config set base_url https://api.example.com/v1
 potaco config set retries 5
 potaco config set timeout 60

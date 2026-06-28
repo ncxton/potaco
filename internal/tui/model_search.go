@@ -13,7 +13,6 @@ import (
 var (
 	modelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
 	modelFocusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	modelBadgeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	modelMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	modelEmptyStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
 )
@@ -136,9 +135,6 @@ func (m *searchModel) View() string {
 		label := model.ID
 		if model.DisplayName != "" && model.DisplayName != model.ID {
 			label += "  " + model.DisplayName
-		}
-		if model.SupportsEdit {
-			label += " " + modelBadgeStyle.Render("[edit]")
 		}
 		if i == m.cursor {
 			label = modelFocusStyle.Render(label)

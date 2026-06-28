@@ -19,8 +19,8 @@ func TestSearchModelViewIncludesStyledTitleAndBadgeText(t *testing.T) {
 	if !strings.Contains(view, "Select a model for openai") {
 		t.Fatalf("view missing title:\n%s", view)
 	}
-	if !strings.Contains(view, "[edit]") {
-		t.Fatalf("view missing edit badge:\n%s", view)
+	if strings.Contains(view, "[edit]") {
+		t.Fatalf("view should not show discovered edit badge:\n%s", view)
 	}
 }
 

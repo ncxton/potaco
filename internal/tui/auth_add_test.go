@@ -64,12 +64,12 @@ func TestEnsureProviderTypeReturnsOpenAICompatibleForCustomProvider(t *testing.T
 }
 
 func TestPromptModelReturnsEmptyWhenNoModels(t *testing.T) {
-	modelID, err := promptModel("openai", []adapter.Model{})
+	selected, err := promptModel("openai", []adapter.Model{})
 	if err != nil {
 		t.Fatalf("promptModel: %v", err)
 	}
-	if modelID != "" {
-		t.Fatalf("model ID = %q, want empty", modelID)
+	if selected.ID != "" {
+		t.Fatalf("model ID = %q, want empty", selected.ID)
 	}
 }
 
@@ -82,6 +82,7 @@ func TestAddProviderStoresProviderTypeAndBaseURL(t *testing.T) {
 		"sk-test",
 		"https://openrouter.ai/api/v1",
 		"openrouter/image-model",
+		true,
 	)
 	if err != nil {
 		t.Fatalf("addProvider: %v", err)
@@ -107,5 +108,8 @@ func TestAddProviderStoresProviderTypeAndBaseURL(t *testing.T) {
 	}
 	if cfg.ActiveModel != "openrouter/image-model" {
 		t.Fatalf("active model = %q, want openrouter/image-model", cfg.ActiveModel)
+	}
+	if !pc.Models["openrouter/image-model"].Edit {
+		t.Fatal("model edit capability = false, want true")
 	}
 }

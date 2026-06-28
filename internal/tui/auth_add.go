@@ -60,16 +60,16 @@ func RunAuthAdd(providerName string) error {
 		}
 	}
 
-	modelID := ""
+	selected := modelSelection{}
 	models, discoverErr := ad.DiscoverModels(context.Background())
 	if discoverErr == nil {
-		modelID, err = promptModel(providerName, models)
+		selected, err = promptModel(providerName, models)
 		if err != nil {
 			return normalizeCancel(err)
 		}
 	}
 
-	return addProvider(providerName, providerType, apiKey, baseURL, modelID)
+	return addProvider(providerName, providerType, apiKey, baseURL, selected.ID, selected.Edit)
 }
 
 // normalizeCancel converts errCancelled into a nil error so the CLI exits
@@ -224,15 +224,28 @@ func confirmVerification(verifyErr error) (bool, error) {
 }
 
 // promptModel shows a model picker when discovery succeeds.
-func promptModel(providerName string, models []adapter.Model) (string, error) {
+func promptModel(providerName string, models []adapter.Model) (modelSelection, error) {
 	if len(models) == 0 {
-		return "", nil
+		return modelSelection{}, nil
 	}
 	return PickModel(providerName, models)
 }
 
+func promptModelEditCapable(modelID string) (bool, error) {
+	var edit bool
+	form := newForm(huh.NewGroup(
+		huh.NewConfirm().
+			Title(fmt.Sprintf("Can %s edit images?", modelID)).
+			Value(&edit),
+	))
+	if err := runForm(form, "model edit capability"); err != nil {
+		return false, err
+	}
+	return edit, nil
+}
+
 // addProvider stores the credential and config for the connected provider.
-func addProvider(providerName, providerType, apiKey, baseURL, modelID string) error {
+func addProvider(providerName, providerType, apiKey, baseURL, modelID string, edit bool) error {
 	mgr, err := auth.New()
 	if err != nil {
 		return fmt.Errorf("init auth: %w", err)
@@ -248,6 +261,9 @@ func addProvider(providerName, providerType, apiKey, baseURL, modelID string) er
 	if modelID != "" {
 		if err := mgr.SetActiveProvider(providerName, modelID); err != nil {
 			return fmt.Errorf("set model: %w", err)
+		}
+		if err := mgr.SetModelEdit(providerName, modelID, edit); err != nil {
+			return fmt.Errorf("set model edit capability: %w", err)
 		}
 	}
 	fmt.Printf("Provider '%s' added successfully.\n", providerName)

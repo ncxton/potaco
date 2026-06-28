@@ -93,6 +93,13 @@ func runEdit(cmd *cobra.Command, args []string) error {
 			fmt.Errorf("image editing not supported by provider %s", resolved.Adapter.Name()),
 		)
 	}
+	if !resolved.ModelCanEdit {
+		return apiUserErr(
+			fmt.Sprintf("Model '%s' is not configured as edit capable.", model),
+			fmt.Sprintf("Run 'potaco config set providers.%s.models.%s.edit true' after confirming the model supports image editing.", resolved.ProviderName, model),
+			fmt.Errorf("model %s is not configured as edit capable", model),
+		)
+	}
 
 	dryRun := flagBool(cmd, "dry-run")
 	editImagePath := imagePath

@@ -13,10 +13,15 @@ import (
 	"github.com/ncxton/potaco/internal/config"
 )
 
+type modelSelection struct {
+	ID   string
+	Edit bool
+}
+
 // modelPicker selects a model from the discovered list. It is abstracted so
 // tests can substitute a deterministic picker for the interactive Bubble Tea
 // component.
-type modelPicker func(providerName string, models []adapter.Model) (string, error)
+type modelPicker func(providerName string, models []adapter.Model) (modelSelection, error)
 
 // RunModelList launches the interactive model list for the given provider.
 // If providerName is empty, it uses the active provider from auth config.
@@ -83,14 +88,17 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 		}
 		return err
 	}
-	if selected == "" {
+	if selected.ID == "" {
 		return nil
 	}
 
-	if err := mgr.SetActiveProvider(providerName, selected); err != nil {
+	if err := mgr.SetActiveProvider(providerName, selected.ID); err != nil {
 		return fmt.Errorf("set active provider: %w", err)
 	}
-	fmt.Printf("Switched to model '%s'.\n", selected)
+	if err := mgr.SetModelEdit(providerName, selected.ID, selected.Edit); err != nil {
+		return fmt.Errorf("set model edit capability: %w", err)
+	}
+	fmt.Printf("Switched to model '%s'.\n", selected.ID)
 	return nil
 }
 
@@ -100,18 +108,25 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 // Returns huh.ErrUserAborted if the user cancels with Esc or Ctrl-C.
 // Returns an empty string when the filter matches no models and the user
 // presses Enter.
-func PickModel(providerName string, models []adapter.Model) (string, error) {
+func PickModel(providerName string, models []adapter.Model) (modelSelection, error) {
 	m := newSearchModel(providerName, models)
 	p := tea.NewProgram(m, tea.WithOutput(os.Stderr))
 	result, err := p.Run()
 	if err != nil {
-		return "", fmt.Errorf("model search: %w", err)
+		return modelSelection{}, fmt.Errorf("model search: %w", err)
 	}
 	if sm, ok := result.(*searchModel); ok {
 		if sm.quitted {
-			return "", huh.ErrUserAborted
+			return modelSelection{}, huh.ErrUserAborted
 		}
-		return sm.selected, nil
+		if sm.selected == "" {
+			return modelSelection{}, nil
+		}
+		edit, err := promptModelEditCapable(sm.selected)
+		if err != nil {
+			return modelSelection{}, err
+		}
+		return modelSelection{ID: sm.selected, Edit: edit}, nil
 	}
-	return "", fmt.Errorf("unexpected model type")
+	return modelSelection{}, fmt.Errorf("unexpected model type")
 }
