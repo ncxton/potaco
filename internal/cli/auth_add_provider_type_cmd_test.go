@@ -106,6 +106,45 @@ func TestAuthAddAliasWithConfiguredBuiltInTypeRequiresExplicitBaseURL(t *testing
 	}
 }
 
+func TestAuthAddAliasReusesConfiguredProviderType(t *testing.T) {
+	home, _ := newAuthTest(t)
+	writeMultiProviderConfig(t, filepath.Join(home, ".potaco", "config.yaml"), &config.MultiProviderConfig{
+		Providers: map[string]config.ProviderConfig{
+			"staging-openai": {
+				Type:    "openai",
+				Model:   "gpt-image-2",
+				BaseURL: "https://staging.example.com/v1",
+			},
+		},
+	})
+	rootCmd.SetArgs([]string{
+		"auth", "add", "staging-openai",
+		"--api-key", "sk-test",
+		"--force",
+		"--non-interactive",
+	})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("auth add configured alias: %v", err)
+	}
+
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	cfg, err := mgr.LoadConfig()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["staging-openai"]
+	if pc.Type != "openai" {
+		t.Fatalf("provider type = %q, want openai", pc.Type)
+	}
+	if pc.BaseURL != "https://staging.example.com/v1" {
+		t.Fatalf("base URL = %q, want existing base URL", pc.BaseURL)
+	}
+}
+
 func TestAuthAddCustomNamedProviderRejectsCustomType(t *testing.T) {
 	newAuthTest(t)
 	rootCmd.SetArgs([]string{

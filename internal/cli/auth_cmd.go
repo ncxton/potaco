@@ -94,7 +94,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return tui.RunAuthAdd(providerName)
 	}
 
-	providerType, err := resolveAuthProviderType(providerName, providerTypeFlag)
+	providerType, err := resolveAuthProviderType(providerName, providerTypeFlag, cfg)
 	if err != nil {
 		return configError(err)
 	}
