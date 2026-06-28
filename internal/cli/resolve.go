@@ -18,9 +18,11 @@ import (
 // for dry-run output, which prints the full endpoint URL without calling
 // the adapter.
 type resolvedConfig struct {
-	Adapter adapter.Adapter
-	Model   string
-	BaseURL string
+	Adapter      adapter.Adapter
+	ProviderName string
+	Model        string
+	BaseURL      string
+	ModelCanEdit bool
 }
 
 // resolveAdapterForCommand resolves the active provider, credential, and
@@ -94,9 +96,11 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	}
 
 	return &resolvedConfig{
-		Adapter: ad,
-		Model:   model,
-		BaseURL: baseURL,
+		Adapter:      ad,
+		ProviderName: providerName,
+		Model:        model,
+		BaseURL:      baseURL,
+		ModelCanEdit: modelEditCapable(cfg, providerName, model),
 	}, nil
 }
 
@@ -177,6 +181,18 @@ func resolveBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiPr
 		return preset.BaseURL
 	}
 	return ""
+}
+
+func modelEditCapable(cfg *config.MultiProviderConfig, providerName, model string) bool {
+	if cfg == nil || model == "" {
+		return false
+	}
+	pc, ok := cfg.Providers[providerName]
+	if !ok {
+		return false
+	}
+	mc, ok := pc.Models[model]
+	return ok && mc.Edit
 }
 
 func resolveRetriesTimeout(cmd *cobra.Command, cfg *config.MultiProviderConfig, providerName string) (int, time.Duration, error) {

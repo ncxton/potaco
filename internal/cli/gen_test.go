@@ -197,12 +197,12 @@ func setupAuthProvider(t *testing.T, apiKey string) {
 	var buf bytes.Buffer
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
-	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", apiKey, "--force"})
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", apiKey, "--force", "--model", "gpt-image-2"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add: %v", err)
 	}
 	resetAuthAddFlags(t)
-	resetRootCmdFlags(t)
+	markActiveModelEdit(t, true)
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
 }
@@ -226,9 +226,25 @@ func setupAuthProviderForProvider(t *testing.T, providerName, apiKey, model stri
 	}
 
 	resetAuthAddFlags(t)
-	resetRootCmdFlags(t)
+	markActiveModelEdit(t, true)
 	rootCmd.SetOut(&buf)
 	rootCmd.SetErr(&buf)
+}
+
+func markActiveModelEdit(t *testing.T, edit bool) {
+	t.Helper()
+	value := "false"
+	if edit {
+		value = "true"
+	}
+	resetRootCmdFlags(t)
+	resetConfigSetFlags(t)
+	rootCmd.SetArgs([]string{"config", "set", "model.edit", value})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("setup model edit capability: %v", err)
+	}
+	resetConfigSetFlags(t)
+	resetRootCmdFlags(t)
 }
 
 func TestGenDryRunFalProvider(t *testing.T) {

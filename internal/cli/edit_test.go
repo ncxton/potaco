@@ -142,6 +142,38 @@ func TestEditDryRunInpaintRect(t *testing.T) {
 	}
 }
 
+func TestEditRequiresConfiguredEditableModel(t *testing.T) {
+	resetRootCmdFlags(t)
+	resetEditCmdFlags(t)
+	t.Cleanup(func() { resetEditCmdFlags(t) })
+	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
+
+	rootCmd.SetArgs([]string{"config", "set", "model.edit", "false"})
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("config set model.edit: %v", err)
+	}
+	resetRootCmdFlags(t)
+	resetConfigSetFlags(t)
+	resetEditCmdFlags(t)
+
+	dir := t.TempDir()
+	imgPath := filepath.Join(dir, "source.png")
+	createTestPNG(t, imgPath, 50, 50)
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetErr(&buf)
+	rootCmd.SetArgs([]string{"edit", "--prompt", "make it blue", "--image", imgPath, "--dry-run"})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("edit should reject a model not configured as edit capable")
+	}
+	if !strings.Contains(err.Error(), "edit capable") {
+		t.Fatalf("error = %v, want edit capable", err)
+	}
+}
+
 func TestEditMissingImageFile(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
@@ -324,6 +356,7 @@ func TestEditOutpaintUsesExpandedCanvasSize(t *testing.T) {
 		t.Fatalf("setup auth add custom: %v", err)
 	}
 	resetAuthAddFlags(t)
+	markActiveModelEdit(t, true)
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
 
@@ -418,11 +451,12 @@ func TestEditCleansGeneratedMaskDirAfterUpload(t *testing.T) {
 	var setupBuf bytes.Buffer
 	rootCmd.SetOut(&setupBuf)
 	rootCmd.SetErr(&setupBuf)
-	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force"})
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-test", "--force", "--model", "gpt-image-2"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add: %v", err)
 	}
 	resetAuthAddFlags(t)
+	markActiveModelEdit(t, true)
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
 
@@ -494,11 +528,12 @@ func TestEditWithAuthCredentials(t *testing.T) {
 	var setupBuf bytes.Buffer
 	rootCmd.SetOut(&setupBuf)
 	rootCmd.SetErr(&setupBuf)
-	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-from-auth", "--force"})
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-from-auth", "--force", "--model", "gpt-image-2"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add: %v", err)
 	}
 	resetAuthAddFlags(t)
+	markActiveModelEdit(t, true)
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
 
@@ -568,11 +603,12 @@ func TestEditWithBaseUrlOverride(t *testing.T) {
 	var setupBuf bytes.Buffer
 	rootCmd.SetOut(&setupBuf)
 	rootCmd.SetErr(&setupBuf)
-	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-stored", "--force"})
+	rootCmd.SetArgs([]string{"auth", "add", "openai", "--api-key", "sk-stored", "--force", "--model", "gpt-image-2"})
 	if err := rootCmd.Execute(); err != nil {
 		t.Fatalf("setup auth add: %v", err)
 	}
 	resetAuthAddFlags(t)
+	markActiveModelEdit(t, true)
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
 
@@ -692,6 +728,7 @@ func TestEditDryRunCustomProviderJSONContentType(t *testing.T) {
 		t.Fatalf("setup auth add custom: %v", err)
 	}
 	resetAuthAddFlags(t)
+	markActiveModelEdit(t, true)
 	resetRootCmdFlags(t)
 	resetEditCmdFlags(t)
 
