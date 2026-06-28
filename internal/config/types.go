@@ -17,7 +17,12 @@ type ProviderConfig struct {
 // with separate credentials and an active provider/model selector.
 type MultiProviderConfig struct {
 	SchemaVersion  int                       `yaml:"schema_version,omitempty"`
+	AutoUpdate     *bool                     `yaml:"auto_update,omitempty"`
 	ActiveProvider string                    `yaml:"active_provider"`
 	ActiveModel    string                    `yaml:"active_model"`
 	Providers      map[string]ProviderConfig `yaml:"providers"`
+}
+
+func (c *MultiProviderConfig) AutoUpdateEnabled() bool {
+	return c == nil || c.AutoUpdate == nil || *c.AutoUpdate
 }

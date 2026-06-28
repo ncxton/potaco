@@ -75,6 +75,26 @@ func TestLoadMultiProviderMissingFile(t *testing.T) {
 	}
 }
 
+func TestAutoUpdateDefaultsEnabledWhenMissing(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(`
+active_provider: openai
+providers:
+  openai:
+    model: gpt-image-2
+`), 0600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadMultiProvider(path)
+	if err != nil {
+		t.Fatalf("LoadMultiProvider: %v", err)
+	}
+	if !cfg.AutoUpdateEnabled() {
+		t.Fatal("missing auto_update should read as enabled")
+	}
+}
+
 func TestLoadMultiProviderTypeRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
