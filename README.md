@@ -293,7 +293,7 @@ providers:
     timeout: 120
 ```
 
-The `base_url` field is optional and overrides the preset URL for a provider. It is required for the `custom` provider because there is no preset base URL.
+The `base_url` field is optional for built-in provider names (`openai`, `fal`, `vercel`) and overrides their preset URL. It is required for any other provider name, including `custom` and aliases that use a built-in adapter type.
 
 API keys are stored separately in `~/.potaco/credentials.enc`, encrypted with a machine-derived key.
 Update check metadata is stored separately in `~/.potaco/.potaco.json`.
@@ -305,14 +305,14 @@ Update check metadata is stored separately in `~/.potaco/.potaco.json`.
 | `POTACO_PROVIDER` | Active provider name (e.g., `openai`, `fal`, `vercel`, `custom`) |
 | `POTACO_API_KEY` | API key for the active provider |
 | `POTACO_MODEL` | Default model for the active provider |
-| `POTACO_BASE_URL` | Override the provider's base URL (required for `custom`) |
+| `POTACO_BASE_URL` | Override the provider's base URL (required for `custom` and provider aliases) |
 | `POTACO_RETRIES` | Max retry attempts |
 | `POTACO_TIMEOUT` | Request timeout in seconds (e.g., `120`) |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to disable TUI flows for agents and automated terminal execution; not a polished scripting API |
 
 **Supported providers:**
 
-The known providers below ship with preset base URLs. The `custom` provider is also supported for any OpenAI-compatible endpoint, but it has no preset and requires `--base-url` or `base_url` in config.
+The known provider names below ship with preset base URLs. Any other auth name, including `custom` and aliases using a built-in adapter type, requires `--base-url` or `base_url` in config.
 
 | Provider | Auth Type | Edit Support |
 |----------|-----------|--------------|

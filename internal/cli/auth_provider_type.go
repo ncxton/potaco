@@ -4,15 +4,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ncxton/potaco/internal/config"
 	"github.com/spf13/cobra"
 )
 
-func resolveAuthProviderType(providerName, providerType string) (string, error) {
+func resolveAuthProviderType(providerName, providerType string, cfg *config.MultiProviderConfig) (string, error) {
 	if providerType != "" {
 		if isAllowedAuthProviderType(providerType) {
 			return providerType, nil
 		}
 		return "", fmt.Errorf("unknown provider type: %s", providerType)
+	}
+	if cfg != nil {
+		if pc, ok := cfg.Providers[providerName]; ok && pc.Type != "" {
+			return pc.Type, nil
+		}
 	}
 	if providerName == "custom" {
 		return "openai-compatible", nil

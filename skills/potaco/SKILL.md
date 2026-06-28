@@ -49,7 +49,7 @@ Preferred user-run credential setup:
 potaco auth add <provider>
 ```
 
-Available providers: `openai`, `fal`, `vercel`, `custom`. `custom` setup also prompts for base URL. If no provider is configured, launch auth only when the user explicitly asks you to start that flow; otherwise instruct them to run it themselves.
+Available built-in providers: `openai`, `fal`, `vercel`, `custom`. `custom` and non-built-in provider names also prompt for base URL. If no provider is configured, launch auth only when the user explicitly asks you to start that flow; otherwise instruct them to run it themselves.
 
 ## On-demand references
 

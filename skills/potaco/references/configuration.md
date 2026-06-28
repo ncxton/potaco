@@ -38,9 +38,9 @@ There is no provider preset model. Use `potaco models` or `potaco config set mod
 2. `POTACO_BASE_URL` env var
 3. `base_url` from the provider config in config file
 4. Provider preset default (openai: `https://api.openai.com/v1`, fal: `https://fal.run`, vercel: `https://ai-gateway.vercel.sh/v1`)
-5. Empty (custom provider has no preset; error if not configured)
+5. Empty (custom and non-built-in provider aliases have no usable setup preset; error if not configured)
 
-For `custom`, the base URL is required during setup, then persisted. Confirm remote custom endpoints are trusted before saving.
+For `custom` and any non-built-in provider name, the base URL is required during setup, then persisted. Confirm remote custom or alias endpoints are trusted before saving.
 
 ### Retries
 
@@ -63,7 +63,7 @@ For `custom`, the base URL is required during setup, then persisted. Confirm rem
 | `POTACO_API_KEY` | Override stored API key; avoid unless explicitly approved |
 | `POTACO_PROVIDER` | Override active provider |
 | `POTACO_MODEL` | Override active model |
-| `POTACO_BASE_URL` | Override API base URL (required for custom provider) |
+| `POTACO_BASE_URL` | Override API base URL (required for custom and non-built-in provider setup) |
 | `POTACO_RETRIES` | Override retry count |
 | `POTACO_TIMEOUT` | Override timeout in seconds |
 | `POTACO_NON_INTERACTIVE` | Set to `1` to force non-interactive mode for agents and automated terminal execution |
@@ -97,7 +97,7 @@ providers:
     timeout: 120
 ```
 
-`auto_update` defaults to enabled when omitted. `base_url` is optional for built-ins and required for `custom`. `timeout` is integer seconds.
+`auto_update` defaults to enabled when omitted. `base_url` is optional for built-in provider names and required for `custom` or non-built-in aliases. `timeout` is integer seconds.
 
 ### Config commands
 

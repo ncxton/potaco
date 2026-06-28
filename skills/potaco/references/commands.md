@@ -57,6 +57,8 @@ potaco status
 potaco status --json
 ```
 
+Built-in names (`openai`, `fal`, `vercel`) use preset base URLs. Any other auth name, including aliases using `--type openai`, `--type fal`, or `--type vercel`, must include `--base-url` or have `base_url` in config.
+
 ## Generate
 
 ```sh

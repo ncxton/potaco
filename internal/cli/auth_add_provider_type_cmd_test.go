@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/ncxton/potaco/internal/auth"
+	"github.com/ncxton/potaco/internal/config"
 )
 
 func TestAuthAddCustomNamedProviderRequiresType(t *testing.T) {
@@ -56,6 +58,93 @@ func TestAuthAddCustomNamedProviderWithTypeAndBaseURL(t *testing.T) {
 	}
 }
 
+func TestAuthAddAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
+	tests := []string{"openai", "fal", "vercel"}
+	for _, providerType := range tests {
+		t.Run(providerType, func(t *testing.T) {
+			newAuthTest(t)
+			rootCmd.SetArgs([]string{
+				"auth", "add", "staging-" + providerType,
+				"--type", providerType,
+				"--api-key", "sk-test",
+				"--force",
+				"--non-interactive",
+			})
+
+			err := rootCmd.Execute()
+			if err == nil {
+				t.Fatal("expected error for missing alias base URL")
+			}
+			if !strings.Contains(err.Error(), "base URL") {
+				t.Fatalf("error = %v, want base URL", err)
+			}
+		})
+	}
+}
+
+func TestAuthAddAliasWithConfiguredBuiltInTypeRequiresExplicitBaseURL(t *testing.T) {
+	home, _ := newAuthTest(t)
+	writeMultiProviderConfig(t, filepath.Join(home, ".potaco", "config.yaml"), &config.MultiProviderConfig{
+		Providers: map[string]config.ProviderConfig{
+			"staging-openai": {Type: "openai", Model: "gpt-image-2"},
+		},
+	})
+	rootCmd.SetArgs([]string{
+		"auth", "add", "staging-openai",
+		"--type", "openai",
+		"--api-key", "sk-test",
+		"--force",
+		"--non-interactive",
+	})
+
+	err := rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing alias base URL")
+	}
+	if !strings.Contains(err.Error(), "base URL") {
+		t.Fatalf("error = %v, want base URL", err)
+	}
+}
+
+func TestAuthAddAliasReusesConfiguredProviderType(t *testing.T) {
+	home, _ := newAuthTest(t)
+	writeMultiProviderConfig(t, filepath.Join(home, ".potaco", "config.yaml"), &config.MultiProviderConfig{
+		Providers: map[string]config.ProviderConfig{
+			"staging-openai": {
+				Type:    "openai",
+				Model:   "gpt-image-2",
+				BaseURL: "https://staging.example.com/v1",
+			},
+		},
+	})
+	rootCmd.SetArgs([]string{
+		"auth", "add", "staging-openai",
+		"--api-key", "sk-test",
+		"--force",
+		"--non-interactive",
+	})
+
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("auth add configured alias: %v", err)
+	}
+
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("create auth manager: %v", err)
+	}
+	cfg, err := mgr.LoadConfig()
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+	pc := cfg.Providers["staging-openai"]
+	if pc.Type != "openai" {
+		t.Fatalf("provider type = %q, want openai", pc.Type)
+	}
+	if pc.BaseURL != "https://staging.example.com/v1" {
+		t.Fatalf("base URL = %q, want existing base URL", pc.BaseURL)
+	}
+}
+
 func TestAuthAddCustomNamedProviderRejectsCustomType(t *testing.T) {
 	newAuthTest(t)
 	rootCmd.SetArgs([]string{
@@ -102,6 +191,30 @@ func TestShouldRunInteractiveAuthAdd(t *testing.T) {
 			name:             "openai-compatible provider without base URL prompts in interactive mode",
 			providerName:     "openrouter",
 			providerTypeFlag: "openai-compatible",
+			apiKey:           "sk-test",
+			interactive:      true,
+			want:             true,
+		},
+		{
+			name:             "openai alias without base URL prompts in interactive mode",
+			providerName:     "staging-openai",
+			providerTypeFlag: "openai",
+			apiKey:           "sk-test",
+			interactive:      true,
+			want:             true,
+		},
+		{
+			name:             "fal alias without base URL prompts in interactive mode",
+			providerName:     "staging-fal",
+			providerTypeFlag: "fal",
+			apiKey:           "sk-test",
+			interactive:      true,
+			want:             true,
+		},
+		{
+			name:             "vercel alias without base URL prompts in interactive mode",
+			providerName:     "staging-vercel",
+			providerTypeFlag: "vercel",
 			apiKey:           "sk-test",
 			interactive:      true,
 			want:             true,

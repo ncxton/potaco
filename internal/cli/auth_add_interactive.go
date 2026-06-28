@@ -1,5 +1,7 @@
 package cli
 
+import "github.com/ncxton/potaco/internal/config"
+
 type authAddInteractiveInput struct {
 	providerName     string
 	providerTypeFlag string
@@ -24,5 +26,9 @@ func shouldRunInteractiveAuthAdd(input authAddInteractiveInput) bool {
 	if input.apiKey == "" {
 		return true
 	}
-	return (input.providerTypeFlag == "openai-compatible" || input.providerName == "custom") && input.baseURL == ""
+	return authAddRequiresBaseURL(input.providerName, input.providerTypeFlag) && input.baseURL == ""
+}
+
+func authAddRequiresBaseURL(providerName, providerType string) bool {
+	return config.ProviderRequiresBaseURL(providerName, providerType)
 }

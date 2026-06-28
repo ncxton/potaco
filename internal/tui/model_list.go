@@ -58,7 +58,7 @@ func runModelListWithPicker(providerName, apiKey, baseURL string, picker modelPi
 		}
 	}
 	providerType := config.ResolveProviderType(providerName, pc)
-	if providerType == "openai-compatible" && baseURL == "" {
+	if config.ProviderRequiresBaseURL(providerName, providerType) && baseURL == "" {
 		return fmt.Errorf("base URL required for provider %s", providerName)
 	}
 

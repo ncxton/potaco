@@ -82,6 +82,18 @@ func ResolveProviderType(providerName string, pc ProviderConfig) string {
 	return providerName
 }
 
+func ProviderRequiresBaseURL(providerName, providerType string) bool {
+	if providerType == "openai-compatible" || providerName == "custom" {
+		return true
+	}
+	switch providerName {
+	case "openai", "fal", "vercel":
+		return false
+	default:
+		return true
+	}
+}
+
 func AdapterType(providerType string) string {
 	if providerType == "openai-compatible" {
 		return "custom"

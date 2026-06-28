@@ -438,6 +438,32 @@ func TestModelsListUsesBaseURLFromConfig(t *testing.T) {
 	}
 }
 
+func TestModelsListAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	resetRootCmdFlags(t)
+	resetModelsCmdFlags(t)
+	t.Cleanup(func() { resetModelsCmdFlags(t) })
+
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("init auth: %v", err)
+	}
+	if err := mgr.AddProvider("openrouter", "openai", "sk-test"); err != nil {
+		t.Fatalf("add provider: %v", err)
+	}
+
+	var buf bytes.Buffer
+	rootCmd.SetOut(&buf)
+	rootCmd.SetArgs([]string{"models", "list", "openrouter"})
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected error for missing alias base URL")
+	}
+	if !strings.Contains(err.Error(), "base URL") {
+		t.Fatalf("error = %v, want base URL", err)
+	}
+}
+
 func TestModelsDiscoveryError(t *testing.T) {
 	setupAuthProviderForProvider(t, "openai", "sk-test", "gpt-image-2")
 	resetModelsCmdFlags(t)
