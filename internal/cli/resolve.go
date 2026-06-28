@@ -30,7 +30,7 @@ type resolvedConfig struct {
 //	--provider flag > POTACO_PROVIDER env > active_provider from config
 //	--api-key flag  > POTACO_API_KEY env  > credential store
 //	--model flag    > POTACO_MODEL env   > provider model from config > active_model from config
-//	--base-url flag > POTACO_BASE_URL env > config.providers[provider].base_url > provider preset
+//	--base-url flag > POTACO_BASE_URL env > config.providers[provider].base_url > built-in provider preset
 func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 	mgr, err := auth.New()
 	if err != nil {
@@ -68,9 +68,9 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		return nil, err
 	}
 
-	if providerType == "openai-compatible" && baseURL == "" {
+	if authAddRequiresBaseURL(providerName, providerType) && baseURL == "" {
 		return nil, configUserErr(
-			"A base URL is required for OpenAI-compatible providers.",
+			"A base URL is required for this provider.",
 			fmt.Sprintf("Use --base-url, set POTACO_BASE_URL, or run 'potaco config set providers.%s.base_url <url>'.", providerName),
 			fmt.Errorf("base URL required for provider %s", providerName),
 		)
@@ -166,16 +166,14 @@ func resolveBaseURL(cmd *cobra.Command, providerName string, cfg *config.MultiPr
 	if v := os.Getenv("POTACO_BASE_URL"); v != "" {
 		return strings.TrimRight(v, "/")
 	}
-	providerType := providerName
 	if cfg != nil {
 		if pc, ok := cfg.Providers[providerName]; ok {
 			if pc.BaseURL != "" {
 				return strings.TrimRight(pc.BaseURL, "/")
 			}
-			providerType = config.ResolveProviderType(providerName, pc)
 		}
 	}
-	if preset, ok := getProviderPreset(config.AdapterType(providerType)); ok {
+	if preset, ok := getProviderPreset(providerName); ok {
 		return preset.BaseURL
 	}
 	return ""

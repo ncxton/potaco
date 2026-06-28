@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -10,7 +9,7 @@ import (
 	"github.com/ncxton/potaco/internal/config"
 )
 
-func TestGenDryRunUsesPresetBaseURLWhenProviderTypeIsBuiltIn(t *testing.T) {
+func TestGenDryRunAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
 	resetRootCmdFlags(t)
 	resetAuthAddFlags(t)
 	resetGenCmdFlags(t)
@@ -46,17 +45,13 @@ func TestGenDryRunUsesPresetBaseURLWhenProviderTypeIsBuiltIn(t *testing.T) {
 		t.Fatalf("add provider: %v", err)
 	}
 
-	var buf bytes.Buffer
-	rootCmd.SetOut(&buf)
-	rootCmd.SetErr(&buf)
 	rootCmd.SetArgs([]string{"gen", "--prompt", "test", "--dry-run"})
 
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute: %v", err)
+	err = rootCmd.Execute()
+	if err == nil {
+		t.Fatal("expected base URL error")
 	}
-
-	output := buf.String()
-	if !strings.Contains(output, "api.openai.com/v1/images/generations") {
-		t.Fatalf("dry-run URL = %s, want OpenAI preset generations endpoint", output)
+	if !strings.Contains(err.Error(), "base URL") {
+		t.Fatalf("error = %v, want base URL", err)
 	}
 }
