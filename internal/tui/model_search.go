@@ -13,7 +13,6 @@ import (
 var (
 	modelTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("42"))
 	modelFocusStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
-	modelBadgeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
 	modelMutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	modelEmptyStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("203"))
 )
