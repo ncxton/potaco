@@ -202,6 +202,27 @@ func (m *AuthManager) SetBaseURL(provider, baseURL string) error {
 	return m.saveConfig(cfg)
 }
 
+func (m *AuthManager) SetModelEdit(provider, model string, edit bool) error {
+	cfg, err := m.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	pc, ok := cfg.Providers[provider]
+	if !ok {
+		return fmt.Errorf("provider %q is not configured. Use 'potaco auth add %s' first", provider, provider)
+	}
+	if pc.Models == nil {
+		pc.Models = make(map[string]config.ModelConfig)
+	}
+	mc := pc.Models[model]
+	mc.Edit = edit
+	pc.Models[model] = mc
+	cfg.Providers[provider] = pc
+
+	return m.saveConfig(cfg)
+}
+
 // GetActiveAPIKey returns the API key for the active provider.
 func (m *AuthManager) GetActiveAPIKey() (string, error) {
 	cfg, err := m.LoadConfig()
