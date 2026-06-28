@@ -156,15 +156,7 @@ func ensureProviderType(providerName string) (string, error) {
 // promptBaseURL prompts for a base URL when the provider type requires one.
 // For other providers it returns an empty string.
 func authAddRequiresBaseURL(providerName, providerType string) bool {
-	if providerType == "openai-compatible" || providerName == "custom" {
-		return true
-	}
-	switch providerName {
-	case "openai", "fal", "vercel":
-		return false
-	default:
-		return true
-	}
+	return config.ProviderRequiresBaseURL(providerName, providerType)
 }
 
 func promptBaseURL(providerName, providerType string) (string, error) {

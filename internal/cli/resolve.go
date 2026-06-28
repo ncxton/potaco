@@ -68,7 +68,7 @@ func resolveAdapterForCommand(cmd *cobra.Command) (*resolvedConfig, error) {
 		return nil, err
 	}
 
-	if authAddRequiresBaseURL(providerName, providerType) && baseURL == "" {
+	if config.ProviderRequiresBaseURL(providerName, providerType) && baseURL == "" {
 		return nil, configUserErr(
 			"A base URL is required for this provider.",
 			fmt.Sprintf("Use --base-url, set POTACO_BASE_URL, or run 'potaco config set providers.%s.base_url <url>'.", providerName),

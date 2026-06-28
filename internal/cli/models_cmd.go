@@ -116,9 +116,9 @@ func resolveModelsProvider(cmd *cobra.Command, args []string) (resolvedModelsPro
 	}
 	providerType := config.ResolveProviderType(providerName, pc)
 	baseURL := resolveBaseURL(cmd, providerName, cfg)
-	if providerType == "openai-compatible" && baseURL == "" {
+	if config.ProviderRequiresBaseURL(providerName, providerType) && baseURL == "" {
 		return resolvedModelsProvider{}, configUserErr(
-			"A base URL is required for OpenAI-compatible providers.",
+			"A base URL is required for this provider.",
 			fmt.Sprintf("Use --base-url, set POTACO_BASE_URL, or run 'potaco config set providers.%s.base_url <url>'.", providerName),
 			fmt.Errorf("base URL required for provider %s", providerName),
 		)

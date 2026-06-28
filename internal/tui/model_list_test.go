@@ -222,6 +222,30 @@ func TestRunModelListUsesBaseURLFromConfig(t *testing.T) {
 	}
 }
 
+func TestRunModelListAliasWithBuiltInTypeRequiresBaseURL(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	mgr, err := auth.New()
+	if err != nil {
+		t.Fatalf("init auth: %v", err)
+	}
+	if err := mgr.AddProvider("openrouter", "openai", "sk-test"); err != nil {
+		t.Fatalf("add provider: %v", err)
+	}
+
+	mockPicker := func(providerName string, models []adapter.Model) (string, error) {
+		t.Fatal("picker should not be called without a base URL")
+		return "", nil
+	}
+
+	err = runModelListWithPicker("openrouter", "sk-test", "", mockPicker)
+	if err == nil {
+		t.Fatal("expected error for missing alias base URL")
+	}
+	if !strings.Contains(err.Error(), "base URL") {
+		t.Fatalf("error = %v, want base URL", err)
+	}
+}
+
 func TestRunModelListDiscoveryError(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	mgr, err := auth.New()
